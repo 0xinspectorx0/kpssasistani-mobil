@@ -1,16 +1,18 @@
+import { useContent } from '../lib/content';
 import React, { useState } from 'react';
 import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { Card, PrimaryButton, SectionTitle } from '../components/ui';
-import { CATEGORY_LIST, QUESTIONS } from '../lib/data';
+import { CATEGORY_LIST } from '../lib/data';
 import { radius } from '../lib/theme';
 
 const COUNTS = [5, 10, 20];
 
 export default function QuizSetupScreen({ navigation, route }: any) {
   const { theme } = useApp();
+  const { questions: QUESTIONS } = useContent();
   const [selectedCat, setSelectedCat] = useState<string>(route?.params?.categoryId ?? 'mixed');
   const [count, setCount] = useState(10);
 
@@ -124,7 +126,8 @@ export default function QuizSetupScreen({ navigation, route }: any) {
 
             <View style={{ marginTop: 18, marginBottom: 12 }}>
               <PrimaryButton
-                label="Teste Başla"
+                label={questionCount ? `Teste Başla (${Math.min(count, questionCount)} soru)` : "Henüz yayında soru yok"}
+                disabled={questionCount === 0}
                 icon="play"
                 onPress={() =>
                   navigation.navigate('Quiz', {

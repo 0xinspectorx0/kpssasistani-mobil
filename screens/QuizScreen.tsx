@@ -1,14 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useContent } from '../lib/content';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../lib/store';
 import { Card, ProgressBar } from '../components/ui';
-import { CATEGORY_LIST, QUESTIONS, QuizQuestion, questionOfDay } from '../lib/data';
+import { CATEGORY_LIST, QuizQuestion, questionOfDay } from '../lib/data';
 import { radius } from '../lib/theme';
 
-const LETTERS = ['A', 'B', 'C', 'D'];
+const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -21,10 +22,12 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function QuizScreen({ navigation, route }: any) {
   const { theme, addQuizResult, toggleFavorite, favorites } = useApp();
+  const { questions: QUESTIONS } = useContent();
   const { mode = 'mixed', categoryId, count = 10, reviewIds } = route?.params ?? {};
 
-  const questions: QuizQuestion[] = useMemo(() => {
-    if (mode === 'qod') return [questionOfDay()];
+  // Freeze the published question set at test start; background refresh must not alter answers.
+  const [questions] = useState<QuizQuestion[]>(() => {
+    if (mode === 'qod') { const daily = questionOfDay(QUESTIONS); return daily ? [daily] : []; }
     if (mode === 'favorites') {
       const favs = QUESTIONS.filter((q) => favorites.includes(q.id));
       return shuffle(favs).slice(0, Math.max(1, Math.min(count, favs.length)));
@@ -34,7 +37,7 @@ export default function QuizScreen({ navigation, route }: any) {
     }
     const pool = mode === 'category' && categoryId ? QUESTIONS.filter((q) => q.category === categoryId) : QUESTIONS;
     return shuffle(pool).slice(0, Math.min(count, pool.length));
-  }, []);
+  });
 
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>(() => questions.map(() => null));

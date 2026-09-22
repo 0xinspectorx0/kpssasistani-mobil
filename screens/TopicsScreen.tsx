@@ -1,13 +1,15 @@
+import { useContent } from '../lib/content';
 import React, { useState } from 'react';
 import { FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { Card, Chip, EmptyState, SectionTitle } from '../components/ui';
-import { LESSONS } from '../lib/data';
+
 
 export default function TopicsScreen({ navigation }: any) {
   const { theme, completedTopics, toggleTopic } = useApp();
+  const { lessons: LESSONS } = useContent();
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<string | null>('turkce');
 
@@ -17,7 +19,8 @@ export default function TopicsScreen({ navigation }: any) {
   })).filter((l) => l.topics.length > 0 || query === '');
 
   const total = LESSONS.reduce((s, l) => s + l.topics.length, 0);
-  const done = completedTopics.length;
+  const topicIds = new Set(LESSONS.flatMap(l => l.topics.map(t => t.id)));
+  const done = completedTopics.filter(id => topicIds.has(id)).length;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>

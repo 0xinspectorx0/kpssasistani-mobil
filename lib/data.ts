@@ -86,7 +86,7 @@ export const QUESTIONS: QuizQuestion[] = [
 ];
 
 export interface TopicLesson {
-  id: string;
+  id: CategoryId;
   name: string;
   icon: string;
   color: string;
@@ -290,9 +290,9 @@ export function dayKey(d: Date = new Date()): string {
   return d.getFullYear() + '-' + m + '-' + day;
 }
 
-export function questionOfDay(): QuizQuestion {
+export function questionOfDay(pool: QuizQuestion[] = QUESTIONS): QuizQuestion | undefined {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
-  return QUESTIONS[dayOfYear % QUESTIONS.length];
+  return pool.length ? pool[dayOfYear % pool.length] : undefined;
 }

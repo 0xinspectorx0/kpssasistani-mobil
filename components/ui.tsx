@@ -212,20 +212,25 @@ export function PrimaryButton({
   onPress,
   icon,
   color,
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   icon?: string;
   color?: string;
+  disabled?: boolean;
 }) {
   const { theme } = useApp();
   const bg = color ?? theme.accent;
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
+      accessibilityState={{ disabled }}
       activeOpacity={0.85}
       style={{
         backgroundColor: bg,
+        opacity: disabled ? 0.5 : 1,
         borderRadius: radius.md,
         paddingVertical: 14,
         paddingHorizontal: 18,

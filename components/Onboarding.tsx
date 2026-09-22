@@ -1,12 +1,14 @@
+import { useContent } from '../lib/content';
 import React, { useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
-import { TARGET_EXAMS } from '../lib/data';
+
 import { radius } from '../lib/theme';
 
 export default function OnboardingModal({ visible, onDone }: { visible: boolean; onDone: () => void }) {
   const { theme, setName, setTargetExamId } = useApp();
+  const { targets: TARGET_EXAMS } = useContent();
   const [step, setStep] = useState(0);
   const [name, setNameLocal] = useState('');
   const [exam, setExam] = useState<string | null>(null);

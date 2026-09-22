@@ -1,10 +1,11 @@
+import { useContent } from '../lib/content';
 import React, { useState } from 'react';
 import { Linking, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { Card, Chip, ProgressBar, SectionTitle } from '../components/ui';
-import { EXAM_EVENTS, TABAN_PUANLAR, daysUntil, formatDateTR } from '../lib/data';
+import { daysUntil, formatDateTR } from '../lib/data';
 import { radius } from '../lib/theme';
 
 const TYPE_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -126,6 +127,7 @@ function ScoreCalculator() {
 }
 
 function TabanPuanlar() {
+  const { scores: TABAN_PUANLAR } = useContent();
   const { theme } = useApp();
   const [level, setLevel] = useState<'lisans' | 'onlisans' | 'ortaogretim'>('lisans');
   const [q, setQ] = useState('');
@@ -182,6 +184,7 @@ function TabanPuanlar() {
 }
 
 export default function ToolsScreen() {
+  const { events: EXAM_EVENTS } = useContent();
   const { theme } = useApp();
   const [tab, setTab] = useState<'takvim' | 'puan' | 'taban'>('takvim');
 
