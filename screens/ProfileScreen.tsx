@@ -1,10 +1,11 @@
+import { useContent } from '../lib/content';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { Card, EmptyState, PrimaryButton, ProgressBar, SectionTitle, StatTile } from '../components/ui';
-import { CATEGORY_LIST, LESSONS, QUESTIONS, TARGET_EXAMS } from '../lib/data';
+import { CATEGORY_LIST } from '../lib/data';
 import { radius } from '../lib/theme';
 
 export default function ProfileScreen({ navigation }: any) {
@@ -13,10 +14,13 @@ export default function ProfileScreen({ navigation }: any) {
     streak, totalQuestions, totalCorrect, accuracy, totalSeconds, themeChoice, setThemeChoice,
     completedTopics, resetAll, activityDates,
   } = useApp();
+  const { questions: QUESTIONS, lessons: LESSONS, targets: TARGET_EXAMS } = useContent();
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(name);
 
+  const availableTopicIds = new Set(LESSONS.flatMap(l => l.topics.map(t => t.id)));
+  const completedCount = completedTopics.filter(id => availableTopicIds.has(id)).length;
   const totalTopics = LESSONS.reduce((s, l) => s + l.topics.length, 0);
   const favQuestions = QUESTIONS.filter((q) => favorites.includes(q.id));
 
@@ -156,9 +160,9 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={{ flexDirection: 'row', marginTop: 10 }}>
             <StatTile icon="flame" iconColor="#EA580C" value={String(streak)} label="Günlük seri" />
             <View style={{ width: 10 }} />
-            <StatTile icon="book" iconColor="#2563EB" value={`${completedTopics.length}/${totalTopics}`} label="Tamamlanan konu" />
+            <StatTile icon="book" iconColor="#2563EB" value={`${completedCount}/${totalTopics}`} label="Tamamlanan konu" />
             <View style={{ width: 10 }} />
-            <StatTile icon="star" iconColor={theme.warning} value={String(favorites.length)} label="Favori soru" />
+            <StatTile icon="star" iconColor={theme.warning} value={String(favQuestions.length)} label="Favori soru" />
           </View>
         </View>
 
@@ -301,6 +305,18 @@ export default function ProfileScreen({ navigation }: any) {
         {/* Settings */}
         <View style={{ marginTop: 14 }}>
           <SectionTitle title="Ayarlar" />
+          <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate('Admin')} activeOpacity={0.8} style={{ marginBottom: 12 }}>
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="shield-checkmark-outline" size={23} color={theme.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>Yönetici Paneli</Text>
+                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>Soru ve içerik yönetimi • Yetkili giriş</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.muted} />
+            </Card>
+          </TouchableOpacity>
           <Card>
             <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.text, marginBottom: 10 }}>Tema</Text>
             <View style={{ flexDirection: 'row' }}>

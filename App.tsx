@@ -20,6 +20,9 @@ import TopicsScreen from './screens/TopicsScreen';
 import NewsScreen from './screens/NewsScreen';
 import ToolsScreen from './screens/ToolsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AdminScreen from './screens/AdminScreen';
+import { AdminAuthProvider } from './lib/admin-auth';
+import { ContentProvider, useContent } from './lib/content';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -66,6 +69,7 @@ function Tabs() {
 
 function Root() {
   const { theme, mode, loaded } = useApp();
+  const { loaded: contentLoaded } = useContent();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checked, setChecked] = useState(false);
 
@@ -91,7 +95,7 @@ function Root() {
     },
   };
 
-  if (!loaded || !checked) {
+  if (!loaded || !checked || !contentLoaded) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={theme.accent} />
@@ -105,6 +109,7 @@ function Root() {
       <NavigationContainer theme={navTheme}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Main" component={Tabs} />
+          <Stack.Screen name="Admin" component={AdminScreen} />
           <Stack.Screen
             name="Quiz"
             component={QuizScreen}
@@ -129,7 +134,11 @@ export default function App() {
   if (!fontsLoaded) return null;
   return (
     <AppProvider>
-      <Root />
+      <AdminAuthProvider>
+        <ContentProvider>
+          <Root />
+        </ContentProvider>
+      </AdminAuthProvider>
     </AppProvider>
   );
 }

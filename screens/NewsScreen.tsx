@@ -1,10 +1,11 @@
+import { useContent } from '../lib/content';
 import React, { useState } from 'react';
 import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { Card, Chip, EmptyState } from '../components/ui';
-import { NEWS, NewsCategory } from '../lib/data';
+import { NewsCategory } from '../lib/data';
 
 const FILTERS: ('Tümü' | NewsCategory)[] = ['Tümü', 'Spor', 'Kültür-Sanat', 'Bilim', 'Kurumlar', 'Klasikler'];
 
@@ -18,6 +19,7 @@ const CAT_COLORS: Record<string, string> = {
 
 export default function NewsScreen({ navigation }: any) {
   const { theme } = useApp();
+  const { news: NEWS } = useContent();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tümü');
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
