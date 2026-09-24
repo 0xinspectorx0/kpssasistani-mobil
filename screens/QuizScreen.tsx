@@ -6,7 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../lib/store';
 import { Card, ProgressBar } from '../components/ui';
-import { CATEGORY_LIST, QuizQuestion, questionOfDay } from '../lib/data';
+import { QuizQuestion, questionOfDay } from '../lib/data';
+import { useCategoryList } from '../lib/lesson-catalog';
+import { useAdminAuth } from '../lib/admin-auth';
+import { planFor, dailyLimit, todayCount, consumeQuiz, quotaUserKey } from '../lib/membership';
 import { radius } from '../lib/theme';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -23,6 +26,9 @@ function shuffle<T>(arr: T[]): T[] {
 export default function QuizScreen({ navigation, route }: any) {
   const { theme, addQuizResult, toggleFavorite, favorites } = useApp();
   const { questions: QUESTIONS } = useContent();
+  const CATEGORY_LIST = useCategoryList();
+  const { session, role } = useAdminAuth();
+  const plan = planFor(role, !!session);
   const { mode = 'mixed', categoryId, count = 10, reviewIds } = route?.params ?? {};
 
   // Freeze the published question set at test start; background refresh must not alter answers.
@@ -44,12 +50,84 @@ export default function QuizScreen({ navigation, route }: any) {
   const [locked, setLocked] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [showExit, setShowExit] = useState(false);
+  const [quotaBlocked, setQuotaBlocked] = useState(false);
+  const [quotaUsed, setQuotaUsed] = useState(0);
   const timer = useRef<any>(null);
+
+  const quotaExempt = mode === 'qod';
+
+  useEffect(() => {
+    if (quotaExempt) return;
+    (async () => {
+      const userKey = quotaUserKey(session?.user.id, role);
+      const limit = dailyLimit(plan);
+      const used = await todayCount(userKey);
+      setQuotaUsed(used);
+      if (Number.isFinite(limit) && used >= limit) setQuotaBlocked(true);
+    })();
+  }, [session?.user.id, role, plan, quotaExempt]);
 
   useEffect(() => {
     timer.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer.current);
   }, []);
+
+  if (quotaBlocked) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: 42,
+            backgroundColor: theme.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <Ionicons name="lock-closed" size={38} color={theme.accent} />
+        </View>
+        <Text style={{ color: theme.text, fontWeight: '900', fontSize: 20, textAlign: 'center' }}>
+          Günlük test hakkın doldu
+        </Text>
+        <Text style={{ color: theme.muted, textAlign: 'center', lineHeight: 21, marginTop: 10 }}>
+          {plan === 'guest'
+            ? 'Misafirler günde 1 test çözebilir. Üye olup günde 3 test çözebilir, VIP ile sınırsız erişim sağlayabilirsin.'
+            : 'Üye planında günde 3 test çözebilirsin. VIP üyelik sınırsız test imkânı sunar.'}
+        </Text>
+        <View style={{ marginTop: 22, width: '100%', maxWidth: 320, gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.goBack();
+              navigation.navigate('Main', { screen: 'Profil' });
+            }}
+            style={{
+              backgroundColor: theme.accent,
+              borderRadius: radius.md,
+              paddingVertical: 14,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Üye Ol / Hesabıma Git</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              backgroundColor: theme.card,
+              borderRadius: radius.md,
+              paddingVertical: 14,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: theme.border,
+            }}
+          >
+            <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>Geri Dön</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (questions.length === 0) {
     return (
@@ -91,6 +169,9 @@ export default function QuizScreen({ navigation, route }: any) {
 
   const finish = () => {
     clearInterval(timer.current);
+    if (!quotaExempt) {
+      void consumeQuiz(quotaUserKey(session?.user.id, role), plan).catch(() => {});
+    }
     const total = questions.length;
     const correct = answers.filter((a, i) => a !== null && a === questions[i].answer).length;
     const label = mode === 'qod' ? 'Günün Sorusu' : mode === 'favorites' ? 'Favoriler' : mode === 'category' ? cat?.name ?? 'Test' : 'Karışık Test';

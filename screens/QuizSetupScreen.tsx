@@ -5,7 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { Card, PrimaryButton, SectionTitle } from '../components/ui';
-import { CATEGORY_LIST } from '../lib/data';
+import { useAdminAuth } from '../lib/admin-auth';
+import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META } from '../lib/membership';
+import { useCategoryList } from '../lib/lesson-catalog';
 import { radius } from '../lib/theme';
 
 const COUNTS = [5, 10, 20];
@@ -13,8 +15,17 @@ const COUNTS = [5, 10, 20];
 export default function QuizSetupScreen({ navigation, route }: any) {
   const { theme } = useApp();
   const { questions: QUESTIONS } = useContent();
+  const CATEGORY_LIST = useCategoryList();
+  const { session, role } = useAdminAuth();
+  const plan = planFor(role, !!session);
   const [selectedCat, setSelectedCat] = useState<string>(route?.params?.categoryId ?? 'mixed');
   const [count, setCount] = useState(10);
+  const [usedToday, setUsedToday] = useState(0);
+  React.useEffect(() => {
+    void todayCount(quotaUserKey(session?.user.id, role)).then(setUsedToday);
+  }, [session?.user.id, role]);
+  const limit = dailyLimit(plan);
+  const remaining = Number.isFinite(limit) ? Math.max(0, limit - usedToday) : null;
 
   const cats = [{ id: 'mixed', name: 'Karışık Test', icon: 'shuffle', color: theme.accent, desc: 'Tüm derslerden karma sorular' } as any, ...CATEGORY_LIST];
 
@@ -33,6 +44,40 @@ export default function QuizSetupScreen({ navigation, route }: any) {
             <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
               Dersini ve soru sayısını seç, hemen başla
             </Text>
+            <Card
+              style={{
+                marginTop: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                padding: 13,
+              } as any}
+            >
+              <Ionicons name={PLAN_META[plan].icon as any} size={22} color={PLAN_META[plan].color} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.text }}>
+                  {PLAN_META[plan].label} planı
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>
+                  {remaining === null
+                    ? 'Sınırsız test hakkı'
+                    : `Bugün kalan test hakkı: ${remaining} / ${limit}`}
+                </Text>
+              </View>
+              {remaining === 0 && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Profil')}
+                  style={{
+                    backgroundColor: theme.accent,
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Üye Ol</Text>
+                </TouchableOpacity>
+              )}
+            </Card>
 
             <View style={{ marginTop: 16 }}>
               <SectionTitle title="Ders Seç" subtitle={`${cats.length} seçenek`} />

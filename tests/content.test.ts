@@ -29,12 +29,19 @@ test('questions reject missing answer, blank, duplicate, too few options', () =>
     { ...q, answer: 1.5 },
     { ...q, explanation: '  ' },
     { ...q, question: '' },
-    { ...q, category: 'other' },
+    { ...q, category: 'OTHER_UPPER' },
     { ...q, options: ['A', 'B', 'C'] },
     { ...q, options: ['A', 'a', 'C', 'D'] },
     { ...q, options: ['A', 'B', 'C', '  '] },
   ])
     assert.equal(schemas.questions.safeParse(bad).success, false);
+});
+
+test('questions accept arbitrary lowercase lesson ids (new subjects)', () => {
+  assert.ok(schemas.questions.safeParse({ ...q, category: 'hukuk' }).success);
+  assert.ok(schemas.questions.safeParse({ ...q, category: 'din-kulturu' }).success);
+  assert.equal(schemas.questions.safeParse({ ...q, category: 'HUKUK' }).success, false);
+  assert.equal(schemas.questions.safeParse({ ...q, category: '' }).success, false);
 });
 test('draft entries are never exposed in student content, even in admin session', () => {
   const rows = seedEntries().map((e) => ({ ...e, status: 'draft' as const }));

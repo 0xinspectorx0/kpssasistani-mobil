@@ -11,6 +11,11 @@ const id = z
   .min(1)
   .max(120)
   .regex(/^[\w-]+$/, 'Kimlik yalnızca harf, rakam, - ve _ içerebilir.');
+const lessonId = z
+  .string()
+  .min(1)
+  .max(40)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, 'Ders kimliği küçük harf, rakam ve - içerebilir.');
 const date = z.iso.date('Geçerli bir tarih girin (YYYY-AA-GG).');
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Renk #2563EB biçiminde olmalıdır.');
 export const categoryIds = ['turkce', 'matematik', 'tarih', 'cografya', 'vatandaslik', 'guncel'] as const;
@@ -18,7 +23,7 @@ export const schemas = {
   questions: z
     .object({
       id,
-      category: z.enum(categoryIds),
+      category: lessonId,
       question: text,
       options: z.array(text).min(4, 'En az 4 seçenek olmalıdır.').max(5),
       answer: z.number().int().min(0),
@@ -37,7 +42,7 @@ export const schemas = {
     }),
   lessons: z
     .object({
-      id: z.enum(categoryIds),
+      id: lessonId,
       name: text,
       icon: text.max(80),
       color,
@@ -172,7 +177,7 @@ export function newPayload(kind: ContentKind): ContentPayload {
         explanation: '',
       };
     case 'lessons':
-      return { id: 'turkce', name: '', icon: 'book-outline', color: '#2563EB', questions: '', topics: [] };
+      return { id: '', name: '', icon: 'book-outline', color: '#2563EB', questions: '', topics: [] };
     case 'news':
       return { id, category: 'Bilim', title: '', detail: '', date: '' };
     case 'events':

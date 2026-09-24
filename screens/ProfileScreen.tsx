@@ -4,8 +4,12 @@ import { Alert, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
+import { useAdminAuth } from '../lib/admin-auth';
+import { supabase } from '../lib/supabase';
+import { usePlan, roleLabels } from '../lib/membership';
 import { Card, EmptyState, PrimaryButton, ProgressBar, SectionTitle, StatTile } from '../components/ui';
-import { CATEGORY_LIST } from '../lib/data';
+import AuthScreen from '../components/AuthScreen';
+import { useCategoryList } from '../lib/lesson-catalog';
 import { radius } from '../lib/theme';
 
 export default function ProfileScreen({ navigation }: any) {
@@ -15,6 +19,10 @@ export default function ProfileScreen({ navigation }: any) {
     completedTopics, resetAll, activityDates,
   } = useApp();
   const { questions: QUESTIONS, lessons: LESSONS, targets: TARGET_EXAMS } = useContent();
+  const CATEGORY_LIST = useCategoryList();
+  const { session, role, signOut } = useAdminAuth();
+  const { plan, meta: planMeta } = usePlan();
+  const [authVisible, setAuthVisible] = useState(false);
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(name);
@@ -146,6 +154,60 @@ export default function ProfileScreen({ navigation }: any) {
             })}
           </View>
         </Card>
+
+        {/* Account / membership */}
+        <View style={{ marginTop: 14 }}>
+          <SectionTitle title="Hesabım" subtitle={session ? `${roleLabels[role] ?? 'Üye'} planı` : 'Misafir olarak devam ediyorsun'} />
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 14,
+                  backgroundColor: planMeta.color + '1A',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Ionicons name={planMeta.icon as any} size={23} color={planMeta.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>
+                  {session ? roleLabels[role] || 'Üye' : 'Misafir'}
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
+                  {planMeta.desc}
+                </Text>
+              </View>
+            </View>
+            {session ? (
+              <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                <TouchableOpacity
+                  onPress={() => signOut().catch(() => {})}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: theme.danger, fontWeight: '800', fontSize: 13 }}>Çıkış yap</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <PrimaryButton
+                label={supabase ? 'Giriş Yap / Üye Ol' : 'Hesap altyapısı bağlı değil'}
+                icon="log-in"
+                onPress={() => supabase && setAuthVisible(true)}
+                disabled={!supabase}
+              />
+            )}
+          </Card>
+        </View>
 
         {/* Stats */}
         <View style={{ marginTop: 14 }}>
@@ -312,7 +374,9 @@ export default function ProfileScreen({ navigation }: any) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>Yönetici Paneli</Text>
-                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>Soru ve içerik yönetimi • Yetkili giriş</Text>
+                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
+                  {session ? `${roleLabels[role] ?? 'Üye'} • Soru ve içerik yönetimi` : 'Hesabınla giriş yap • Soru ve içerik yönetimi'}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.muted} />
             </Card>
@@ -368,6 +432,7 @@ export default function ProfileScreen({ navigation }: any) {
           </Text>
         </View>
       </ScrollView>
+      <AuthScreen visible={authVisible} onClose={() => setAuthVisible(false)} />
     </SafeAreaView>
   );
 }

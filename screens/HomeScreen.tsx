@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../lib/store';
 import { Card, PrimaryButton, SectionTitle, StatTile } from '../components/ui';
-import { CATEGORY_LIST, daysUntil, formatDateTR, questionOfDay } from '../lib/data';
+import { daysUntil, formatDateTR, questionOfDay } from '../lib/data';
+import { useCategoryList } from '../lib/lesson-catalog';
 import { Notice } from '../components/admin/AdminUI';
 import { radius } from '../lib/theme';
 
@@ -21,6 +22,7 @@ function greeting(): string {
 export default function HomeScreen({ navigation }: any) {
   const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history } = useApp();
   const { lessons: LESSONS, events: EXAM_EVENTS, targets: TARGET_EXAMS, quotes: QUOTES, questions: QUESTIONS, refreshContent, syncError, source } = useContent();
+  const CATEGORY_LIST = useCategoryList();
   const [refreshing, setRefreshing] = React.useState(false);
 
   const target = useMemo(() => {

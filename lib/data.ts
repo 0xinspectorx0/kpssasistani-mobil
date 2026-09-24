@@ -1,6 +1,6 @@
 export interface QuizQuestion {
   id: string;
-  category: CategoryId;
+  category: string;
   question: string;
   options: string[];
   answer: number;
@@ -8,22 +8,16 @@ export interface QuizQuestion {
   difficulty: 'Kolay' | 'Orta' | 'Zor';
 }
 
-export type CategoryId = 'turkce' | 'matematik' | 'tarih' | 'cografya' | 'vatandaslik' | 'guncel';
+export type CategoryId = 'turkce' | 'matematik' | 'tarih' | 'cografya' | 'vatandaslik' | 'guncel' | (string & {});
 
 export interface Category {
-  id: CategoryId;
+  id: string;
   name: string;
   short: string;
   icon: string;
   color: string;
   desc: string;
 }
-
-export const CATEGORIES: Category[] = [
-  { id: 'turkce', name: 'Türkçe', short: 'TR', icon: 'language', color: '#2563EB', desc: 'Dil bilgisi, paragraf ve anlatım' },
-  { id: 'matematik', name: 'Matematik', short: 'MT', icon: 'calculator', color: '#7C3AED', desc: 'Sayılar, problemler ve geometri' },
-  { id: 'turkce', name: 'Türkçe', short: 'TR2', icon: 'language', color: '#2563EB', desc: '' },
-];
 
 export const CATEGORY_LIST: Category[] = [
   { id: 'turkce', name: 'Türkçe', short: 'TR', icon: 'language', color: '#2563EB', desc: 'Dil bilgisi, paragraf ve anlatım' },

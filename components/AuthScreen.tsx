@@ -1,0 +1,244 @@
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../lib/store';
+import { useAdminAuth } from '../lib/admin-auth';
+import { supabase } from '../lib/supabase';
+import { readableError } from '../lib/content-api';
+import { PLAN_META } from '../lib/membership';
+import { AdminButton, Field, Notice } from './admin/AdminUI';
+
+export default function AuthScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { theme } = useApp();
+  const { signIn, signUp, session, role } = useAdminAuth();
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  async function submit() {
+    setError('');
+    setInfo('');
+    if (!email.trim() || !password) {
+      setError('E-posta ve şifrenizi girin.');
+      return;
+    }
+    if (tab === 'signup' && password !== confirm) {
+      setError('Şifreler eşleşmiyor.');
+      return;
+    }
+    if (tab === 'signup' && password.length < 6) {
+      setError('Şifre en az 6 karakter olmalıdır.');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (tab === 'login') {
+        await signIn(email, password);
+        setPassword('');
+        setConfirm('');
+        onClose();
+      } else {
+        await signUp(email, password);
+        setInfo(
+          'Hesabın oluşturuldu. E-posta doğrulaması gerekiyorsa gelen kutunu kontrol et; doğruladıktan sonra giriş yapabilirsin.',
+        );
+        setTab('login');
+        setPassword('');
+        setConfirm('');
+      }
+    } catch (e) {
+      setError(readableError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const alreadyAuthed = !!session;
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderBottomWidth: 1,
+              borderColor: theme.border,
+              backgroundColor: theme.card,
+            }}
+          >
+            <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>Hesabım</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Kapat"
+              onPress={onClose}
+              style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="close" size={22} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+            {alreadyAuthed && tab === 'login' ? (
+              <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <View
+                  style={{
+                    width: 76,
+                    height: 76,
+                    borderRadius: 38,
+                    backgroundColor: theme.accentSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 14,
+                  }}
+                >
+                  <Ionicons name="checkmark-done" size={36} color={theme.accent} />
+                </View>
+                <Text style={{ color: theme.text, fontSize: 20, fontWeight: '900', textAlign: 'center' }}>
+                  Giriş yaptın!
+                </Text>
+                <Text style={{ color: theme.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
+                  Artık günlük test kotan {role === 'vip' ? 'sınırsız' : '3'} olarak etkin.
+                </Text>
+                <View style={{ marginTop: 20, width: '100%', maxWidth: 320 }}>
+                  <AdminButton label="Kapat" icon="checkmark" onPress={onClose} />
+                </View>
+              </View>
+            ) : supabase ? (
+              <>
+                <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+                  {(
+                    [
+                      { id: 'login', label: 'Giriş Yap' },
+                      { id: 'signup', label: 'Üye Ol' },
+                    ] as const
+                  ).map((t) => (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => {
+                        setTab(t.id);
+                        setError('');
+                        setInfo('');
+                      }}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 11,
+                        alignItems: 'center',
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: tab === t.id ? theme.accent : theme.border,
+                        backgroundColor: tab === t.id ? theme.accentSoft : theme.card,
+                        marginRight: t.id === 'login' ? 8 : 0,
+                      }}
+                    >
+                      <Text style={{ fontWeight: '800', color: tab === t.id ? theme.accent : theme.muted }}>
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Field
+                  label="E-posta adresi"
+                  placeholder="ornek@posta.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  autoComplete="email"
+                />
+                <Field
+                  label="Şifre"
+                  placeholder={tab === 'signup' ? 'En az 6 karakter' : 'Şifreniz'}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPw}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
+                />
+                {tab === 'signup' && (
+                  <Field
+                    label="Şifre (tekrar)"
+                    placeholder="Şifreni doğrula"
+                    value={confirm}
+                    onChangeText={setConfirm}
+                    secureTextEntry={!showPw}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                )}
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => setShowPw(!showPw)}
+                  style={{ alignSelf: 'flex-end', padding: 8, marginBottom: 14 }}
+                >
+                  <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 12 }}>
+                    {showPw ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                  </Text>
+                </TouchableOpacity>
+
+                {!!error && <Notice text={error} error />}
+                {!!info && <Notice text={info} />}
+
+                <AdminButton
+                  label={tab === 'login' ? 'Giriş yap' : 'Hesap oluştur'}
+                  icon={tab === 'login' ? 'log-in-outline' : 'person-add-outline'}
+                  onPress={submit}
+                  busy={busy}
+                />
+
+                <View style={{ marginTop: 22 }}>
+                  <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 8 }}>Üyelik planları</Text>
+                  {(['guest', 'uye', 'vip'] as const).map((p) => (
+                    <View
+                      key={p}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        padding: 12,
+                        borderRadius: 12,
+                        backgroundColor: theme.card,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Ionicons name={PLAN_META[p].icon as any} size={20} color={PLAN_META[p].color} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>{PLAN_META[p].label}</Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{PLAN_META[p].desc}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Notice text="Hesap altyapısı (Supabase) bağlanmadığı için şimdilik misafir olarak devam ediyorsun. Yine de günlük 1 test kotasıyla tüm içeriklere erişebilirsin." />
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  );
+}

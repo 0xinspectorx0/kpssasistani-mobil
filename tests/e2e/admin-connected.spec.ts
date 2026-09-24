@@ -36,8 +36,15 @@ async function setup(page: Page, admin = true, empty = false) {
     }
     if (url.pathname.endsWith('/logout')) return json({});
     if (url.pathname.endsWith('/rpc/is_admin')) return json(admin);
+    if (url.pathname.endsWith('/rpc/user_role')) return json(admin ? 'admin' : '');
     if (url.pathname.endsWith('/rpc/list_admins'))
       return json([{ user_id: uid, email: 'admin@example.com', created_at: new Date().toISOString() }]);
+    if (url.pathname.endsWith('/rpc/list_members'))
+      return json(
+        admin
+          ? [{ user_id: uid, email: 'admin@example.com', role: 'admin', created_at: new Date().toISOString() }]
+          : [],
+      );
     if (url.pathname.endsWith('/admin_audit_log')) return json([]);
     if (url.pathname.endsWith('/content_entries')) {
       const id = url.searchParams.get('id')?.replace('eq.', '');
@@ -81,7 +88,7 @@ test('wrong credentials and authenticated non-admin are denied', async ({ page }
   await login(page, 'wrong');
   await expect(page.getByText(/E-posta veya şifre hatalı/)).toBeVisible();
   await login(page);
-  await expect(page.getByText(/Bu hesabın yönetici yetkisi yok/)).toBeVisible();
+  await expect(page.getByText(/Yönetim yetkiniz yok/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Yeni soru ekle', exact: true })).toHaveCount(0);
 });
 test('admin can create draft, publish, edit, cancel delete, delete and sign out', async ({ page }) => {

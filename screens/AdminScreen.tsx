@@ -29,18 +29,24 @@ import {
   AdminMember,
   AuditItem,
   changeAdmin,
+  changeRole,
   deleteEntry,
   fetchEntries,
   importBundledContent,
+  insertManyEntries,
   listAdmins,
   listAudit,
+  listMembers,
+  Member,
   readableError,
   saveEntry,
 } from '../lib/content-api';
-import { CATEGORY_LIST } from '../lib/data';
+import { useCategoryList } from '../lib/lesson-catalog';
+import { roleLabels } from '../lib/membership';
 import { Card, EmptyState } from '../components/ui';
 import { AdminButton, Choice, ConfirmDialog, Field, Notice } from '../components/admin/AdminUI';
 import ContentEditor from '../components/admin/ContentEditor';
+import BulkAdd from '../components/admin/BulkAdd';
 
 type Section = ContentKind | 'overview' | 'admins' | 'audit';
 const sectionLabels: Record<Section, string> = {
@@ -56,6 +62,23 @@ const sectionIcons: Record<Section, string> = {
   audit: 'time-outline',
 };
 const sections = Object.keys(sectionLabels) as Section[];
+
+function auditActionLabel(action: string): string {
+  const fixed: Record<string, string> = {
+    INSERT: 'İçerik eklendi',
+    UPDATE: 'İçerik güncellendi',
+    DELETE: 'İçerik silindi',
+    GRANT_ADMIN: 'Yönetici yetkisi verildi',
+    REVOKE_ADMIN: 'Yetki kaldırıldı',
+    REMOVE_MEMBER: 'Üyelik kaldırıldı',
+  };
+  if (fixed[action]) return fixed[action];
+  if (action.startsWith('SET_ROLE:')) {
+    const role = action.slice('SET_ROLE:'.length);
+    return `Rol atandı: ${roleLabels[role] ?? role}`;
+  }
+  return action;
+}
 
 function AdminLogin({ onPreview }: { onPreview: () => void }) {
   const { theme } = useApp();
@@ -104,8 +127,8 @@ function AdminLogin({ onPreview }: { onPreview: () => void }) {
             </View>
             <Text style={{ color: theme.text, fontSize: 28, fontWeight: '900' }}>Yönetici girişi</Text>
             <Text style={{ color: theme.muted, lineHeight: 22, textAlign: 'center', marginTop: 8 }}>
-              KPSS Asistanım içeriklerini tek yerden yönet.{'\n'}Yalnızca yetkilendirilmiş hesaplar
-              erişebilir.
+              KPSS Asistanım hesabınla giriş yap.{'\n'}Hesabın yoksa Profil → Hesabım bölümünden
+              üye olabilir; yönetici yetkisi olmayan hesaplar bu panele erişemez.
             </Text>
           </View>
           {!supabase && (
@@ -151,8 +174,9 @@ function AdminLogin({ onPreview }: { onPreview: () => void }) {
               disabled={!supabase}
             />
             <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 19, marginTop: 16 }}>
-              İlk hesap ve şifre yenileme işlemleri uygulama sahibi tarafından Supabase Authentication
-              üzerinden yapılır. Bu ekrandan hesap oluşturulamaz.
+              İlk yönetici hesabı ve şifre yenileme işlemleri uygulama sahibi tarafından Supabase
+              Authentication üzerinden yapılır. Normal kullanıcılar üye olabilir; yönetici yetkisi
+              ise panelden veya Supabase'den atanır.
             </Text>
           </Card>
           {!supabase && (
@@ -166,7 +190,7 @@ function AdminLogin({ onPreview }: { onPreview: () => void }) {
             </View>
           )}
           <Text style={{ color: theme.muted, fontSize: 11, textAlign: 'center', marginTop: 22 }}>
-            Oturum bu uygulama oturumuyla sınırlıdır; kalıcı olarak saklanmaz.
+            Oturumun cihazda saklanır; çıkış işlemi oturumu tamamen sonlandırır.
           </Text>
         </View>
       </ScrollView>
@@ -176,12 +200,16 @@ function AdminLogin({ onPreview }: { onPreview: () => void }) {
 
 function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () => void }) {
   const { theme } = useApp();
-  const { session, signOut } = useAdminAuth();
+  const { session, signOut, role: myRole } = useAdminAuth();
   const { refreshContent } = useContent();
+  const CATEGORY_LIST = useCategoryList();
+  const canManage = myRole === 'admin' || myRole === 'editor';
+  const canGrantRoles = myRole === 'admin';
   const wide = useWindowDimensions().width >= 960;
   const [section, setSection] = useState<Section>('overview');
   const [entries, setEntries] = useState<ContentEntry[]>(() => (previewOnly ? seedEntries() : []));
   const [admins, setAdmins] = useState<AdminMember[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(!previewOnly);
   const [busy, setBusy] = useState(false);
@@ -192,6 +220,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const [category, setCategory] = useState('all');
   const [page, setPage] = useState(0);
   const [editor, setEditor] = useState<{ entry: ContentEntry; isNew: boolean } | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [confirm, setConfirm] = useState<{
     title: string;
     description: string;
@@ -205,9 +234,15 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
     setLoading(true);
     setError('');
     try {
-      const [rows, members, logs] = await Promise.all([fetchEntries(), listAdmins(), listAudit()]);
+      const [rows, membersList, adminsList, logs] = await Promise.all([
+        fetchEntries(),
+        listMembers(),
+        listAdmins(),
+        listAudit(),
+      ]);
       setEntries(rows);
-      setAdmins(members);
+      setMembers(membersList);
+      setAdmins(adminsList);
       setAudit(logs);
     } catch (e) {
       setError(readableError(e));
@@ -299,9 +334,10 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const currentPage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 20) - 1));
   const published = entries.filter((e) => e.status === 'published').length;
   const isContent = section in kindLabels;
+  const visibleSections = sections.filter((s) => s !== 'admins' || canGrantRoles);
   const navigation = (
     <View style={{ gap: wide ? 5 : 8, flexDirection: wide ? 'column' : 'row' }}>
-      {sections.map((s) => (
+      {visibleSections.map((s) => (
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={sectionLabels[s]}
@@ -453,16 +489,26 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
               <Text style={{ color: '#CBD5E1', fontSize: 14, lineHeight: 22, maxWidth: 570 }}>
                 Soruları hazırla, içerikleri güncel tut ve öğrencilerin çalışma yolculuğunu destekle.
               </Text>
-              <View style={{ marginTop: 20, alignSelf: 'flex-start' }}>
+              <View style={{ marginTop: 20, flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
                 <AdminButton
                   label="Yeni soru ekle"
                   icon="add"
+                  disabled={!canManage}
                   onPress={() => {
                     go('questions');
                     setEditor({
                       entry: { kind: 'questions', id: '', payload: newPayload('questions'), status: 'draft' },
                       isNew: true,
                     });
+                  }}
+                />
+                <AdminButton
+                  label="Toplu soru ekle"
+                  icon="layers-outline"
+                  secondary
+                  onPress={() => {
+                    go('questions');
+                    setBulkOpen(true);
                   }}
                 />
               </View>
@@ -585,7 +631,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
               <AdminButton
                 label={section === 'questions' ? 'Yeni soru' : 'Yeni içerik'}
                 icon="add"
-                disabled={loading}
+                disabled={loading || !canManage}
                 onPress={() => {
                   const payload = newPayload(section as ContentKind);
                   setEditor({
@@ -594,6 +640,15 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                   });
                 }}
               />
+              {section === 'questions' && (
+                <AdminButton
+                  label="Toplu soru ekle"
+                  icon="layers-outline"
+                  secondary
+                  disabled={loading || !canManage}
+                  onPress={() => setBulkOpen(true)}
+                />
+              )}
             </View>
             <Choice
               label="Yayın durumu"
@@ -691,7 +746,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                   <Text style={{ flex: 1, minWidth: 90, color: theme.muted, fontSize: 10 }}>{entry.id}</Text>
                   <AdminButton
                     secondary
-                    label={previewOnly ? 'İncele' : 'Düzenle'}
+                    label={canManage ? 'Düzenle' : 'İncele'}
                     icon="create-outline"
                     onPress={() => setEditor({ entry, isNew: false })}
                   />
@@ -700,7 +755,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                     danger
                     label="Sil"
                     icon="trash-outline"
-                    disabled={previewOnly || loading}
+                    disabled={!canManage || previewOnly || loading}
                     onPress={() => askDelete(entry)}
                   />
                 </View>
@@ -748,65 +803,173 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
         )}
         {section === 'admins' && (
           <>
-            <Notice text="Burada yönetici yetkilerini yönetebilirsiniz. Öğrenci profilleri ve test geçmişleri halen cihazda tutulur; merkezi öğrenci listesi bulunmaz. Yeni yöneticinin hesabı önce Supabase Authentication üzerinden oluşturulup doğrulanmalıdır." />
-            <Card style={{ marginBottom: 18 }}>
-              <Field
-                label="Yetkilendirilecek hesabın e-postası"
-                placeholder="yonetici@ornek.com"
-                value={adminEmail}
-                onChangeText={setAdminEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-              <AdminButton
-                label="Yönetici yetkisi ver"
-                icon="person-add-outline"
-                disabled={previewOnly || !adminEmail.trim() || loading}
-                onPress={() =>
-                  setConfirm({
-                    title: 'Tam yönetici yetkisi verilsin mi?',
-                    description: `${adminEmail} hesabı tüm içerikleri ve diğer yönetici yetkilerini değiştirebilecek.`,
-                    label: 'Yetki ver',
-                    action: async () => {
-                      await changeAdmin(adminEmail, true);
-                      setAdminEmail('');
-                      await afterChange('Yönetici yetkisi verildi.');
-                    },
-                  })
-                }
-              />
-            </Card>
-            {admins.map((admin) => (
-              <Card key={admin.user_id} style={{ marginBottom: 10, gap: 12 }}>
-                <Text style={{ color: theme.text, fontWeight: '700' }}>
-                  {admin.email}
-                  {session?.user.id === admin.user_id ? ' (siz)' : ''}
-                </Text>
-                <AdminButton
-                  label="Yetkiyi kaldır"
-                  secondary
-                  danger
-                  disabled={session?.user.id === admin.user_id || previewOnly || loading}
-                  onPress={() =>
-                    setConfirm({
-                      title: 'Yönetici yetkisi kaldırılsın mı?',
-                      description: `${admin.email} hesabı artık yönetim işlemi yapamayacak. Hesabın kendisi silinmez.`,
-                      label: 'Yetkiyi kaldır',
-                      danger: true,
-                      action: async () => {
-                        await changeAdmin(admin.email, false);
-                        await afterChange('Yönetici yetkisi kaldırıldı.');
-                      },
-                    })
-                  }
+            <Notice
+              text={
+                canGrantRoles
+                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP (sınırsız test), Üye (günde 3 test). Yeni hesabın önce uygulamadan üye olması veya Supabase Authentication üzerinden oluşturulması gerekir.'
+                  : 'Bu bölümü yalnızca yöneticiler düzenleyebilir. Editör ve görüntüleyici rollerinin içerik üzerindeki yetkileri otomatik sınırlandırılır.'
+              }
+            />
+            {canGrantRoles && (
+              <Card style={{ marginBottom: 18 }}>
+                <Field
+                  label="Rol atanacak hesabın e-postası"
+                  placeholder="kullanici@ornek.com"
+                  value={adminEmail}
+                  onChangeText={setAdminEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
                 />
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  <AdminButton
+                    label="Admin yap"
+                    icon="shield"
+                    disabled={previewOnly || !adminEmail.trim() || loading}
+                    onPress={() =>
+                      setConfirm({
+                        title: 'Yönetici yetkisi verilsin mi?',
+                        description: `${adminEmail} hesabı tüm içerikleri ve diğer rolleri yönetebilecek.`,
+                        label: 'Admin yap',
+                        action: async () => {
+                          await changeRole(adminEmail, 'admin');
+                          setAdminEmail('');
+                          await afterChange('Yönetici yetkisi verildi.');
+                        },
+                      })
+                    }
+                  />
+                  <AdminButton
+                    label="Editör yap"
+                    secondary
+                    icon="create"
+                    disabled={previewOnly || !adminEmail.trim() || loading}
+                    onPress={() =>
+                      setConfirm({
+                        title: 'Editör yetkisi verilsin mi?',
+                        description: `${adminEmail} hesabı içerik ekleyip düzenleyebilir ve silebilir; ancak rol atayamaz.`,
+                        label: 'Editör yap',
+                        action: async () => {
+                          await changeRole(adminEmail, 'editor');
+                          setAdminEmail('');
+                          await afterChange('Editör yetkisi verildi.');
+                        },
+                      })
+                    }
+                  />
+                  <AdminButton
+                    label="Görüntüleyici yap"
+                    secondary
+                    icon="eye"
+                    disabled={previewOnly || !adminEmail.trim() || loading}
+                    onPress={() =>
+                      setConfirm({
+                        title: 'Görüntüleyici yetkisi verilsin mi?',
+                        description: `${adminEmail} hesabı taslaklar dahil içeriği görebilir; değiştiremez.`,
+                        label: 'Görüntüleyici yap',
+                        action: async () => {
+                          await changeRole(adminEmail, 'viewer');
+                          setAdminEmail('');
+                          await afterChange('Görüntüleyici yetkisi verildi.');
+                        },
+                      })
+                    }
+                  />
+                  <AdminButton
+                    label="VIP yap"
+                    secondary
+                    icon="diamond"
+                    disabled={previewOnly || !adminEmail.trim() || loading}
+                    onPress={() =>
+                      setConfirm({
+                        title: 'VIP üyelik verilsin mi?',
+                        description: `${adminEmail} hesabı sınırsız test çözebilecek.`,
+                        label: 'VIP yap',
+                        action: async () => {
+                          await changeRole(adminEmail, 'vip');
+                          setAdminEmail('');
+                          await afterChange('VIP üyelik verildi.');
+                        },
+                      })
+                    }
+                  />
+                </View>
+              </Card>
+            )}
+            {members.map((m) => (
+              <Card key={m.user_id} style={{ marginBottom: 10, gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      backgroundColor: theme.accentSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons
+                      name={
+                        (m.role === 'admin'
+                          ? 'shield'
+                          : m.role === 'editor'
+                            ? 'create'
+                            : m.role === 'viewer'
+                              ? 'eye'
+                              : m.role === 'vip'
+                                ? 'diamond'
+                                : 'person') as any
+                      }
+                      size={20}
+                      color={theme.accent}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.text, fontWeight: '700' }}>
+                      {m.email}
+                      {session?.user.id === m.user_id ? ' (siz)' : ''}
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
+                      Rol: {roleLabels[m.role] ?? m.role}
+                    </Text>
+                  </View>
+                  {canGrantRoles && session?.user.id !== m.user_id && (
+                    <AdminButton
+                      label="Yetkiyi kaldır"
+                      secondary
+                      danger
+                      disabled={previewOnly || loading || m.role === 'uye'}
+                      onPress={() =>
+                        setConfirm({
+                          title: 'Yetki kaldırılsın mı?',
+                          description: `${m.email} hesabı yönetim panelinden çıkarılacak; normal üye olarak kalmaya devam edecek.`,
+                          label: 'Yetkiyi kaldır',
+                          danger: true,
+                          action: async () => {
+                            await changeRole(m.email, 'uye');
+                            await afterChange('Yetki geri alındı; hesap üye olarak kaldı.');
+                          },
+                        })
+                      }
+                    />
+                  )}
+                  {canGrantRoles && session?.user.id === m.user_id && (
+                    <Text style={{ color: theme.muted, fontSize: 11, maxWidth: 140, textAlign: 'right' }}>
+                      Kendi yetkinizi panelden değiştiremezsiniz
+                    </Text>
+                  )}
+                </View>
               </Card>
             ))}
-            {!admins.length && (
+            {!members.length && !previewOnly && (
               <EmptyState
                 icon="people-outline"
-                title={previewOnly ? 'Önizlemede hesap verisi bulunmaz' : 'Yönetici listesi boş'}
+                title="Henüz hesap yok"
+                desc="Kullanıcılar uygulamadan üye oldukça burada listelenecek."
               />
+            )}
+            {previewOnly && (
+              <EmptyState icon="people-outline" title="Önizlemede hesap verisi bulunmaz" />
             )}
           </>
         )}
@@ -823,15 +986,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
             {audit.map((item) => (
               <Card key={item.id} style={{ marginTop: 10 }}>
                 <Text style={{ color: theme.text, fontWeight: '800' }}>
-                  {(
-                    {
-                      INSERT: 'İçerik eklendi',
-                      UPDATE: 'İçerik güncellendi',
-                      DELETE: 'İçerik silindi',
-                      GRANT_ADMIN: 'Yönetici yetkisi verildi',
-                      REVOKE_ADMIN: 'Yetki kaldırıldı',
-                    } as Record<string, string>
-                  )[item.action] ?? item.action}
+                  {auditActionLabel(item.action)}
                 </Text>
                 <Text style={{ color: theme.muted, fontSize: 12, marginTop: 7 }}>
                   {sectionLabels[item.kind as Section] ?? item.kind} • {item.entry_id}
@@ -860,10 +1015,19 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
       {editor && (
         <ContentEditor
           {...editor}
-          previewOnly={previewOnly}
+          previewOnly={previewOnly || !canManage}
           entries={entries}
           onClose={() => setEditor(null)}
           onSave={save}
+        />
+      )}
+      {bulkOpen && (
+        <BulkAdd
+          onClose={() => setBulkOpen(false)}
+          onInsert={async (entriesToInsert) => {
+            await insertManyEntries(entriesToInsert);
+            await afterChange(`${entriesToInsert.length} soru eklendi.`);
+          }}
         />
       )}
       {confirm && (
@@ -879,8 +1043,10 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
 }
 export default function AdminScreen({ navigation }: any) {
   const { theme } = useApp();
-  const { isAdmin, checking, session } = useAdminAuth();
+  const { isAdmin, canViewDrafts, checking, session, role, roleChecked } = useAdminAuth();
   const [preview, setPreview] = useState(false);
+  const hasPanelAccess = isAdmin || canViewDrafts;
+  const pendingRoleCheck = !!session && !roleChecked;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <View
@@ -921,14 +1087,45 @@ export default function AdminScreen({ navigation }: any) {
         </View>
         <Ionicons name="shield-checkmark-outline" color={theme.accent} size={22} />
       </View>
-      {isAdmin ? (
+      {hasPanelAccess ? (
         <Dashboard previewOnly={false} onExit={() => {}} />
       ) : preview && !supabase ? (
         <Dashboard previewOnly onExit={() => setPreview(false)} />
       ) : checking && session ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
           <ActivityIndicator color={theme.accent} />
-          <Text style={{ color: theme.muted }}>Yönetici yetkisi doğrulanıyor…</Text>
+          <Text style={{ color: theme.muted }}>Yetki doğrulanıyor…</Text>
+        </View>
+      ) : pendingRoleCheck ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
+          <ActivityIndicator color={theme.accent} />
+          <Text style={{ color: theme.muted }}>Yetki doğrulanıyor…</Text>
+        </View>
+      ) : session && !hasPanelAccess ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28 }}>
+          <View
+            style={{
+              width: 76,
+              height: 76,
+              borderRadius: 38,
+              backgroundColor: theme.accentSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 14,
+            }}
+          >
+            <Ionicons name="lock-closed" size={34} color={theme.accent} />
+          </View>
+          <Text style={{ color: theme.text, fontWeight: '900', fontSize: 19, textAlign: 'center' }}>
+            Yönetim yetkiniz yok
+          </Text>
+          <Text style={{ color: theme.muted, textAlign: 'center', lineHeight: 21, marginTop: 10, maxWidth: 340 }}>
+            Hesabınız uygulamaya giriş yaptı ancak yönetim paneli için yetkilendirilmemiş. Yetki,
+            uygulama sahibi tarafından panelden veya Supabase üzerinden atanır.
+          </Text>
+          <View style={{ marginTop: 22, alignItems: 'center', gap: 12 }}>
+            <AdminButton label="Uygulamaya dön" icon="arrow-back" onPress={() => navigation.goBack()} />
+          </View>
         </View>
       ) : (
         <AdminLogin onPreview={() => setPreview(true)} />

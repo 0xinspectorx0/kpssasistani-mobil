@@ -67,6 +67,12 @@ export interface AdminMember {
   email: string;
   created_at: string;
 }
+export interface Member {
+  user_id: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
 export interface AuditItem {
   id: number;
   actor_id: string | null;
@@ -80,9 +86,36 @@ export async function listAdmins(): Promise<AdminMember[]> {
   if (error) throw error;
   return data ?? [];
 }
+export async function listMembers(): Promise<Member[]> {
+  const { data, error } = await requireBackend().rpc('list_members');
+  if (error) throw error;
+  return data ?? [];
+}
 export async function changeAdmin(email: string, enabled: boolean) {
   const { error } = await requireBackend().rpc('set_admin', { target_email: email.trim(), enabled });
   if (error) throw error;
+}
+export async function changeRole(email: string, role: string) {
+  const { error } = await requireBackend().rpc('set_role', { target_email: email.trim(), new_role: role });
+  if (error) throw error;
+}
+export async function insertManyEntries(entries: ContentEntry[]): Promise<{ inserted: number }> {
+  if (!entries.length) return { inserted: 0 };
+  const client = requireBackend();
+  const values = entries.map((entry) => {
+    const parsed = parseEntry(entry);
+    return { kind: parsed.kind, id: parsed.id, payload: parsed.payload, status: parsed.status };
+  });
+  // Küçük parçalar hâlinde gönderilir; tek istek başarısızlığı toplu yüklemeyi bozmaz.
+  let inserted = 0;
+  const chunkSize = 100;
+  for (let i = 0; i < values.length; i += chunkSize) {
+    const chunk = values.slice(i, i + chunkSize);
+    const { error } = await client.from('content_entries').insert(chunk);
+    if (error) throw error;
+    inserted += chunk.length;
+  }
+  return { inserted };
 }
 export async function listAudit(): Promise<AuditItem[]> {
   const { data, error } = await requireBackend()

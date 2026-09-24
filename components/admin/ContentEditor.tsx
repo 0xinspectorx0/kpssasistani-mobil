@@ -11,12 +11,34 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../lib/store';
-import { CATEGORY_LIST } from '../../lib/data';
 import { ContentEntry, ContentPayload, kindLabels, schemas } from '../../lib/content-schema';
 import { readableError } from '../../lib/content-api';
+import { useCategoryList } from '../../lib/lesson-catalog';
 import { AdminButton, Choice, ConfirmDialog, Field, Notice } from './AdminUI';
 
 const choices = (values: string[]) => values.map((value) => ({ value, label: value }));
+
+// Soruda seçilebilir dersler: yayındaki ders kayıtları + soruların mevcut kategorileri.
+function buildQuestionCategories(entries: ContentEntry[]): { value: string; label: string }[] {
+  const seen = new Set<string>();
+  const out: { value: string; label: string }[] = [];
+  for (const e of entries) {
+    if (e.kind === 'lessons' && !seen.has(e.id)) {
+      seen.add(e.id);
+      out.push({ value: e.id, label: (e.payload as any).name as string });
+    }
+  }
+  for (const e of entries) {
+    if (e.kind === 'questions') {
+      const cat = (e.payload as any).category as string;
+      if (cat && !seen.has(cat)) {
+        seen.add(cat);
+        out.push({ value: cat, label: cat });
+      }
+    }
+  }
+  return out;
+}
 const labels: Record<string, string> = {
   name: 'Ad',
   short: 'Kısa ad',
@@ -147,11 +169,20 @@ export default function ContentEditor({
   }
   const questionForm = (
     <>
-      {select(
-        'category',
-        'Ders',
-        CATEGORY_LIST.map((c) => ({ value: c.id, label: c.name })),
-      )}
+      <Choice
+        label="Ders"
+        value={draft.category}
+        options={buildQuestionCategories(entries)}
+        onChange={(v) => set('category', v)}
+      />
+      <View style={{ marginBottom: 14 }}>
+        <Notice text="Ders listede yoksa kimliği elle yazabilirsin (küçük harf, ör. 'hukuk'). Soru, bu kimliğe sahip bir ders kaydına bağlanır." />
+        <Field
+          label="Ders kimliği (yeni ders için yaz)"
+          value={String(draft.category ?? '')}
+          onChangeText={(v) => set('category', v.trim().toLocaleLowerCase('tr'))}
+        />
+      </View>
       {select('difficulty', 'Zorluk seviyesi', choices(['Kolay', 'Orta', 'Zor']))}
       {field('question', true)}
       <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 6 }}>Seçenekler ve doğru cevap</Text>
@@ -217,12 +248,20 @@ export default function ContentEditor({
       case 'lessons':
         return (
           <>
-            {isNew &&
-              select(
-                'id',
-                'Ders kimliği (test bağlantısı)',
-                CATEGORY_LIST.map((c) => ({ value: c.id, label: c.name })),
-              )}
+            {isNew ? (
+              <View style={{ marginBottom: 14 }}>
+                <Notice text="Yeni ders için benzersiz, küçük harfli bir kimlik yazın (ör. 'hukuk', 'din-kulturu'). Sorular bu kimlikle bu derse bağlanır; kimlik sonradan değiştirilemez." />
+                <Field
+                  label="Ders kimliği"
+                  value={String(draft.id ?? '')}
+                  onChangeText={(v) => set('id', v.trim().toLocaleLowerCase('tr').replace(/[^a-z0-9-]/g, ''))}
+                />
+              </View>
+            ) : (
+              <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 14 }}>
+                Ders kimliği: {entry.id} (kimlik değiştirilemez; sorular bu kimlikle bağlıdır)
+              </Text>
+            )}
             {field('name')}
             {field('questions')}
             {field('icon')}

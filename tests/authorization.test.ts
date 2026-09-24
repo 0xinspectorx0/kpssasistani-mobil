@@ -38,7 +38,10 @@ before(async () => {
   await db.exec(
     readFileSync(new URL('../supabase/migrations/202609220001_admin_content.sql', import.meta.url), 'utf8'),
   );
-  await db.query('insert into public.admin_members(user_id) values ($1)', [admin]);
+  await db.exec(
+    readFileSync(new URL('../supabase/migrations/202609250001_accounts_roles.sql', import.meta.url), 'utf8'),
+  );
+  await db.query('insert into public.members(user_id, role) values ($1, $2)', [admin, 'admin']);
   await asUser('authenticated', admin);
   await insert('published', 'published');
   await insert('draft', 'draft');
