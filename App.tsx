@@ -36,15 +36,18 @@ function Tabs() {
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.muted,
+        // Büyük yazı (font scaling) etiketleri büyütüp taşırıyordu; kapatıyoruz.
+        tabBarAllowFontScaling: false,
         tabBarStyle: {
           backgroundColor: theme.tabBar,
           borderTopColor: theme.border,
           borderTopWidth: 1,
           paddingBottom: 6,
           paddingTop: 6,
-          height: 62,
+          // Sabit yükseklik yok: bar, içeriğine göre kendini ölçer, etiketler asla kesilmez.
+          minHeight: 58,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginBottom: 2 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', lineHeight: 13, marginBottom: 2 },
         tabBarIcon: ({ color, size, focused }) => {
           const icons: Record<string, string> = {
             'Ana Sayfa': focused ? 'home' : 'home-outline',
