@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
@@ -87,7 +87,11 @@ export default function PasswordRecoveryModal() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
               {done ? (
                 <View style={{ alignItems: 'center', gap: 12 }}>
@@ -173,7 +177,7 @@ export default function PasswordRecoveryModal() {
                 </>
               )}
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>

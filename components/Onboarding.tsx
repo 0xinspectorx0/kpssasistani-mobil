@@ -21,8 +21,12 @@ export default function OnboardingModal({ visible, onDone }: { visible: boolean;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: theme.bg, padding: 24, justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
         {step === 0 ? (
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+            showsVerticalScrollIndicator={false}
+          >
           <View>
             <View style={{ alignItems: 'center', marginBottom: 24 }}>
               <View
@@ -68,8 +72,9 @@ export default function OnboardingModal({ visible, onDone }: { visible: boolean;
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </TouchableOpacity>
           </View>
+          </ScrollView>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
             <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Seni tanıyalım</Text>
             <Text style={{ fontSize: 13.5, color: theme.muted, marginTop: 6 }}>
               Adın ve hedefin, ana sayfayı sana özel hale getirir.
