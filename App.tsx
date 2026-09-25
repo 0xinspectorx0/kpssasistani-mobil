@@ -40,12 +40,12 @@ function Tabs() {
           backgroundColor: theme.tabBar,
           borderTopColor: theme.border,
           borderTopWidth: 1,
-          // İçerik hafif yukarı kaysın, altta etiket için kesme payı kalsın.
-          paddingBottom: 8,
+          // İçerik üstte toplansın, altta etiketler için kesme payı kalsın.
           paddingTop: 2,
-          height: 66,
+          paddingBottom: 12,
+          height: 68,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', lineHeight: 12, marginBottom: 0 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', lineHeight: 13 },
         tabBarIcon: ({ color, size, focused }) => {
           const icons: Record<string, string> = {
             'Ana Sayfa': focused ? 'home' : 'home-outline',
