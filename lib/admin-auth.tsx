@@ -20,6 +20,7 @@ export interface AuthValue {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  changePassword: (newPassword: string) => Promise<void>;
 }
 
 const Context = createContext<AuthValue | null>(null);
@@ -155,6 +156,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Giriş yapmış kullanıcının kendi şifresini değiştirmesi (Supabase oturumu günceller).
+  async function changePassword(newPassword: string) {
+    if (!supabase) throw new Error('Supabase bağlantısı yok.');
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(readableError(error));
+  }
+
   async function signOut() {
     resetAuth();
     setSession(null);
@@ -175,6 +183,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     resetPassword,
+    changePassword,
   };
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

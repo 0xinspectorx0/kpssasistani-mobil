@@ -20,7 +20,7 @@ import { AdminButton, Field, Notice } from './admin/AdminUI';
 
 export default function AuthScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { theme } = useApp();
-  const { signIn, signUp, session, role, resetPassword } = useAdminAuth();
+  const { signIn, signUp, session, role, resetPassword, changePassword } = useAdminAuth();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +30,34 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [forgot, setForgot] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [newPw2, setNewPw2] = useState('');
+
+  async function submitChangePassword() {
+    setError('');
+    setInfo('');
+    if (newPw.length < 6) {
+      setError('Yeni şifre en az 6 karakter olmalıdır.');
+      return;
+    }
+    if (newPw !== newPw2) {
+      setError('Yeni şifreler eşleşmiyor.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await changePassword(newPw);
+      setInfo('Şifren güncellendi.');
+      setChangingPw(false);
+      setNewPw('');
+      setNewPw2('');
+    } catch (e) {
+      setError(readableError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submitReset() {
     setError('');
@@ -139,9 +167,90 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                 <Text style={{ color: theme.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
                   Artık günlük test kotan {role === 'vip' ? 'sınırsız' : '3'} olarak etkin.
                 </Text>
-                <View style={{ marginTop: 20, width: '100%', maxWidth: 320 }}>
-                  <AdminButton label="Kapat" icon="checkmark" onPress={onClose} />
-                </View>
+
+                {changingPw ? (
+                  <View
+                    style={{
+                      width: '100%',
+                      maxWidth: 400,
+                      marginTop: 18,
+                      backgroundColor: theme.card,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      padding: 16,
+                    }}
+                  >
+                    <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15, marginBottom: 6 }}>
+                      Şifre değiştir
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 12.5, lineHeight: 19, marginBottom: 12 }}>
+                      Yeni şifreni yaz. E-posta gerekmez; oturumun açık olduğu için doğrudan güncellenir.
+                    </Text>
+                    <Field
+                      label="Yeni şifre"
+                      placeholder="En az 6 karakter"
+                      value={newPw}
+                      onChangeText={setNewPw}
+                      secureTextEntry={!showPw}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <Field
+                      label="Yeni şifre (tekrar)"
+                      placeholder="Yeni şifreni doğrula"
+                      value={newPw2}
+                      onChangeText={setNewPw2}
+                      secureTextEntry={!showPw}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      onPress={() => setShowPw(!showPw)}
+                      style={{ alignSelf: 'flex-end', padding: 8, marginBottom: 8 }}
+                    >
+                      <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 12 }}>
+                        {showPw ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                      </Text>
+                    </TouchableOpacity>
+                    {!!error && <Notice text={error} error />}
+                    {!!info && <Notice text={info} />}
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <AdminButton
+                          label="Vazgeç"
+                          secondary
+                          onPress={() => {
+                            setChangingPw(false);
+                            setError('');
+                            setInfo('');
+                            setNewPw('');
+                            setNewPw2('');
+                          }}
+                          disabled={busy}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AdminButton label="Güncelle" icon="key" onPress={submitChangePassword} busy={busy} />
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={{ marginTop: 20, width: '100%', maxWidth: 320, gap: 10 }}>
+                    <AdminButton
+                      label="Şifreyi değiştir"
+                      icon="key-outline"
+                      secondary
+                      onPress={() => {
+                        setChangingPw(true);
+                        setError('');
+                        setInfo('');
+                      }}
+                    />
+                    <AdminButton label="Kapat" icon="checkmark" onPress={onClose} />
+                  </View>
+                )}
               </View>
             ) : supabase ? (
               <>
