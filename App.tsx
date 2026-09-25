@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,16 +36,29 @@ function Tabs() {
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.muted,
+        // Cihaz yazı büyütme ayarı etiketleri büyütüp taşırmasın.
+        tabBarAllowFontScaling: false,
         tabBarStyle: {
           backgroundColor: theme.tabBar,
           borderTopColor: theme.border,
           borderTopWidth: 1,
-          // İçerik üstte toplansın, altta etiketler için kesme payı kalsın.
+          height: 66,
           paddingTop: 2,
-          paddingBottom: 12,
-          height: 68,
+          paddingBottom: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', lineHeight: 13 },
+        // Sekme öğesinin yatay iç boşluğu (5px+5px) "Ana Sayfa" gibi uzun ismi kesiyor; sıfırla.
+        tabBarItemStyle: { padding: 0 },
+        // Sığmayan etiket kendini hafif küçültsün; satır sarmadan, diğerleri sabit kalsın.
+        tabBarLabel: ({ color }) => (
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            style={{ color, fontSize: 9.5, fontWeight: '700', lineHeight: 12, width: '100%', textAlign: 'center' }}
+          >
+            {route.name}
+          </Text>
+        ),
         tabBarIcon: ({ color, size, focused }) => {
           const icons: Record<string, string> = {
             'Ana Sayfa': focused ? 'home' : 'home-outline',
