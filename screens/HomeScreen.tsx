@@ -290,15 +290,20 @@ export default function HomeScreen({ navigation }: any) {
 
         <View style={{ marginTop: 16 }}>
           <SectionTitle title="Hızlı Erişim" />
-          <View style={{ flexDirection: 'row' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
             <TouchableOpacity
               style={{ flex: 1, marginRight: 8 }}
               onPress={() => navigation.navigate('Quiz', { mode: 'mixed' })}
               activeOpacity={0.8}
             >
-              <Card style={{ alignItems: 'center', paddingVertical: 18 }}>
+              <Card style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 14, height: 100 }}>
                 <Ionicons name="shuffle" size={24} color={theme.accent} />
-                <Text style={{ fontWeight: '800', color: theme.text, marginTop: 8, fontSize: 13 }}>Karışık Test</Text>
+                <Text
+                  numberOfLines={2}
+                  style={{ fontWeight: '800', color: theme.text, marginTop: 8, fontSize: 13, textAlign: 'center' }}
+                >
+                  Karışık Test
+                </Text>
               </Card>
             </TouchableOpacity>
             <TouchableOpacity
@@ -306,9 +311,14 @@ export default function HomeScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Güncel')}
               activeOpacity={0.8}
             >
-              <Card style={{ alignItems: 'center', paddingVertical: 18 }}>
+              <Card style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 14, height: 100 }}>
                 <Ionicons name="newspaper" size={24} color="#EA580C" />
-                <Text style={{ fontWeight: '800', color: theme.text, marginTop: 8, fontSize: 13 }}>Güncel Bilgiler</Text>
+                <Text
+                  numberOfLines={2}
+                  style={{ fontWeight: '800', color: theme.text, marginTop: 8, fontSize: 13, textAlign: 'center' }}
+                >
+                  Güncel Bilgiler
+                </Text>
               </Card>
             </TouchableOpacity>
             <TouchableOpacity
@@ -316,9 +326,14 @@ export default function HomeScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Konular')}
               activeOpacity={0.8}
             >
-              <Card style={{ alignItems: 'center', paddingVertical: 18 }}>
+              <Card style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 14, height: 100 }}>
                 <Ionicons name="list" size={24} color={theme.success} />
-                <Text style={{ fontWeight: '800', color: theme.text, marginTop: 8, fontSize: 13 }}>Konu Takibi</Text>
+                <Text
+                  numberOfLines={2}
+                  style={{ fontWeight: '800', color: theme.text, marginTop: 8, fontSize: 13, textAlign: 'center' }}
+                >
+                  Konu Takibi
+                </Text>
               </Card>
             </TouchableOpacity>
           </View>
