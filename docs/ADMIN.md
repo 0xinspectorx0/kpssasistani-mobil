@@ -1,5 +1,8 @@
 # KPSS Asistanım — kurulum, hesaplar, roller ve içerik yönetimi
 
+> 📱 Android yayınlama için → [`ANDROID-YAYINLAMA.md`](./ANDROID-YAYINLAMA.md)
+> 🌐 Web yayınlama için → [`WEB-YAYINLAMA.md`](./WEB-YAYINLAMA.md)
+
 ## Ne değişti?
 
 Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik planları** eklendi:
