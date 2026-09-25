@@ -16,6 +16,7 @@ export interface AuthValue {
   checking: boolean;
   roleChecked: boolean;
   authError: string | null;
+  isRecovery: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -31,6 +32,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(false);
   const [roleChecked, setRoleChecked] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isRecovery, setIsRecovery] = useState(false);
 
   const resetAuth = () => {
     setRole('');
@@ -41,7 +43,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!supabase) return;
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      // Şifre sıfırlama linkinden dönüş: kullanıcıyı "yeni şifre belirle" ekranına al.
+      if (event === 'PASSWORD_RECOVERY') setIsRecovery(true);
+      else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') setIsRecovery(false);
       setSession(next);
       if (!next) resetAuth();
     });
@@ -165,6 +170,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     resetAuth();
+    setIsRecovery(false);
     setSession(null);
     await requireBackend().auth.signOut();
   }
@@ -179,6 +185,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     checking,
     roleChecked,
     authError,
+    isRecovery,
     signIn,
     signUp,
     signOut,

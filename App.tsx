@@ -12,6 +12,7 @@ import 'react-native-gesture-handler';
 
 import { AppProvider, useApp } from './lib/store';
 import OnboardingModal from './components/Onboarding';
+import PasswordRecoveryModal from './components/PasswordRecoveryModal';
 import HomeScreen from './screens/HomeScreen';
 import QuizSetupScreen from './screens/QuizSetupScreen';
 import QuizScreen from './screens/QuizScreen';
@@ -125,6 +126,7 @@ function Root() {
           AsyncStorage.setItem('kpss-onboarding-seen', '1').catch(() => {});
         }}
       />
+      <PasswordRecoveryModal />
     </>
   );
 }
