@@ -56,6 +56,22 @@
 - Kayıt olan kullanıcıya otomatik `uye` rolü
 - Ders kimliği serbest biçimde doğrulama
 
+## 5a. Kullanıcı denetimi — engelleme ve hesap silme (yeni)
+
+`supabase/migrations/202609250002_user_moderation.sql` eklendi:
+- `members.banned` + `members.banned_at` kolonları
+- `user_role()` engelli kullanıcı için `banned` döner; `is_admin` / `can_manage_content` /
+  `is_member` engellileri dışlar (sunucu tarafında erişim kesilir)
+- `set_banned(target_email, state)` — admin engeller/engeli kaldırır; son admin engellenemez
+- `list_members()` artık `banned` durumunu da döndürür
+- `resolve_user_id(target_email)` — admin kontrollü e-posta → kullanıcı kimliği (silme için)
+
+Panel → **Yöneticiler** kartında her kullanıcıya **Engelle / Engeli kaldır** ve **Hesabı sil** butonları eklendi.
+Engellenen kullanıcının açık oturumu sonlandırılır; işlem `BAN_USER` / `UNBAN_USER` olarak günlüğe yazılır.
+
+**Hesap silme** Supabase Auth kullanıcısını da silmek için **service role** gerektirir →
+`supabase/functions/delete-user` Edge Function eklendi. Kurulum adımları `docs/ADMIN.md` → bölüm 5a'da.
+
 ## 6. Diğer
 
 - `app.json`: uygulama adı → **KPSS Asistanım**
@@ -66,16 +82,19 @@
 ## Doğrulama durumu
 
 - `npm run typecheck` ✅
-- `npm test` (16 test, PGlite üzerinde iki migration'ın RLS/trigger davranışı) ✅
+- `npm test` (18 test, PGlite üzerinde üç migration'ın RLS/trigger davranışı) ✅
 - `npm run build:web` ✅
 - E2E preview (4 test) ✅
 - E2E bağlı/mock (6 test) ✅
 
 ## ⚠️ Yayınlamadan önce Supabase'de yapman gerekenler
 
-1. SQL Editor'de **önce** `supabase/migrations/202609220001_admin_content.sql`,
-   **sonra** `supabase/migrations/202609250001_accounts_roles.sql` dosyasını çalıştır.
+1. SQL Editor'de **sırasıyla** `supabase/migrations/202609220001_admin_content.sql`,
+   `supabase/migrations/202609250001_accounts_roles.sql`,
+   `supabase/migrations/202609250002_user_moderation.sql` dosyalarını çalıştır.
 2. Authentication → Providers → Email açık olsun.
 3. Üyelik istiyorsan "Allow new users to sign up" açık kalsın.
 4. İlk **admin** yetkisi: `docs/ADMIN.md` bölüm 2'deki SQL ile kendi hesabına ver.
 5. `.env.example` → `.env.local` kopyalayıp Supabase URL + anon key gir.
+6. **Hesap silme** için Edge Function kur: `docs/ADMIN.md` → bölüm 5a
+   (`supabase functions deploy delete-user --no-verify-jwt` + `SUPABASE_SERVICE_ROLE_KEY` secret).

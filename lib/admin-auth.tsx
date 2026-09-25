@@ -4,7 +4,7 @@ import { Session } from '@supabase/supabase-js';
 import { requireBackend, supabase } from './supabase';
 import { readableError } from './content-api';
 
-export type MemberRole = 'admin' | 'editor' | 'viewer' | 'uye' | 'vip' | '';
+export type MemberRole = 'admin' | 'editor' | 'viewer' | 'uye' | 'vip' | 'banned' | '';
 
 export interface AuthValue {
   session: Session | null;
@@ -12,6 +12,7 @@ export interface AuthValue {
   isAdmin: boolean;
   canManageContent: boolean;
   canViewDrafts: boolean;
+  isBanned: boolean;
   checking: boolean;
   roleChecked: boolean;
   authError: string | null;
@@ -68,6 +69,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setAuthError(null);
         setRole((data as MemberRole) ?? '');
+        // Engellenmiş kullanıcının oturumu iptal edilir ki tüm erişim sunucuda da kesilmiş olsun.
+        if ((data as MemberRole) === 'banned') void supabase!.auth.signOut();
       }
       if (!cancelled) {
         setChecking(false);
@@ -141,6 +144,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: role === 'admin',
     canManageContent: role === 'admin' || role === 'editor',
     canViewDrafts: role === 'admin' || role === 'editor' || role === 'viewer',
+    isBanned: role === 'banned',
     checking,
     roleChecked,
     authError,

@@ -25,9 +25,10 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
 2. SQL Editor'de **sırasıyla** şu dosyaların tamamını çalıştırın:
    1. `supabase/migrations/202609220001_admin_content.sql`
    2. `supabase/migrations/202609250001_accounts_roles.sql`
+   3. `supabase/migrations/202609250002_user_moderation.sql` (engelleme/silme desteği)
 3. Tablolar oluşur:
    - `content_entries` (merkezi içerik)
-   - `members` (kullanıcı rolleri)
+   - `members` (kullanıcı rolleri + `banned` durumu)
    - `user_activities` (günlük test kotası sayacı)
    - `admin_audit_log` (işlem günlüğü)
 4. **Authentication → Providers → Email** açık olsun. Kullanıcıların uygulamadan üye olabilmesi için
@@ -95,6 +96,36 @@ Değişken değişince Metro'yu yeniden başlatın. Web production: `npx expo ex
   Supabase → Authentication → Users → Add user ile oluşturulur.
 - Admin kendi yetkisini düşüremez (kilitlenmeyi önler). Güvenlik için Supabase'de en az bir admin kalmalıdır.
 
+## 5a. Kullanıcı denetimi: engelleme ve hesap silme
+
+- Aynı **Yöneticiler** bölümünde her kullanıcı kartında **Engelle / Engeli kaldır** ve **Hesabı sil** butonları vardır.
+- **Engelle:** `members.banned = true` yapar. Engelli kullanıcının tüm yetkileri sunucu tarafında düşer
+  (`user_role()` `banned` döner, `is_admin`/`can_manage_content`/`is_member` engelliyi dışlar); açık oturumları
+  sona erer. İşlem `BAN_USER` olarak işlem günlüğüne yazılır. **Engeli kaldır** geri alır (`UNBAN_USER`).
+- Son yönetici engellenemez (kilitlenme koruması).
+- **Hesabı sil:** kullanıcıyı hem `auth.users` hem de `members` kaydından kalıcı olarak siler. **Geri alınamaz.**
+  Admin hesapları silinemez; önce yetkisini kaldırın.
+
+### Hesap silme için Edge Function (gerekli)
+
+Hesap silme, Supabase Auth kullanıcısını silmek için **service role** gerektirir; bu nedenle bir Edge Function kurulmalıdır.
+
+```sh
+# 1. Yerinde CLI gerekli: supabase CLI kurulu olmalı
+supabase login
+supabase link --project-ref PROJE_KIMLIGI
+
+# 2. Service role anahtarını secret olarak tanımla (asla istemciye/EXPO_PUBLIC_*'a yazma)
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sb_secret_...  # Project Settings → API → service_role
+
+# 3. Fonksiyonu deploy et (anon çağrıda yetki içeride doğrulanır)
+supabase functions deploy delete-user --no-verify-jwt
+```
+
+> `delete-user` fonksiyonu çağıranın **admin** olduğunu token + `resolve_user_id` RPC'si üzerinden
+> kendi içinde doğrular; yani anon anahtarın bilinmesi tek başına silme yetkisi vermez.
+> Fonksiyon kurulmadan panelde **Hesabı sil** butonu hata verir; engelleme ise Edge Function olmadan da çalışır.
+
 ### Rol → erişim özeti
 
 | Yetki | admin | editor | viewer |
@@ -127,7 +158,7 @@ npm test
 npm run build:web
 ```
 
-`npm test`, PGlite üzerinde iki migration'ın RLS/trigger davranışını birlikte sınar.
+`npm test`, PGlite üzerinde üç migration'ın RLS/trigger davranışını birlikte sınar (engelleme/silme dahil).
 
 Web E2E (bağlı akış):
 

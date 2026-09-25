@@ -41,6 +41,9 @@ before(async () => {
   await db.exec(
     readFileSync(new URL('../supabase/migrations/202609250001_accounts_roles.sql', import.meta.url), 'utf8'),
   );
+  await db.exec(
+    readFileSync(new URL('../supabase/migrations/202609250002_user_moderation.sql', import.meta.url), 'utf8'),
+  );
   await db.query('insert into public.members(user_id, role) values ($1, $2)', [admin, 'admin']);
   await asUser('authenticated', admin);
   await insert('published', 'published');
@@ -129,6 +132,56 @@ test('admin grants and revokes roles; self-removal and unknown accounts are bloc
   await asUser('authenticated', second);
   await assert.rejects(insert('revoked-write', 'published'), /row-level security/);
 });
+test('admin bans and unbans users; banned users lose all access at the server', async () => {
+  await asUser('authenticated', admin);
+  // İkinci hesabı üyeye çevirip engelle.
+  await db.query("select public.set_banned('second@example.com', true)");
+  const list = await db.query<{ email: string; banned: boolean; role: string }>(
+    "select email, banned, role from public.list_members() where email='second@example.com'",
+  );
+  assert.equal(list.rows.length, 1);
+  assert.equal(list.rows[0].banned, true);
+  assert.equal(list.rows[0].role, 'uye');
+
+  // Engelli kullanıcı tüm yetkilerden düşer.
+  await asUser('authenticated', second);
+  assert.deepEqual((await db.query('select public.user_role() as r')).rows, [{ r: 'banned' }]);
+  assert.deepEqual((await db.query('select public.is_admin() as a, public.is_member() as m')).rows, [
+    { a: false, m: false },
+  ]);
+  await assert.rejects(insert('banned-write', 'published'), /row-level security/i);
+
+  // Engel kaldırılınca yeniden üye gibi davranır.
+  await asUser('authenticated', admin);
+  await db.query("select public.set_banned('second@example.com', false)");
+  const list2 = await db.query<{ banned: boolean }>(
+    "select banned from public.list_members() where email='second@example.com'",
+  );
+  assert.equal(list2.rows[0].banned, false);
+});
+
+test('moderation guards: non-admins, self-ban and last-admin ban are blocked', async () => {
+  // Admin olmayan ban yapamaz.
+  await asUser('authenticated', student);
+  await assert.rejects(db.query("select public.set_banned('second@example.com', true)"), /Yönetici yetkisi/);
+
+  await asUser('authenticated', admin);
+  // Kendi hesabını engelleyemez.
+  await assert.rejects(db.query("select public.set_banned('owner@example.com', true)"), /Kendi hesabınızı/);
+  // Başka bir admin engellendiğinde rolü 'uye'ye düşer; kalan admin (owner) yine ban yapabilir.
+  await db.query("select public.set_admin('second@example.com', true)");
+  await db.query("select public.set_banned('second@example.com', true)");
+  const bannedAdmin = await db.query<{ role: string; banned: boolean }>(
+    "select role, banned from public.list_members() where email='second@example.com'",
+  );
+  assert.deepEqual(bannedAdmin.rows, [{ role: 'uye', banned: true }]);
+  await db.query("select public.set_banned('second@example.com', false)");
+  await db.query("select public.set_admin('second@example.com', false)");
+  // E-posta çözümleme yalnızca admin için.
+  await asUser('authenticated', student);
+  await assert.rejects(db.query("select public.resolve_user_id('owner@example.com')"), /Yönetici yetkisi/);
+});
+
 test('bundled import is complete and cannot overwrite existing edits', async () => {
   await asUser('authenticated', admin);
   for (const row of seedEntries()) {

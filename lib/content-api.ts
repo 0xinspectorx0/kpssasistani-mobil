@@ -71,6 +71,7 @@ export interface Member {
   user_id: string;
   email: string;
   role: string;
+  banned?: boolean;
   created_at: string;
 }
 export interface AuditItem {
@@ -98,6 +99,55 @@ export async function changeAdmin(email: string, enabled: boolean) {
 export async function changeRole(email: string, role: string) {
   const { error } = await requireBackend().rpc('set_role', { target_email: email.trim(), new_role: role });
   if (error) throw error;
+}
+export async function setBanned(email: string, banned: boolean) {
+  const { error } = await requireBackend().rpc('set_banned', {
+    target_email: email.trim(),
+    banned_state: banned,
+  });
+  if (error) throw error;
+}
+
+// Hesabı tamamen silmek için Supabase Edge Function kullanılır (service role gerekir).
+// Kurulum yoksa ve delete-user fonksiyonu deploy edilmemişse hata döner.
+export interface DeleteUserResponse {
+  ok?: boolean;
+  message?: string;
+  error?: string;
+}
+export async function deleteUserAccount(email: string): Promise<void> {
+  const client = requireBackend();
+  const functionUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`;
+  if (!/^https:\/\//.test(functionUrl ?? '')) {
+    throw new Error('Supabase URL yapılandırılmamış.');
+  }
+
+  // Anon key'i header olarak gönder (Edge Function admin yetkisini RPC üzerinden doğrular).
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const { data: sessionData } = await client.auth.getSession();
+  const token = sessionData?.session?.access_token ?? '';
+
+  let resp: Response;
+  try {
+    resp = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ target_email: email.trim() }),
+    });
+  } catch {
+    throw new Error(
+      'Hesap silme servisine ulaşılamadı. supabase/functions/delete-user Edge Function kurulumunu yapın (docs/ADMIN.md).',
+    );
+  }
+
+  const payload = (await resp.json().catch(() => ({}))) as DeleteUserResponse;
+  if (!resp.ok || payload.error) {
+    throw new Error(payload.error ?? 'Hesap silinemedi.');
+  }
 }
 export async function insertManyEntries(entries: ContentEntry[]): Promise<{ inserted: number }> {
   if (!entries.length) return { inserted: 0 };

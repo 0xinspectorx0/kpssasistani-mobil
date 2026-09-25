@@ -44,6 +44,7 @@ export const PLAN_META: Record<
 };
 
 export function planFor(role: MemberRole, hasSession: boolean): PlanId {
+  if (role === 'banned') return 'guest'; // engelli hesap misafir gibi bile işlem yapamaz; oturum düşürülür
   if (role === 'vip') return 'vip';
   if (role === 'admin' || role === 'editor' || role === 'viewer') return 'staff';
   if (hasSession) return 'uye';

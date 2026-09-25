@@ -31,6 +31,7 @@ import {
   changeAdmin,
   changeRole,
   deleteEntry,
+  deleteUserAccount,
   fetchEntries,
   importBundledContent,
   insertManyEntries,
@@ -40,6 +41,7 @@ import {
   Member,
   readableError,
   saveEntry,
+  setBanned,
 } from '../lib/content-api';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { roleLabels } from '../lib/membership';
@@ -896,7 +898,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
               </Card>
             )}
             {members.map((m) => (
-              <Card key={m.user_id} style={{ marginBottom: 10, gap: 12 }}>
+              <Card key={m.user_id} style={{ marginBottom: 10, gap: 12, opacity: m.banned ? 0.75 : 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View
                     style={{
@@ -910,55 +912,136 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                   >
                     <Ionicons
                       name={
-                        (m.role === 'admin'
-                          ? 'shield'
-                          : m.role === 'editor'
-                            ? 'create'
-                            : m.role === 'viewer'
-                              ? 'eye'
-                              : m.role === 'vip'
-                                ? 'diamond'
-                                : 'person') as any
+                        m.banned
+                          ? 'ban'
+                          : (m.role === 'admin'
+                            ? 'shield'
+                            : m.role === 'editor'
+                              ? 'create'
+                              : m.role === 'viewer'
+                                ? 'eye'
+                                : m.role === 'vip'
+                                  ? 'diamond'
+                                  : 'person') as any
                       }
                       size={20}
-                      color={theme.accent}
+                      color={m.banned ? theme.danger : theme.accent}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.text, fontWeight: '700' }}>
-                      {m.email}
-                      {session?.user.id === m.user_id ? ' (siz)' : ''}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={{ color: theme.text, fontWeight: '700' }}>
+                        {m.email}
+                        {session?.user.id === m.user_id ? ' (siz)' : ''}
+                      </Text>
+                      {m.banned && (
+                        <View
+                          style={{
+                            backgroundColor: theme.danger + '18',
+                            borderRadius: 6,
+                            paddingHorizontal: 7,
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text style={{ color: theme.danger, fontSize: 10, fontWeight: '800' }}>ENGELLİ</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
                       Rol: {roleLabels[m.role] ?? m.role}
                     </Text>
                   </View>
-                  {canGrantRoles && session?.user.id !== m.user_id && (
+                </View>
+
+                {canGrantRoles && session?.user.id !== m.user_id && (
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {!m.banned && m.role !== 'uye' && (
+                      <AdminButton
+                        label="Yetkiyi kaldır"
+                        secondary
+                        danger
+                        disabled={previewOnly || loading}
+                        onPress={() =>
+                          setConfirm({
+                            title: 'Yetki kaldırılsın mı?',
+                            description: `${m.email} hesabı yönetim panelinden çıkarılacak; normal üye olarak kalmaya devam edecek.`,
+                            label: 'Yetkiyi kaldır',
+                            danger: true,
+                            action: async () => {
+                              await changeRole(m.email, 'uye');
+                              await afterChange('Yetki geri alındı; hesap üye olarak kaldı.');
+                            },
+                          })
+                        }
+                      />
+                    )}
+                    {!m.banned ? (
+                      <AdminButton
+                        label="Engelle"
+                        secondary
+                        danger
+                        disabled={previewOnly || loading}
+                        onPress={() =>
+                          setConfirm({
+                            title: 'Kullanıcı engellensin mi?',
+                            description: `${m.email} hesabı anında giriş yapamaz hâle gelir; açık oturumları sonlanır ve tüm yetkileri düşer. İşlem İşlem Geçmişi bölümüne kaydedilir.`,
+                            label: 'Engelle',
+                            danger: true,
+                            action: async () => {
+                              await setBanned(m.email, true);
+                              await afterChange('Kullanıcı engellendi.');
+                            },
+                          })
+                        }
+                      />
+                    ) : (
+                      <AdminButton
+                        label="Engeli kaldır"
+                        secondary
+                        disabled={previewOnly || loading}
+                        onPress={() =>
+                          setConfirm({
+                            title: 'Engel kaldırılsın mı?',
+                            description: `${m.email} hesabı yeniden uygulamaya giriş yapabilecek.`,
+                            label: 'Engeli kaldır',
+                            action: async () => {
+                              await setBanned(m.email, false);
+                              await afterChange('Engel kaldırıldı.');
+                            },
+                          })
+                        }
+                      />
+                    )}
                     <AdminButton
-                      label="Yetkiyi kaldır"
-                      secondary
+                      label="Hesabı sil"
                       danger
-                      disabled={previewOnly || loading || m.role === 'uye'}
+                      disabled={previewOnly || loading || m.role === 'admin'}
                       onPress={() =>
                         setConfirm({
-                          title: 'Yetki kaldırılsın mı?',
-                          description: `${m.email} hesabı yönetim panelinden çıkarılacak; normal üye olarak kalmaya devam edecek.`,
-                          label: 'Yetkiyi kaldır',
+                          title: 'Hesap kalıcı olarak silinsin mi?',
+                          description: `${m.email} hesabı ve tüm verileri kalıcı olarak silinecek (Supabase kaydı dahil). Bu işlem geri alınamaz. Yalnızca admin olmayan hesaplar silinebilir.`,
+                          label: 'Kalıcı sil',
                           danger: true,
                           action: async () => {
-                            await changeRole(m.email, 'uye');
-                            await afterChange('Yetki geri alındı; hesap üye olarak kaldı.');
+                            await deleteUserAccount(m.email).catch((e) => {
+                              setError(
+                                readableError(e) +
+                                  ' (Hesap silme için supabase/functions/delete-user Edge Function kurulumu gerekir — docs/ADMIN.md)',
+                              );
+                              throw e;
+                            });
+                            await afterChange('Hesap silindi.');
                           },
                         })
                       }
                     />
-                  )}
-                  {canGrantRoles && session?.user.id === m.user_id && (
-                    <Text style={{ color: theme.muted, fontSize: 11, maxWidth: 140, textAlign: 'right' }}>
-                      Kendi yetkinizi panelden değiştiremezsiniz
-                    </Text>
-                  )}
-                </View>
+                  </View>
+                )}
+                {canGrantRoles && session?.user.id === m.user_id && (
+                  <Text style={{ color: theme.muted, fontSize: 11 }}>
+                    Kendi hesabınızda engelleme/silme işlemi yapamazsınız.
+                  </Text>
+                )}
               </Card>
             ))}
             {!members.length && !previewOnly && (
