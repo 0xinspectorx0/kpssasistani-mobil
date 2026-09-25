@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,27 +36,15 @@ function Tabs() {
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.muted,
-        // Büyük yazı (font scaling) etiketleri büyütüp taşırıyordu; kapatıyoruz.
-        tabBarAllowFontScaling: false,
         tabBarStyle: {
           backgroundColor: theme.tabBar,
           borderTopColor: theme.border,
           borderTopWidth: 1,
           paddingBottom: 6,
           paddingTop: 6,
-          // Sabit yükseklik yok: bar, içeriğine göre kendini ölçer, etiketler asla kesilmez.
-          minHeight: 58,
+          height: 62,
         },
-        tabBarLabel: ({ color }) => (
-          <Text
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            style={{ color, fontSize: 10.5, fontWeight: '700', textAlign: 'center', lineHeight: 12.5 }}
-          >
-            {route.name}
-          </Text>
-        ),
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginBottom: 2 },
         tabBarIcon: ({ color, size, focused }) => {
           const icons: Record<string, string> = {
             'Ana Sayfa': focused ? 'home' : 'home-outline',
@@ -66,7 +54,7 @@ function Tabs() {
             'Araçlar': focused ? 'construct' : 'construct-outline',
             'Profil': focused ? 'person' : 'person-outline',
           };
-          return <Icons name={icons[route.name] as any} size={22} color={color} />;
+          return <Icons name={icons[route.name] as any} size={23} color={color} />;
         },
       })}
     >
