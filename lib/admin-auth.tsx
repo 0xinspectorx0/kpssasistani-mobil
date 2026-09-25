@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { Session } from '@supabase/supabase-js';
-import { requireBackend, supabase } from './supabase';
+import { requireBackend, supabase, APP_SITE_URL } from './supabase';
 import { readableError } from './content-api';
 
 export type MemberRole = 'admin' | 'editor' | 'viewer' | 'uye' | 'vip' | 'banned' | '';
@@ -19,6 +19,7 @@ export interface AuthValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const Context = createContext<AuthValue | null>(null);
@@ -124,11 +125,33 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
     setChecking(true);
     try {
-      const { error } = await requireBackend().auth.signUp({ email: email.trim(), password });
+      const { error } = await requireBackend().auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: Platform.OS === 'web' ? APP_SITE_URL : undefined,
+        },
+      });
       if (error) throw new Error(readableError(error));
     } catch (error) {
       setChecking(false);
       throw error;
+    }
+  }
+
+  async function resetPassword(email: string) {
+    setAuthError(null);
+    setChecking(true);
+    try {
+      const { error } = await requireBackend().auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: Platform.OS === 'web' ? APP_SITE_URL : undefined,
+      });
+      if (error) throw new Error(readableError(error));
+    } catch (error) {
+      setChecking(false);
+      throw error;
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -151,6 +174,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
   };
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

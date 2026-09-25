@@ -5,6 +5,11 @@ import { createClient, processLock } from '@supabase/supabase-js';
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// E-posta doğrulama / şifre sıfırlama bağlantılarının döneceği adres.
+// Web sürümü buradadır; Supabase Dashboard → Authentication → URL Configuration
+// içindeki "Site URL" de aynı adrese ayarlanmalıdır (localhost kalmamalı).
+export const APP_SITE_URL = 'https://kpssasistani-mobil.vercel.app';
+
 // Kullanıcı hesapları için oturum AsyncStorage'da saklanır (kalıcı giriş).
 // Erişim güvenliği hâlâ sunucu tarafındaki RLS politikalarıyla sağlanır:
 // istemci yalnızca kendi rolünün izin verdiği kayıtlara erişebilir.
@@ -30,7 +35,7 @@ export const supabase =
           storage: AsyncStorage,
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: false,
+          detectSessionInUrl: true, // web: doğrulama/şifre sıfırlama linkinden dönüşte oturumu yakala
           lock: processLock,
         },
       })

@@ -20,7 +20,7 @@ import { AdminButton, Field, Notice } from './admin/AdminUI';
 
 export default function AuthScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { theme } = useApp();
-  const { signIn, signUp, session, role } = useAdminAuth();
+  const { signIn, signUp, session, role, resetPassword } = useAdminAuth();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +29,26 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [forgot, setForgot] = useState(false);
+
+  async function submitReset() {
+    setError('');
+    setInfo('');
+    if (!email.trim()) {
+      setError('E-posta adresinizi girin.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await resetPassword(email);
+      setInfo('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu kontrol edin.');
+      setForgot(false);
+    } catch (e) {
+      setError(readableError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit() {
     setError('');
@@ -198,15 +218,71 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                   </Text>
                 </TouchableOpacity>
 
+                {tab === 'login' && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setForgot(true);
+                      setError('');
+                      setInfo('');
+                    }}
+                    style={{ alignSelf: 'center', padding: 6, marginBottom: 14 }}
+                  >
+                    <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 13, textDecorationLine: 'underline' }}>
+                      Parolamı unuttum
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {forgot && (
+                  <View
+                    style={{
+                      backgroundColor: theme.card,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      padding: 16,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15, marginBottom: 6 }}>
+                      Şifre sıfırlama
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 12.5, lineHeight: 19, marginBottom: 12 }}>
+                      E-posta adresinize şifre sıfırlama bağlantısı göndereceğiz.
+                    </Text>
+                    <Field
+                      label="E-posta adresi"
+                      placeholder="ornek@posta.com"
+                      value={email}
+                      onChangeText={setEmail}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="email-address"
+                      autoComplete="email"
+                    />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <AdminButton label="Vazgeç" secondary onPress={() => setForgot(false)} disabled={busy} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AdminButton label="Bağlantı gönder" icon="mail-outline" onPress={submitReset} busy={busy} />
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {!!error && <Notice text={error} error />}
                 {!!info && <Notice text={info} />}
 
-                <AdminButton
-                  label={tab === 'login' ? 'Giriş yap' : 'Hesap oluştur'}
-                  icon={tab === 'login' ? 'log-in-outline' : 'person-add-outline'}
-                  onPress={submit}
-                  busy={busy}
-                />
+                {!forgot && (
+                  <AdminButton
+                    label={tab === 'login' ? 'Giriş yap' : 'Hesap oluştur'}
+                    icon={tab === 'login' ? 'log-in-outline' : 'person-add-outline'}
+                    onPress={submit}
+                    busy={busy}
+                  />
+                )}
 
                 <View style={{ marginTop: 22 }}>
                   <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 8 }}>Üyelik planları</Text>
