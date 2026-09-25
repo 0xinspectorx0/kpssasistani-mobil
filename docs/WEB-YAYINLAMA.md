@@ -177,3 +177,43 @@ RewriteRule . /index.html [L]
 - [ ] SPA rewrite kuralı aktif (yenilemede 404 yok)
 - [ ] Mobil tarayıcıda da denendi
 - [ ] Alan adı (opsiyonel) bağlandı
+
+---
+
+## 📧 E-posta gönderimi (doğrulama + şifre sıfırlama)
+
+Supabase'in varsayılan e-posta servisi **saatte 2 mail** ile sınırlıdır ve yalnızca test amaçlıdır.
+Üyelik doğrulama ve "Parolamı unuttum" maillerinin gerçek kullanıcılara gitmesi için
+**özel SMTP** bağlanmalıdır. Önerilen ücretsiz sağlayıcı: **Brevo** (günde 300 mail, kalıcı ücretsiz, kredi kartı istemez).
+
+### Brevo kurulumu
+
+1. [brevo.com](https://www.brevo.com) → üye olun.
+2. **Senders & IP → Add sender** ile gönderen e-postanızı doğrulayın (gelen doğrulama mailine tıklayın).
+3. **SMTP & API** bölümünden bir SMTP anahtarı oluşturun (`xsmtpsib-...`).
+4. Supabase → **Authentication → Emails → SMTP Settings** → **Enable Custom SMTP**:
+
+   | Alan | Değer |
+   | --- | --- |
+   | Host | `smtp-relay.brevo.com` |
+   | Port | `587` |
+   | Username | Brevo giriş e-postası |
+   | Password | `xsmtpsib-...` (SMTP anahtarı) |
+   | Sender email | doğruladığınız gönderen adresi |
+   | Sender name | `KPSS Asistanım` |
+
+5. **Authentication → Rate Limits** → e-posta limitini yükseltin (varsayılan 30/saat; Brevo günlük 300'e uygun, ör. 15/saat).
+6. **Authentication → URL Configuration → Site URL** = `https://kpssasistani-mobil.vercel.app`
+   ve **Redirect URLs**'e `https://kpssasistani-mobil.vercel.app/**` ekleyin (mail linkleri buraya gider).
+
+### İki kritik ayar (yönlendirme)
+
+- Uygulama, doğrulama ve şifre sıfırlama linklerini `APP_SITE_URL` sabitine (`lib/supabase.ts`)
+  göre üretir; Supabase Site URL ayarı da aynı adres olmalı, `localhost` kalmamalı.
+- Şifre sıfırlama linkinden dönüşte `PASSWORD_RECOVERY` event'i yakalanır ve kullanıcıya
+  **"Yeni şifrenizi belirleyin"** tam ekran formu gösterilir (bileşen: `components/PasswordRecoveryModal.tsx`).
+
+### Üyelik doğrulaması açma/kapama
+
+- **Confirm email AÇIK** → her yeni kayıt doğrulama maili alır (Brevo gerekir).
+- **Confirm email KAPALI** → kullanıcılar mail beklemeden kaydolur (mail yükü azalır).
