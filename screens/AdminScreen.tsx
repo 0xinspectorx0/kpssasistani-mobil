@@ -33,15 +33,20 @@ import {
   deleteEntry,
   deleteUserAccount,
   fetchEntries,
+  getUserStats,
   importBundledContent,
   insertManyEntries,
   listAdmins,
   listAudit,
   listMembers,
+  listReports,
   Member,
   readableError,
+  ReportItem,
   saveEntry,
   setBanned,
+  setReportStatus,
+  UserStats,
 } from '../lib/content-api';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { roleLabels } from '../lib/membership';
@@ -50,17 +55,19 @@ import { AdminButton, Choice, ConfirmDialog, Field, Notice } from '../components
 import ContentEditor from '../components/admin/ContentEditor';
 import BulkAdd from '../components/admin/BulkAdd';
 
-type Section = ContentKind | 'overview' | 'admins' | 'audit';
+type Section = ContentKind | 'overview' | 'admins' | 'audit' | 'reports';
 const sectionLabels: Record<Section, string> = {
   overview: 'Genel Bakış',
   ...kindLabels,
   admins: 'Yöneticiler',
+  reports: 'Soru Bildirimleri',
   audit: 'İşlem Geçmişi',
 };
 const sectionIcons: Record<Section, string> = {
   overview: 'grid-outline',
   ...kindIcons,
   admins: 'people-outline',
+  reports: 'flag-outline',
   audit: 'time-outline',
 };
 const sections = Object.keys(sectionLabels) as Section[];
@@ -73,6 +80,8 @@ function auditActionLabel(action: string): string {
     GRANT_ADMIN: 'Yönetici yetkisi verildi',
     REVOKE_ADMIN: 'Yetki kaldırıldı',
     REMOVE_MEMBER: 'Üyelik kaldırıldı',
+    BAN_USER: 'Kullanıcı engellendi',
+    UNBAN_USER: 'Kullanıcı engeli kaldırıldı',
   };
   if (fixed[action]) return fixed[action];
   if (action.startsWith('SET_ROLE:')) {
@@ -213,6 +222,8 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const [admins, setAdmins] = useState<AdminMember[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(!previewOnly);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -236,16 +247,20 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
     setLoading(true);
     setError('');
     try {
-      const [rows, membersList, adminsList, logs] = await Promise.all([
+      const [rows, membersList, adminsList, logs, reportList, userStats] = await Promise.all([
         fetchEntries(),
         listMembers(),
         listAdmins(),
         listAudit(),
+        listReports().catch(() => [] as ReportItem[]),
+        getUserStats().catch(() => null as UserStats | null),
       ]);
       setEntries(rows);
       setMembers(membersList);
       setAdmins(adminsList);
       setAudit(logs);
+      setReports(reportList);
+      setStats(userStats);
     } catch (e) {
       setError(readableError(e));
     } finally {
@@ -336,7 +351,8 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const currentPage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 20) - 1));
   const published = entries.filter((e) => e.status === 'published').length;
   const isContent = section in kindLabels;
-  const visibleSections = sections.filter((s) => s !== 'admins' || canGrantRoles);
+  const newReports = reports.filter((r) => r.status === 'new').length;
+  const visibleSections = sections.filter((s) => (s !== 'admins' && s !== 'reports') || canGrantRoles);
   const navigation = (
     <View style={{ gap: wide ? 5 : 8, flexDirection: wide ? 'column' : 'row' }}>
       {visibleSections.map((s) => (
@@ -371,6 +387,22 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
           >
             {sectionLabels[s]}
           </Text>
+          {s === 'reports' && newReports > 0 && (
+            <View
+              style={{
+                backgroundColor: theme.danger,
+                borderRadius: 999,
+                minWidth: 19,
+                paddingHorizontal: 6,
+                paddingVertical: 1,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>
+                {newReports}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       ))}
     </View>
@@ -545,6 +577,30 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                 </Card>
               ))}
             </View>
+
+            {stats && (
+              <>
+                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 18, marginBottom: 14 }}>
+                  Kullanıcı etkinliği
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+                  {[
+                    { label: 'Toplam üye', value: stats.total_members, icon: 'people-outline', color: '#7C3AED' },
+                    { label: 'Bugün aktif', value: stats.active_today, icon: 'flash-outline', color: '#EA580C' },
+                    { label: 'Son 7 gün aktif', value: stats.active_7d, icon: 'pulse-outline', color: '#D97706' },
+                    { label: 'Toplam çözülen test', value: stats.total_quizzes, icon: 'play-circle-outline', color: '#2563EB' },
+                  ].map((stat) => (
+                    <Card key={stat.label} style={{ flex: 1, minWidth: 130, padding: 18 }}>
+                      <Ionicons name={stat.icon as any} color={stat.color} size={23} />
+                      <Text style={{ color: theme.text, fontSize: 26, fontWeight: '900', marginTop: 14 }}>
+                        {stat.value.toLocaleString('tr-TR')}
+                      </Text>
+                      <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>{stat.label}</Text>
+                    </Card>
+                  ))}
+                </View>
+              </>
+            )}
             <Text style={{ color: theme.text, fontWeight: '800', fontSize: 18, marginBottom: 14 }}>
               İçerik yönetimi
             </Text>
@@ -1053,6 +1109,116 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
             )}
             {previewOnly && (
               <EmptyState icon="people-outline" title="Önizlemede hesap verisi bulunmaz" />
+            )}
+          </>
+        )}
+        {section === 'reports' && (
+          <>
+            <Notice text="Öğrencilerin işaretlediği hatalı sorular burada listelenir. Her bildirim, ilgili sorunun kimliği ve gönderenin bilgisiyle gösterilir." />
+            <AdminButton
+              secondary
+              label="Bildirimleri yenile"
+              icon="refresh"
+              disabled={loading || previewOnly}
+              onPress={() => void load()}
+            />
+            {reports.length === 0 && !loading ? (
+              <EmptyState icon="flag-outline" title="Henüz bildirim yok" desc="Öğrenciler hatalı soru bildirdikçe burada listelenecek." />
+            ) : (
+              reports.map((r) => {
+                const related = entries.find((e) => e.kind === 'questions' && e.id === r.question_id);
+                return (
+                  <Card key={r.id} style={{ marginTop: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: theme.text, fontWeight: '800' }}>
+                          {related ? entryTitle(related).slice(0, 110) : `Soru #${r.question_id}`}
+                        </Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6 }}>
+                          {r.reporter_email ?? 'Misafir kullanıcı'} • {new Date(r.created_at).toLocaleString('tr-TR')}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          backgroundColor:
+                            r.status === 'new' ? theme.danger + '18' : r.status === 'resolved' ? theme.successSoft : theme.card2,
+                          borderRadius: 6,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: r.status === 'new' ? theme.danger : r.status === 'resolved' ? theme.success : theme.muted,
+                            fontSize: 10,
+                            fontWeight: '800',
+                          }}
+                        >
+                          {r.status === 'new' ? 'YENİ' : r.status === 'resolved' ? 'ÇÖZÜLDÜ' : 'KAPATILDI'}
+                        </Text>
+                      </View>
+                    </View>
+                    {!!r.reason && (
+                      <Text style={{ color: theme.text, fontSize: 13, marginTop: 10, lineHeight: 20 }}>
+                        “{r.reason}”
+                      </Text>
+                    )}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                      {r.status !== 'resolved' && (
+                        <AdminButton
+                          label="Çözüldü olarak işaretle"
+                          icon="checkmark"
+                          disabled={previewOnly}
+                          onPress={() =>
+                            setConfirm({
+                              title: 'Bildirim çözüldü mü?',
+                              description: 'Soru düzeltildiyse bildirimi çözüldü olarak işaretleyebilirsiniz.',
+                              label: 'Çözüldü',
+                              action: async () => {
+                                await setReportStatus(r.id, 'resolved');
+                                await afterChange('Bildirim çözüldü olarak işaretlendi.');
+                              },
+                            })
+                          }
+                        />
+                      )}
+                      {related && canManage && (
+                        <AdminButton
+                          label="Soruyu düzenle"
+                          icon="create-outline"
+                          secondary
+                          disabled={previewOnly}
+                          onPress={() => {
+                            go('questions');
+                            setEditor({ entry: related, isNew: false });
+                          }}
+                        />
+                      )}
+                      {r.status === 'new' && (
+                        <AdminButton
+                          label="Kapat"
+                          icon="close"
+                          secondary
+                          danger
+                          disabled={previewOnly}
+                          onPress={() =>
+                            setConfirm({
+                              title: 'Bildirim kapatılsın mı?',
+                              description: 'Bildirim hatalıysa veya tekrarlıysa kapatabilirsiniz.',
+                              label: 'Kapat',
+                              danger: true,
+                              action: async () => {
+                                await setReportStatus(r.id, 'dismissed');
+                                await afterChange('Bildirim kapatıldı.');
+                              },
+                            })
+                          }
+                        />
+                      )}
+                    </View>
+                  </Card>
+                );
+              })
             )}
           </>
         )}

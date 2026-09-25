@@ -1,6 +1,7 @@
 # KPSS Asistanım — Yapılan Değişiklikler
 
-> Tarih: 2026-09-25 • Kapsam: Hesap sistemi, roller, üyelik kotaları, esnek dersler, toplu soru ekleme
+> Tarih: 2026-09-25 • Kapsam: Hesap sistemi, roller, üyelik kotaları, esnek dersler, toplu soru ekleme,
+> kullanıcı denetimi, 5 seçenekli testler, soru bildirimi ve kullanıcı etkinliği
 
 ## 1. Hesap ve üyelik sistemi (yeni)
 
@@ -43,7 +44,7 @@
 
 - Panel → Soru Bankası → **Toplu soru ekle** (`components/admin/BulkAdd.tsx`):
   - **JSON** dizisi yapıştırma (şema doğrulamalı)
-  - **Metin/CSV** satır bazlı: `Ders|Zorluk|Soru|A|B|C|D|CevapHarf|Açıklama`
+  - **Metin/CSV** satır bazlı: `Ders|Zorluk|Soru|A|B|C|D|E|CevapHarf|Açıklama`
 - Kayıtlar tek tek doğrulanır; hatalı satır tüm işlemi iptal eder.
 
 ## 5. Veritabanı (yeni migration)
@@ -71,6 +72,23 @@ Engellenen kullanıcının açık oturumu sonlandırılır; işlem `BAN_USER` / 
 
 **Hesap silme** Supabase Auth kullanıcısını da silmek için **service role** gerektirir →
 `supabase/functions/delete-user` Edge Function eklendi. Kurulum adımları `docs/ADMIN.md` → bölüm 5a'da.
+
+## 5b. 5 seçenekli testler (A–E)
+
+- **Sorular artık 5 seçeneklidir (A, B, C, D, E).** 48 hazır sorunun tamamına 5. seçenek eklendi.
+- Şema, veritabanı tetikleyicisi (`validate_content_entry`) ve toplu ekleme formatı 5 seçenek zorunluluğuna güncellendi.
+- Toplu ekleme Metin/CSV biçimi: `Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama`.
+
+## 5c. Soru düzenleme, hatalı soru bildirimi ve kullanıcı etkinliği
+
+- **Admin için soru üzerinde düzenle:** Test çözerken sorunun üzerinde **Düzenle** simgesi belirir;
+  tıklayınca yüzen bir pencerede (ContentEditor) soru yerinde düzenlenir ve kaydedilir.
+- **Hatalı soru bildirimi:** Tüm kullanıcılar sorunun üzerindeki **Bildir** simgesiyle hatalı soruyu işaretler.
+  Bildirimler Supabase'e kaydedilir; admin panelde **Soru Bildirimleri** bölümünde görür, çözer veya kapatır.
+- **Kullanıcı etkinliği:** Panel → **Genel Bakış** üstünde toplam üye, bugün aktif, son 7 gün aktif
+  ve toplam çözülen test sayılarını gösteren kartlar eklendi.
+- Ilgili migration: `supabase/migrations/202609250003_question_reports.sql`
+  (`question_reports` tablosu, `list_reports()`, `set_report_status()`, `get_user_stats()`).
 
 ## 6. Diğer
 

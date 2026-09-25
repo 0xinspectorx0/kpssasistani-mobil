@@ -26,10 +26,12 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
    1. `supabase/migrations/202609220001_admin_content.sql`
    2. `supabase/migrations/202609250001_accounts_roles.sql`
    3. `supabase/migrations/202609250002_user_moderation.sql` (engelleme/silme desteği)
+   4. `supabase/migrations/202609250003_question_reports.sql` (soru bildirimi + kullanıcı istatistikleri)
 3. Tablolar oluşur:
    - `content_entries` (merkezi içerik)
    - `members` (kullanıcı rolleri + `banned` durumu)
    - `user_activities` (günlük test kotası sayacı)
+   - `question_reports` (hatalı soru bildirimleri)
    - `admin_audit_log` (işlem günlüğü)
 4. **Authentication → Providers → Email** açık olsun. Kullanıcıların uygulamadan üye olabilmesi için
    **Authentication → Sign In / Sign Up → "Allow new users to sign up"** seçeneğini açık bırakın
@@ -82,9 +84,10 @@ Değişken değişince Metro'yu yeniden başlatın. Web production: `npx expo ex
 1. **Profil → Yönetici Paneli** → giriş yapın.
 2. **Genel Bakış → Hazır içerikleri aktar** ile gömülü soruları/içerikleri veritabanına aktarın.
 3. **Soru Bankası** bölümünden tek tek soru ekleyin veya **Toplu soru ekle** ile:
-   - **JSON** dizisi yapıştırın: `[{ "category":"tarih","difficulty":"Orta","question":"…","options":["A","B","C","D"],"answer":1,"explanation":"…" }]`
-   - **Metin/CSV**: her satır `Ders|Zorluk|Soru|A|B|C|D|CevapHarf|Açıklama`
-     örn. `tarih|Orta|Malazgirt hangi yılda oldu?|1040|1071|1176|1243|B|1071'de oldu.`
+   - **JSON** dizisi yapıştırın: `[{ "category":"tarih","difficulty":"Orta","question":"…","options":["A","B","C","D","E"],"answer":1,"explanation":"…" }]`
+   - **Metin/CSV**: her satır `Ders|Zorluk|Soru|A|B|C|D|E|CevapHarf|Açıklama` — sorular 5 seçeneklidir (A–E).
+
+     örn. `tarih|Orta|Malazgirt hangi yılda oldu?|1040|1071|1176|1243|1141|B|1071'de oldu.`
 4. **Dersler ve Konular**: yeni ders ekle, ders adını/ders bilgilerini düzenle, konu ekle/kaldır.
    Ders kimliği küçük harf + rakam + tire (`hukuk`, `din-kulturu` gibi). Sorular bu kimlikle derse bağlanır.
 5. Taslaklar öğrencilere görünmez; **Yayında** kayıtlar kullanıcıların içerik yenilemesinde görünür.
@@ -125,6 +128,16 @@ supabase functions deploy delete-user --no-verify-jwt
 > `delete-user` fonksiyonu çağıranın **admin** olduğunu token + `resolve_user_id` RPC'si üzerinden
 > kendi içinde doğrular; yani anon anahtarın bilinmesi tek başına silme yetkisi vermez.
 > Fonksiyon kurulmadan panelde **Hesabı sil** butonu hata verir; engelleme ise Edge Function olmadan da çalışır.
+
+### 5b. Soru bildirimleri ve kullanıcı etkinliği
+
+- Öğrenciler (misafir dahil) test çözerken sorunun üstündeki **Bildir** simgesiyle hatalı soruyu işaretler.
+- Bildirimler panel → **Soru Bildirimleri** bölümünde listelenir (yalnızca admin). Bildirim;
+  soru kimliği, gönderen e-posta, açıklama ve durum (YENİ / ÇÖZÜLDÜ / KAPATILDI) içerir.
+- **Çözüldü / Kapat** butonları durumu günceller; **Soruyu düzenle** doğrudan ilgili sorunun editörünü açar.
+- Panel → **Genel Bakış** üstünde **Kullanıcı etkinliği** kartları: toplam üye, bugün aktif,
+  son 7 gün aktif ve toplam çözülen test sayısı (`get_user_stats` RPC'si ile).
+- Bu özellikler `202609250003_question_reports.sql` migration'ı ile gelir (yukarıda kurulum adımlarına eklendi).
 
 ### Rol → erişim özeti
 

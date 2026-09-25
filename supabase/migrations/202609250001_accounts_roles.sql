@@ -102,7 +102,7 @@ begin
       raise exception 'Geçersiz zorluk.';
     end if;
     if jsonb_typeof(p->'options') is distinct from 'array' then raise exception 'Seçenekler zorunludur.'; end if;
-    if jsonb_array_length(p->'options') not between 4 and 5 then raise exception '4 veya 5 seçenek girin.'; end if;
+    if jsonb_array_length(p->'options') <> 5 then raise exception 'Tam 5 seçenek (A-E) girin.'; end if;
     if exists (select 1 from jsonb_array_elements(p->'options') as o where jsonb_typeof(o) <> 'string' or length(btrim(o #>> '{}')) not between 1 and 20000) then
       raise exception 'Seçenekler boş bırakılamaz.';
     end if;

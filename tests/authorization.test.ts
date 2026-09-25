@@ -44,6 +44,9 @@ before(async () => {
   await db.exec(
     readFileSync(new URL('../supabase/migrations/202609250002_user_moderation.sql', import.meta.url), 'utf8'),
   );
+  await db.exec(
+    readFileSync(new URL('../supabase/migrations/202609250003_question_reports.sql', import.meta.url), 'utf8'),
+  );
   await db.query('insert into public.members(user_id, role) values ($1, $2)', [admin, 'admin']);
   await asUser('authenticated', admin);
   await insert('published', 'published');
@@ -105,12 +108,16 @@ test('admin can CRUD questions, read drafts and audit logs', async () => {
 test('invalid direct API payloads are rejected at database boundary', async () => {
   await asUser('authenticated', admin);
   await assert.rejects(
-    insert('bad', 'published', { ...question.payload, id: 'bad', answer: 4, options: ['A', 'B', 'C', 'D'] }),
-    /Geçersiz cevap/,
+    insert('bad', 'published', { ...question.payload, id: 'bad', answer: 5, options: ['A', 'B', 'C', 'D', 'E'] }),
+    /Doğru cevap seçilmelidir/,
   );
   await assert.rejects(
     insert('bad', 'published', { ...question.payload, id: 'bad', options: [] }),
-    /4 veya 5/,
+    /Tam 5 seçenek/,
+  );
+  await assert.rejects(
+    insert('bad', 'published', { ...question.payload, id: 'bad', options: ['A', 'B', 'C', 'D'] }),
+    /Tam 5 seçenek/,
   );
   await assert.rejects(
     insert('bad', 'published', { ...question.payload, id: 'bad', question: '' }),
@@ -180,6 +187,57 @@ test('moderation guards: non-admins, self-ban and last-admin ban are blocked', a
   // E-posta çözümleme yalnızca admin için.
   await asUser('authenticated', student);
   await assert.rejects(db.query("select public.resolve_user_id('owner@example.com')"), /Yönetici yetkisi/);
+});
+
+test('anyone can report a question; only admins read and resolve reports', async () => {
+  // Misafir (anon) bildirim gönderebilir.
+  await asUser('anon');
+  await db.query(
+    "insert into public.question_reports(question_id, reason) values ('tr1', 'Şık tekrarı var')",
+  );
+  // Üye de bildirim gönderebilir.
+  await asUser('authenticated', student);
+  await db.query("insert into public.question_reports(question_id, reason) values ('mt3', 'Cevap yanlış')");
+  // Üye, bildirim listesini okuyamaz.
+  await assert.rejects(db.query('select * from public.list_reports()'), /Yönetici yetkisi/);
+
+  // Admin listeyi görür ve durumu değiştirir.
+  await asUser('authenticated', admin);
+  const reports = await db.query<{ question_id: string; reporter_email: string | null; status: string }>(
+    'select question_id, reporter_email, status from public.list_reports() order by id',
+  );
+  assert.equal(reports.rows.length, 2);
+  assert.equal(reports.rows[0].question_id, 'tr1');
+  assert.equal(reports.rows[0].reporter_email, null); // misafir
+  assert.equal(reports.rows[1].reporter_email, 'student@example.com');
+  assert.equal(reports.rows[0].status, 'new');
+
+  const id0 = (await db.query<{ id: number }>('select id from public.list_reports() order by id')).rows[0].id;
+  await db.query('select public.set_report_status($1, $2)', [id0, 'resolved']);
+  const after = await db.query<{ status: string }>(
+    'select status from public.question_reports where id=$1',
+    [id0],
+  );
+  assert.equal(after.rows[0].status, 'resolved');
+});
+
+test('admin stats aggregate member activity', async () => {
+  // Kullanıcı kendi aktivitesini kaydeder (RLS: user_id = auth.uid()).
+  await asUser('authenticated', student);
+  await db.query(
+    "insert into public.user_activities(user_id, date, quiz_count) values ($1, to_char(now() + interval '3 hours', 'YYYY-MM-DD'), 2)",
+    [student],
+  );
+  await asUser('authenticated', admin);
+  const stats = await db.query<{ total_members: string; active_today: string; total_quizzes: string }>(
+    'select * from public.get_user_stats()',
+  );
+  assert.ok(Number(stats.rows[0].total_members) >= 1); // admin + önceki testlerde eklenen üyeler
+  assert.ok(Number(stats.rows[0].active_today) >= 1);
+  assert.ok(Number(stats.rows[0].total_quizzes) >= 2);
+  // Admin olmayan göremez.
+  await asUser('authenticated', student);
+  await assert.rejects(db.query('select * from public.get_user_stats()'), /Yönetici yetkisi/);
 });
 
 test('bundled import is complete and cannot overwrite existing edits', async () => {

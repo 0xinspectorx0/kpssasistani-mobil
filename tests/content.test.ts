@@ -18,11 +18,11 @@ test('all bundled content can be imported without schema errors', () => {
   for (const entry of entries) assert.deepEqual(parseEntry(entry).payload, entry.payload);
   assert.equal(new Set(entries.map((e) => `${e.kind}:${e.id}`)).size, entries.length);
 });
-test('questions accept four/five options and fifth correct answer', () => {
+test('questions accept five options and fifth correct answer', () => {
   assert.equal(schemas.questions.parse(q).answer, 4);
-  assert.equal(schemas.questions.parse({ ...q, options: q.options.slice(0, 4), answer: 3 }).answer, 3);
+  assert.equal(schemas.questions.parse({ ...q, answer: 0 }).answer, 0);
 });
-test('questions reject missing answer, blank, duplicate, too few options', () => {
+test('questions reject missing answer, blank, duplicate, and option counts other than five', () => {
   for (const bad of [
     { ...q, answer: -1 },
     { ...q, answer: 5 },
@@ -31,8 +31,10 @@ test('questions reject missing answer, blank, duplicate, too few options', () =>
     { ...q, question: '' },
     { ...q, category: 'OTHER_UPPER' },
     { ...q, options: ['A', 'B', 'C'] },
-    { ...q, options: ['A', 'a', 'C', 'D'] },
-    { ...q, options: ['A', 'B', 'C', '  '] },
+    { ...q, options: ['A', 'B', 'C', 'D'] },
+    { ...q, options: ['A', 'B', 'C', 'D', 'E', 'F'] },
+    { ...q, options: ['A', 'a', 'C', 'D', 'E'] },
+    { ...q, options: ['A', 'B', 'C', 'D', '  '] },
   ])
     assert.equal(schemas.questions.safeParse(bad).success, false);
 });

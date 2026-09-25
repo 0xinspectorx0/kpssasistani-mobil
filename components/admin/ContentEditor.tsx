@@ -81,7 +81,15 @@ export default function ContentEditor({
 }) {
   const { theme } = useApp();
   // Form draft intentionally allows incomplete/invalid field values until validation.
-  const [draft, setDraft] = useState<Record<string, any>>(() => JSON.parse(JSON.stringify(entry.payload)));
+  const [draft, setDraft] = useState<Record<string, any>>(() => {
+    const d = JSON.parse(JSON.stringify(entry.payload));
+    // Sorular artık 5 seçeneklidir; eski 4 seçenekli kayıtlar E şıkkıyla tamamlanır.
+    if (entry.kind === 'questions' && Array.isArray(d.options)) {
+      while (d.options.length < 5) d.options.push('');
+      if (typeof d.answer !== 'number') d.answer = -1;
+    }
+    return d;
+  });
   const [status, setStatus] = useState(entry.status);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -187,7 +195,7 @@ export default function ContentEditor({
       {field('question', true)}
       <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 6 }}>Seçenekler ve doğru cevap</Text>
       <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 14 }}>
-        Doğru seçeneğin harfine dokunun. 4 veya 5 seçenek ekleyebilirsiniz.
+        Sorular 5 seçeneklidir (A–E). Doğru seçeneğin harfine dokunun; tüm alanlar dolu olmalıdır.
       </Text>
       {(draft.options ?? []).map((option: string, i: number) => (
         <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
@@ -228,18 +236,6 @@ export default function ContentEditor({
           />
         </View>
       ))}
-      <View style={{ marginBottom: 18, alignSelf: 'flex-start' }}>
-        <AdminButton
-          secondary
-          label={draft.options?.length === 5 ? 'E seçeneğini kaldır' : 'E seçeneği ekle'}
-          onPress={() => {
-            if (draft.options.length === 5) {
-              set('options', draft.options.slice(0, 4));
-              if (draft.answer === 4) set('answer', -1);
-            } else set('options', [...draft.options, '']);
-          }}
-        />
-      </View>
       {field('explanation', true)}
     </>
   );

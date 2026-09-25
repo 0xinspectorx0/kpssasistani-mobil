@@ -22,15 +22,15 @@ const JSON_EXAMPLE = `[
     "category": "tarih",
     "difficulty": "Orta",
     "question": "Malazgirt Savaşı hangi yılda yapılmıştır?",
-    "options": ["1040", "1071", "1176", "1243"],
+    "options": ["1040", "1071", "1176", "1243", "1177"],
     "answer": 1,
     "explanation": "Malazgirt Savaşı 1071 yılında yapılmıştır."
   }
 ]`;
 
-const TEXT_EXAMPLE = `# Her satır: Ders|Zorluk|Soru|A seçeneği|B|C|D|Doğru cevap|Açıklama
-tarih|Orta|Osmanlı Devleti'nin kurucusu kimdir?|Ertuğrul Gazi|Osman Bey|Orhan Bey|I. Murat|B|Osmanlı Devleti 1299'da Osman Bey tarafından kurulmuştur.
-matematik|Kolay|2+2 kaçtır?|2|3|4|5|C|Temel toplama.`;
+const TEXT_EXAMPLE = `# Her satır: Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama
+tarih|Orta|Osmanlı Devleti'nin kurucusu kimdir?|Ertuğrul Gazi|Osman Bey|Orhan Bey|I. Murat|Süleyman Şah|B|Osmanlı Devleti 1299'da Osman Bey tarafından kurulmuştur.
+matematik|Kolay|2+2 kaçtır?|2|3|4|5|7|C|Temel toplama.`;
 
 const DIFFICULTIES = ['Kolay', 'Orta', 'Zor'];
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -43,9 +43,9 @@ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
   const out: { kind: 'questions'; id: string; payload: any }[] = [];
   for (const line of lines) {
     const parts = line.split('|').map((p) => p.trim());
-    if (parts.length < 8) {
+    if (parts.length < 9) {
       throw new Error(
-        `Satır eksik alan içeriyor (Kategori|Zorluk|Soru|A|B|C|D|Cevap|Açıklama). Sorunlu satır: ${line.slice(0, 60)}…`,
+        `Satır eksik alan içeriyor (Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama). Sorunlu satır: ${line.slice(0, 60)}…`,
       );
     }
     // İlk 3 alan sabit; son 2 alan cevap harfi ve açıklama; aradakiler seçenekler.
@@ -53,14 +53,19 @@ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
     const explanation = parts[parts.length - 1];
     const answerRaw = parts[parts.length - 2];
     const options = parts.slice(3, parts.length - 2);
-    if (options.length < 4 || options.length > 5) {
-      throw new Error(`4 veya 5 seçenek girilebilir. Sorunlu satır: ${line.slice(0, 60)}…`);
+    if (options.length !== 5) {
+      throw new Error(
+        `Tam 5 seçenek (A–E) girilmeli; ${options.length} seçenek girilmiş. Sorunlu satır: ${line.slice(0, 60)}…`,
+      );
+    }
+    if (options.some((o) => !o)) {
+      throw new Error(`Seçenekler boş bırakılamaz. Sorunlu satır: ${line.slice(0, 60)}…`);
     }
     const answerLetter = (answerRaw[0] ?? '').toLocaleUpperCase('tr');
     const answer = LETTERS.indexOf(answerLetter);
     if (answer < 0 || answer >= options.length) {
       throw new Error(
-        `Doğru cevap A–${LETTERS[options.length - 1]} arası bir harf olmalı. Sorunlu satır: ${line.slice(0, 60)}…`,
+        `Doğru cevap A–E arası bir harf olmalı. Sorunlu satır: ${line.slice(0, 60)}…`,
       );
     }
     if (!DIFFICULTIES.includes(difficulty)) {
@@ -175,7 +180,7 @@ export default function BulkAdd({
               </View>
 
               <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>
-                Her soru ayrı bir kayıt olarak eklenir. Doğrulama hataları kaydedilmeyi engeller.
+                Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.
               </Text>
               <TextInput
                 value={raw}

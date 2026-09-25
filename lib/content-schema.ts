@@ -25,13 +25,13 @@ export const schemas = {
       id,
       category: lessonId,
       question: text,
-      options: z.array(text).min(4, 'En az 4 seçenek olmalıdır.').max(5),
-      answer: z.number().int().min(0),
+      options: z.array(text).min(5, 'Tam 5 seçenek (A–E) olmalıdır.').max(5, 'Tam 5 seçenek (A–E) olmalıdır.'),
+      answer: z.number().int().min(0).max(4),
       explanation: text,
       difficulty: z.enum(['Kolay', 'Orta', 'Zor']),
     })
     .superRefine((q, ctx) => {
-      if (q.answer >= q.options.length)
+      if (q.answer < 0 || q.answer >= q.options.length)
         ctx.addIssue({ code: 'custom', path: ['answer'], message: 'Doğru cevabı seçin.' });
       if (new Set(q.options.map((o) => o.toLocaleLowerCase('tr'))).size !== q.options.length)
         ctx.addIssue({

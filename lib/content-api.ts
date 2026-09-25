@@ -149,6 +149,61 @@ export async function deleteUserAccount(email: string): Promise<void> {
     throw new Error(payload.error ?? 'Hesap silinemedi.');
   }
 }
+export interface ReportItem {
+  id: number;
+  question_id: string;
+  reporter_email: string | null;
+  reason: string | null;
+  status: 'new' | 'resolved' | 'dismissed';
+  created_at: string;
+}
+export async function listReports(): Promise<ReportItem[]> {
+  const { data, error } = await requireBackend().rpc('list_reports');
+  if (error) throw error;
+  return data ?? [];
+}
+export async function setReportStatus(reportId: number, status: 'resolved' | 'dismissed') {
+  const { error } = await requireBackend().rpc('set_report_status', {
+    report_id: reportId,
+    new_status: status,
+  });
+  if (error) throw error;
+}
+// Hatalı soru bildirimi: misafir (anon) veya üye herkes gönderebilir.
+export async function submitReport(questionId: string, reason: string): Promise<void> {
+  if (!supabaseConfigured()) return; // Supabase yoksa bildirim yerelde sessizce yok sayılır.
+  const { error } = await requireBackend().from('question_reports').insert({
+    question_id: questionId,
+    reason: reason.trim() || null,
+  });
+  if (error) throw error;
+}
+function supabaseConfigured(): boolean {
+  try {
+    requireBackend();
+    return true;
+  } catch {
+    return false;
+  }
+}
+export interface UserStats {
+  total_members: number;
+  active_today: number;
+  active_7d: number;
+  total_quizzes: number;
+}
+export async function getUserStats(): Promise<UserStats> {
+  const { data, error } = await requireBackend().rpc('get_user_stats');
+  if (error) throw error;
+  const row = (data?.[0] ?? {}) as Partial<UserStats>;
+  return {
+    total_members: Number(row.total_members ?? 0),
+    active_today: Number(row.active_today ?? 0),
+    active_7d: Number(row.active_7d ?? 0),
+    total_quizzes: Number(row.total_quizzes ?? 0),
+  };
+}
+
 export async function insertManyEntries(entries: ContentEntry[]): Promise<{ inserted: number }> {
   if (!entries.length) return { inserted: 0 };
   const client = requireBackend();

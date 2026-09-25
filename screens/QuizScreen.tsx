@@ -1,6 +1,6 @@
 import { useContent } from '../lib/content';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -11,6 +11,10 @@ import { useCategoryList } from '../lib/lesson-catalog';
 import { useAdminAuth } from '../lib/admin-auth';
 import { planFor, dailyLimit, todayCount, consumeQuiz, quotaUserKey } from '../lib/membership';
 import { radius } from '../lib/theme';
+import { ContentEntry } from '../lib/content-schema';
+import { fetchEntries, readableError, saveEntry, submitReport } from '../lib/content-api';
+import ContentEditor from '../components/admin/ContentEditor';
+import { AdminButton } from '../components/admin/AdminUI';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -25,9 +29,9 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function QuizScreen({ navigation, route }: any) {
   const { theme, addQuizResult, toggleFavorite, favorites } = useApp();
-  const { questions: QUESTIONS } = useContent();
+  const { questions: QUESTIONS, refreshContent } = useContent();
   const CATEGORY_LIST = useCategoryList();
-  const { session, role } = useAdminAuth();
+  const { session, role, canManageContent } = useAdminAuth();
   const plan = planFor(role, !!session);
   const { mode = 'mixed', categoryId, count = 10, reviewIds } = route?.params ?? {};
 
@@ -53,6 +57,16 @@ export default function QuizScreen({ navigation, route }: any) {
   const [quotaBlocked, setQuotaBlocked] = useState(false);
   const [quotaUsed, setQuotaUsed] = useState(0);
   const timer = useRef<any>(null);
+
+  // Admin: soru üzerinde düzenleme (inline editor)
+  const [editing, setEditing] = useState<ContentEntry | null>(null);
+  const [adminEntries, setAdminEntries] = useState<ContentEntry[]>([]);
+  // Herkes: hatalı soru bildirimi
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   const quotaExempt = mode === 'qod';
 
@@ -201,6 +215,45 @@ export default function QuizScreen({ navigation, route }: any) {
     ]);
   };
 
+  // Admin: soruyu yerinde düzenle (yayındaki kaydı bul veya yeni olarak aç).
+  const openEditor = async () => {
+    if (!canManageContent) return;
+    try {
+      const rows = await fetchEntries();
+      setAdminEntries(rows);
+      const found = rows.find((r) => r.kind === 'questions' && r.id === q.id);
+      if (found) setEditing(found);
+      else
+        setEditing({
+          kind: 'questions',
+          id: q.id,
+          payload: { ...(q as any) },
+          status: 'published',
+        } as ContentEntry);
+    } catch (e) {
+      Alert.alert('Düzenlenemedi', readableError(e));
+    }
+  };
+  const saveEdit = async (entry: ContentEntry, isNew: boolean) => {
+    await saveEntry(entry, isNew);
+    setEditing(null);
+    await refreshContent();
+  };
+  const submitReportNow = async () => {
+    if (reportBusy) return;
+    setReportBusy(true);
+    setReportError('');
+    try {
+      await submitReport(q.id, reportReason);
+      setReportDone(true);
+      setTimeout(() => setReportOpen(false), 1200);
+    } catch (e) {
+      setReportError(readableError(e));
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
       {/* Header */}
@@ -266,11 +319,56 @@ export default function QuizScreen({ navigation, route }: any) {
         </ScrollView>
 
         <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <View style={{ backgroundColor: (cat?.color ?? theme.accent) + '1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
               <Text style={{ fontSize: 12, fontWeight: '800', color: cat?.color ?? theme.accent }}>
                 {cat?.name} • {q.difficulty}
               </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {canManageContent && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Soruyu düzenle"
+                  onPress={openEditor}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    backgroundColor: theme.accentSoft,
+                    borderRadius: 999,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                  }}
+                >
+                  <Ionicons name="create-outline" size={14} color={theme.accent} />
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: theme.accent }}>Düzenle</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Hatalı soruyu bildir"
+                onPress={() => {
+                  setReportDone(false);
+                  setReportReason('');
+                  setReportError('');
+                  setReportOpen(true);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  backgroundColor: theme.card2,
+                  borderRadius: 999,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
+              >
+                <Ionicons name="flag-outline" size={14} color={theme.muted} />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.muted }}>Bildir</Text>
+              </TouchableOpacity>
             </View>
           </View>
           <Text style={{ fontSize: 16.5, fontWeight: '700', color: theme.text, lineHeight: 24 }}>
@@ -417,6 +515,90 @@ export default function QuizScreen({ navigation, route }: any) {
           )}
         </View>
       </ScrollView>
+
+      {/* Admin: soruyu yerinde düzenle */}
+      {editing && (
+        <ContentEditor
+          entry={editing}
+          isNew={!adminEntries.some((r) => r.kind === 'questions' && r.id === editing.id)}
+          previewOnly={false}
+          entries={adminEntries}
+          onClose={() => setEditing(null)}
+          onSave={saveEdit}
+        />
+      )}
+
+      {/* Herkes: hatalı soru bildirimi */}
+      <Modal transparent animationType="fade" visible={reportOpen} onRequestClose={() => setReportOpen(false)}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#02061799',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 22,
+          }}
+        >
+          <View
+            role="dialog"
+            accessibilityLabel="Hatalı soruyu bildir"
+            accessibilityViewIsModal
+            style={{ width: '100%', maxWidth: 440, borderRadius: 20, backgroundColor: theme.card, padding: 24 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <Ionicons name="flag" size={22} color={theme.gold} />
+              <Text style={{ color: theme.text, fontWeight: '900', fontSize: 19 }}>Hatalı soruyu bildir</Text>
+            </View>
+            {reportDone ? (
+              <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+                <Ionicons name="checkmark-circle" size={46} color={theme.success} />
+                <Text style={{ color: theme.text, fontWeight: '800', textAlign: 'center' }}>
+                  Bildiriminiz alındı. Teşekkürler!
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 13, textAlign: 'center' }}>
+                  Yönetici bildiriminizi inceleyip soruyu düzeltecek.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 20, marginBottom: 14 }}>
+                  Soruda bir hata olduğunu düşünüyorsanız kısa bir açıklama ekleyin. Bildiriminiz yöneticiye iletilir.
+                </Text>
+                <TextInput
+                  value={reportReason}
+                  onChangeText={setReportReason}
+                  placeholder="Neyin hatalı olduğunu kısaca yazın (isteğe bağlı)"
+                  placeholderTextColor={theme.muted}
+                  multiline
+                  style={{
+                    color: theme.text,
+                    backgroundColor: theme.card2,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    padding: 12,
+                    minHeight: 84,
+                    textAlignVertical: 'top',
+                    marginBottom: 8,
+                  }}
+                />
+                {!!reportError && (
+                  <Text style={{ color: theme.danger, fontSize: 12.5, marginBottom: 8 }}>{reportError}</Text>
+                )}
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                  <AdminButton label="Vazgeç" secondary onPress={() => setReportOpen(false)} disabled={reportBusy} />
+                  <AdminButton
+                    label="Gönder"
+                    icon="send"
+                    busy={reportBusy}
+                    onPress={submitReportNow}
+                  />
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
