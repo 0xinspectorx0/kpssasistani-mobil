@@ -9,6 +9,28 @@ test('admin entry is discoverable and disconnected mode cannot authenticate', as
   await expect(page.getByRole('button', { name: 'Güvenli giriş yap' })).toBeDisabled();
   await expect(page.getByText(/Yönetim altyapısı henüz bağlanmadı/)).toBeVisible();
 });
+test('daily quote sits in the desktop sidebar under Profil and stays on home elsewhere', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  const quote = page.getByLabel(/^Günün sözü:/);
+  // Balon yalnızca bir yerde görünür: sol menüde ya da ana sayfa gövdesinde.
+  await expect(quote).toHaveCount(1);
+  const box = await quote.boundingBox();
+  expect(box).not.toBeNull();
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    const profil = await page.getByRole('tab', { name: 'Profil' }).boundingBox();
+    expect(profil).not.toBeNull();
+    // Profil'in hemen altında ve yan menünün (360px) içinde.
+    expect(box!.y).toBeGreaterThanOrEqual(profil!.y + profil!.height);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+  } else {
+    // Alt sekme çubuklu dar ekranda balon ana sayfa gövdesinde kalır.
+    expect(box!.x).toBeGreaterThan(0);
+    expect(box!.y).toBeGreaterThan(66);
+  }
+  expect(errors).toEqual([]);
+});
 test('read-only panel, question filters and form work on desktop/mobile', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

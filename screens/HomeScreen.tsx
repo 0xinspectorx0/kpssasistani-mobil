@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../lib/store';
 import { Card, PrimaryButton, SectionTitle, StatTile, useResponsiveLayout } from '../components/ui';
+import { QuoteOfTheDay, useQuoteInSidebar } from '../components/QuoteOfTheDay';
 import { daysUntil, formatDateTR, pickRandomQuestion, QuizQuestion } from '../lib/data';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { Notice } from '../components/admin/AdminUI';
@@ -22,7 +23,9 @@ function greeting(): string {
 export default function HomeScreen({ navigation }: any) {
   const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history, addQuizResult } = useApp();
   const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
-  const { lessons: LESSONS, events: EXAM_EVENTS, targets: TARGET_EXAMS, quotes: QUOTES, questions: QUESTIONS, refreshContent, syncError, source } = useContent();
+  // Günün sözü masaüstünde sol menüde ise burada tekrar göstermiyoruz.
+  const quoteInSidebar = useQuoteInSidebar();
+  const { lessons: LESSONS, events: EXAM_EVENTS, targets: TARGET_EXAMS, questions: QUESTIONS, refreshContent, syncError, source } = useContent();
   const CATEGORY_LIST = useCategoryList();
   const [refreshing, setRefreshing] = React.useState(false);
   const [selectedLessonId, setSelectedLessonId] = React.useState<string | null>(null);
@@ -114,10 +117,6 @@ export default function HomeScreen({ navigation }: any) {
       seconds: 0,
     });
   };
-  const quote = useMemo(() => {
-    const day = Math.floor(Date.now() / 86400000);
-    return QUOTES[day % QUOTES.length];
-  }, [QUOTES]);
 
   const totalTopics = LESSONS.reduce((s, l) => s + l.topics.length, 0);
   const topicIds = new Set(LESSONS.flatMap(l => l.topics.map(t => t.id)));
@@ -356,22 +355,8 @@ export default function HomeScreen({ navigation }: any) {
         </View>
         </View>
 
-        {/* Quote */}
-        <View style={{ marginTop: 16 }}>
-          <Card style={{ backgroundColor: theme.card }}>
-            <View style={{ flexDirection: 'row' }}>
-              <Ionicons name="chatbubble-ellipses" size={22} color={theme.gold} style={{ marginRight: 10 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14.5, color: theme.text, lineHeight: 22, fontStyle: 'italic' }}>
-                  "{quote?.text ?? 'Her gün bir adım daha ileri.'}"
-                </Text>
-                <Text style={{ fontSize: 12.5, color: theme.muted, marginTop: 6, fontWeight: '600' }}>
-                  — {quote?.author ?? 'KPSS Asistanım'}
-                </Text>
-              </View>
-            </View>
-          </Card>
-        </View>
+        {/* Quote — masaüstü web'de sol menüde, Profil'in hemen altında gösteriliyor */}
+        {!quoteInSidebar && <QuoteOfTheDay style={{ marginTop: 16 }} />}
 
         <View style={{ marginTop: 16 }}>
           <SectionTitle title="Hızlı Erişim" />
