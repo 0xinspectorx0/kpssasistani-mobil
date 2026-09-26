@@ -6,7 +6,8 @@
 - GitHub: https://github.com/0xinspectorx0/kpssasistani-mobil
 
 ## Git durumu (2026-09-26 itibarıyla)
-- Local HEAD = GitHub `main` = **`4282d93`** (eşit, temiz çalışma ağacı, 66 dosya)
+- Local HEAD = GitHub `main` = **`6d8d572`** (eşit, temiz çalışma ağacı; bu dosya da push edildi)
+- Önceki önemli commit'ler: `4282d93` (script temizliği), `e67e0e5` (sekme etiketleri), `dd1def0` (hızlı erişim kartları)
 - Dallar: `main`, `ilk-surdum` (PR baz dalı, ilk commit `0ee804d`)
 - PR açmak için tek tıklık link: https://github.com/0xinspectorx0/kpssasistani-mobil/compare/ilk-surdum...main
 - **PAT hiçbir yerde saklanmaz**; remote URL token'sız: `https://github.com/0xinspectorx0/kpssasistani-mobil.git`
