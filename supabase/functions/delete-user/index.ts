@@ -1,3 +1,7 @@
+// İSTEĞE BAĞLI / ESKİ YOL. Hesap silme artık SQL fonksiyonu public.delete_user_account ile yapılır
+// (supabase/migrations/202609260002_account_admin.sql, SECURITY DEFINER — service_role gerekmez).
+// Uygulama önce o RPC'yi dener; yalnızca fonksiyon yoksa bu Edge Function'a düşer.
+//
 // SUPABASE SERVICE ROLE GEREKTIRIR — yalnızca sunucuda çalışır (Edge Function).
 // Kurulum: supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service_role>
 //          supabase functions deploy delete-user --no-verify-jwt

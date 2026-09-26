@@ -1,4 +1,6 @@
-import { requireBackend } from './supabase';
+import { Platform } from 'react-native';
+import { createClient } from '@supabase/supabase-js';
+import { APP_SITE_URL, requireBackend } from './supabase';
 import { ContentEntry, ContentKind, parseEntry, seedEntries } from './content-schema';
 
 export async function fetchEntries(publishedOnly = false): Promise<ContentEntry[]> {
@@ -100,6 +102,129 @@ export async function changeRole(email: string, role: string) {
   const { error } = await requireBackend().rpc('set_role', { target_email: email.trim(), new_role: role });
   if (error) throw error;
 }
+
+// PostgREST: fonksiyon veritabanında yoksa (migration çalıştırılmamış) bu kodlar döner.
+function isMissingFunction(error: unknown): boolean {
+  const e = error as { code?: string; message?: string };
+  return e?.code === 'PGRST202' || e?.code === '42883' || /Could not find the function/i.test(e?.message ?? '');
+}
+export const ACCOUNT_ADMIN_MIGRATION = 'supabase/migrations/202609260002_account_admin.sql';
+const ACCOUNT_ADMIN_SETUP_HINT =
+  `Veritabanı kurulumu eksik: ${ACCOUNT_ADMIN_MIGRATION} dosyasını Supabase Dashboard → SQL Editor'de bir kez çalıştırın (docs/ADMIN.md §5).`;
+
+export type AssignRoleStatus = 'applied' | 'pending';
+export interface AssignRoleResult {
+  status: AssignRoleStatus;
+  email: string;
+  role: string;
+}
+/**
+ * Rol atar. Hesap kayıtlıysa hemen uygulanır ('applied'); henüz üye olmamış bir e-postaysa
+ * bekleyenlere yazılır ('pending') ve kişi üye olur olmaz tetikleyici rolü otomatik uygular.
+ * Yeni RPC yoksa (migration çalıştırılmamış) eski set_role ile yalnızca kayıtlı hesaplar desteklenir.
+ */
+export async function assignRole(email: string, role: string): Promise<AssignRoleResult> {
+  const clean = email.trim().toLowerCase();
+  const result = await assignRoleRpc(clean, role);
+  if (result) return result;
+  await changeRole(clean, role);
+  return { status: 'applied', email: clean, role };
+}
+// null → assign_role fonksiyonu veritabanında yok (202609260002 migration'ı çalıştırılmamış).
+async function assignRoleRpc(cleanEmail: string, role: string): Promise<AssignRoleResult | null> {
+  const { data, error } = await requireBackend().rpc('assign_role', { target_email: cleanEmail, new_role: role });
+  if (error) {
+    if (isMissingFunction(error)) return null;
+    throw error;
+  }
+  const row = (data ?? {}) as Partial<AssignRoleResult>;
+  return {
+    status: row.status === 'pending' ? 'pending' : 'applied',
+    email: row.email ?? cleanEmail,
+    role: row.role ?? role,
+  };
+}
+export interface PendingRole {
+  email: string;
+  role: string;
+  created_at: string;
+}
+export async function listPendingRoles(): Promise<PendingRole[]> {
+  const { data, error } = await requireBackend().rpc('list_pending_roles');
+  if (error) {
+    if (isMissingFunction(error)) return [];
+    throw error;
+  }
+  return data ?? [];
+}
+export async function cancelPendingRole(email: string): Promise<void> {
+  const { error } = await requireBackend().rpc('cancel_pending_role', { target_email: email.trim().toLowerCase() });
+  if (error) throw error;
+}
+
+export interface CreateUserResult {
+  status: 'created' | 'exists';
+  email: string;
+  role: string;
+  roleStatus: AssignRoleStatus;
+  confirmationRequired: boolean;
+}
+/**
+ * Yönetici panelinden yeni hesap açar (service_role / Edge Function gerekmez):
+ * 1) Rol önce bekleyenlere yazılır → 2) ayrı, oturum saklamayan bir istemciyle signUp yapılır →
+ * 3) auth.users'a eklenen kayıt için tetikleyici bekleyen rolü uygular.
+ * Yöneticinin kendi oturumu etkilenmez. E-posta doğrulaması açıksa kişiye doğrulama e-postası gider.
+ */
+export async function createUserAccount(email: string, password: string, role: string): Promise<CreateUserResult> {
+  const clean = email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(clean)) throw new Error('Geçerli bir e-posta adresi girin.');
+  if (password.length < 6) throw new Error('Geçici şifre en az 6 karakter olmalıdır.');
+
+  const assigned = await assignRoleRpc(clean, role);
+  if (!assigned) throw new Error(ACCOUNT_ADMIN_SETUP_HINT);
+  if (assigned.status === 'applied') {
+    // Hesap zaten var: rol uygulandı, yeni kayıt açılmaz.
+    return { status: 'exists', email: clean, role, roleStatus: 'applied', confirmationRequired: false };
+  }
+
+  const { data, error } = await createDetachedAuthClient().auth.signUp({
+    email: clean,
+    password,
+    options: { emailRedirectTo: Platform.OS === 'web' ? APP_SITE_URL : undefined },
+  });
+  if (error) {
+    const msg = error.message ?? '';
+    if (/already registered|already exists|user_already_exists/i.test(msg))
+      return { status: 'exists', email: clean, role, roleStatus: 'pending', confirmationRequired: false };
+    // Kayıt açılamadı: az önce yazılan bekleyen rol kaydını geri al (liste kirlenmesin).
+    await cancelPendingRole(clean).catch(() => undefined);
+    if (/signups? not allowed|signup_disabled/i.test(msg))
+      throw new Error(
+        'Supabase\'de yeni üye kaydı kapalı. Authentication → Sign In / Sign Up → "Allow new users to sign up" seçeneğini açın.',
+      );
+    if (/rate limit|too many/i.test(msg))
+      throw new Error('E-posta gönderim limiti aşıldı. Birkaç dakika sonra tekrar deneyin.');
+    throw new Error(readableError(error));
+  }
+  // E-posta doğrulaması açıkken var olan hesap için Supabase sahte (kimliksiz) kullanıcı döndürür.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0)
+    return { status: 'exists', email: clean, role, roleStatus: 'pending', confirmationRequired: false };
+  return { status: 'created', email: clean, role, roleStatus: 'applied', confirmationRequired: !data.session };
+}
+// Yöneticinin oturumunu bozmadan signUp çağırmak için bellek-içi, oturum saklamayan istemci.
+function createDetachedAuthClient() {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  if (!/^https:\/\//.test(url) || !key) throw new Error('Supabase URL yapılandırılmamış.');
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: 'kpss-admin-create-user',
+    },
+  });
+}
 export async function setBanned(email: string, banned: boolean) {
   const { error } = await requireBackend().rpc('set_banned', {
     target_email: email.trim(),
@@ -108,14 +233,32 @@ export async function setBanned(email: string, banned: boolean) {
   if (error) throw error;
 }
 
-// Hesabı tamamen silmek için Supabase Edge Function kullanılır (service role gerekir).
-// Kurulum yoksa ve delete-user fonksiyonu deploy edilmemişse hata döner.
+// Hesabı kalıcı silme: varsayılan yol, SECURITY DEFINER SQL fonksiyonu delete_user_account
+// (202609260002_account_admin.sql). Ek kurulum, service_role veya Edge Function gerekmez.
+// Fonksiyon henüz yoksa eski delete-user Edge Function denenir; o da yoksa kurulum ipucu verilir.
 export interface DeleteUserResponse {
   ok?: boolean;
   message?: string;
   error?: string;
 }
-export async function deleteUserAccount(email: string): Promise<void> {
+export type DeleteUserStatus = 'deleted' | 'pending_removed';
+export async function deleteUserAccount(email: string): Promise<DeleteUserStatus> {
+  const clean = email.trim().toLowerCase();
+  const { data, error } = await requireBackend().rpc('delete_user_account', { target_email: clean });
+  if (!error) {
+    const row = (data ?? {}) as { status?: string };
+    return row.status === 'pending_removed' ? 'pending_removed' : 'deleted';
+  }
+  if (!isMissingFunction(error)) throw error;
+  try {
+    await deleteUserViaEdgeFunction(clean);
+    return 'deleted';
+  } catch {
+    throw new Error(ACCOUNT_ADMIN_SETUP_HINT);
+  }
+}
+// Eski yol (isteğe bağlı): supabase/functions/delete-user Edge Function.
+async function deleteUserViaEdgeFunction(email: string): Promise<void> {
   const client = requireBackend();
   const functionUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`;
   if (!/^https:\/\//.test(functionUrl ?? '')) {
@@ -127,23 +270,15 @@ export async function deleteUserAccount(email: string): Promise<void> {
   const { data: sessionData } = await client.auth.getSession();
   const token = sessionData?.session?.access_token ?? '';
 
-  let resp: Response;
-  try {
-    resp = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: key,
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ target_email: email.trim() }),
-    });
-  } catch {
-    throw new Error(
-      'Hesap silme servisine ulaşılamadı. supabase/functions/delete-user Edge Function kurulumunu yapın (docs/ADMIN.md).',
-    );
-  }
-
+  const resp = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: key,
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ target_email: email }),
+  });
   const payload = (await resp.json().catch(() => ({}))) as DeleteUserResponse;
   if (!resp.ok || payload.error) {
     throw new Error(payload.error ?? 'Hesap silinemedi.');

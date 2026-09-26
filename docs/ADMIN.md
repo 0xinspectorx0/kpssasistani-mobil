@@ -31,9 +31,15 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
    3. `supabase/migrations/202609250002_user_moderation.sql` (engelleme/silme desteği)
    4. `supabase/migrations/202609250003_question_reports.sql` (soru bildirimi + kullanıcı istatistikleri)
    5. `supabase/migrations/202609260001_quiz_quotas.sql` (yönetim panelinden günlük plan kotalarını düzenleme)
+   6. `supabase/migrations/202609260002_account_admin.sql` (**Edge Function'sız hesap silme** + e-postaya
+      önceden rol atama + panelden hesap oluşturma)
+
+   > Kısayol: `supabase/tek-seferde-kurulum.sql` altı dosyanın sırayla birleştirilmiş hâlidir; yeni projede
+   > tek seferde çalıştırılabilir. Mevcut projede yalnızca eksik olan (ör. 6.) dosyayı çalıştırmanız yeterlidir.
 3. Tablolar oluşur:
    - `content_entries` (merkezi içerik)
    - `members` (kullanıcı rolleri + `banned` durumu)
+   - `pending_roles` (henüz üye olmamış e-postalara önceden atanan roller)
    - `user_activities` (günlük test kotası sayacı)
    - `question_reports` (hatalı soru bildirimleri)
    - `quiz_quota_settings` (Misafir/Üye/VIP günlük test hakları)
@@ -100,8 +106,18 @@ Değişken değişince Metro'yu yeniden başlatın. Web production: `npx expo ex
 ## 5. Rol yönetimi
 
 - Panel → **Yöneticiler** bölümünde yalnızca **admin** rol atayabilir.
-- Rol atamak için hesabın önce var olması gerekir: kullanıcı uygulamadan üye olur veya
-  Supabase → Authentication → Users → Add user ile oluşturulur.
+- **Hesabın önceden var olması gerekmez.** E-postayı yazıp rolü seçin (`assign_role` RPC'si):
+  - hesap kayıtlıysa rol **hemen** uygulanır;
+  - hesap yoksa rol **Bekleyen rol atamaları** listesine yazılır; kişi aynı e-postayla üye olur olmaz
+    `on_auth_user_created` tetikleyicisi rolü otomatik uygular (işlem günlüğünde `APPLY_PENDING_ROLE`).
+    Bekleyen kayıt panelden **Kaldır** ile iptal edilebilir.
+- **Yeni hesap oluştur** kartı: e-posta + geçici şifre + rol girin. Hesap, yöneticinin oturumunu bozmayan
+  ayrı bir istemciyle `signUp` üzerinden açılır; kişiye doğrulama e-postası gider ve seçilen rol otomatik
+  uygulanır. Geçici şifreyi kişiye iletin; ilk girişten sonra **Hesabım** bölümünden değiştirebilir
+  (veya "Parolamı unuttum" ile kendisi belirler). Bunun için Supabase'de
+  **Authentication → Sign In / Sign Up → "Allow new users to sign up"** açık olmalıdır.
+- Alternatif: Supabase → Authentication → Users → **Invite user** ile davet gönderip panelde e-postaya
+  rolü önceden atayabilirsiniz; davet kabul edilince rol uygulanır.
 - Admin kendi yetkisini düşüremez (kilitlenmeyi önler). Güvenlik için Supabase'de en az bir admin kalmalıdır.
 
 ## 5a. Kullanıcı denetimi: engelleme ve hesap silme
@@ -111,28 +127,37 @@ Değişken değişince Metro'yu yeniden başlatın. Web production: `npx expo ex
   (`user_role()` `banned` döner, `is_admin`/`can_manage_content`/`is_member` engelliyi dışlar); açık oturumları
   sona erer. İşlem `BAN_USER` olarak işlem günlüğüne yazılır. **Engeli kaldır** geri alır (`UNBAN_USER`).
 - Son yönetici engellenemez (kilitlenme koruması).
-- **Hesabı sil:** kullanıcıyı hem `auth.users` hem de `members` kaydından kalıcı olarak siler. **Geri alınamaz.**
-  Admin hesapları silinemez; önce yetkisini kaldırın.
+- **Hesabı sil:** kullanıcıyı hem `auth.users` hem de `members` / `user_activities` kaydından kalıcı olarak siler.
+  **Geri alınamaz.** Admin hesapları ve kendi hesabınız silinemez; önce yetkisini kaldırın.
 
-### Hesap silme için Edge Function (gerekli)
+### Hesap silme nasıl çalışır? (ek kurulum gerekmez)
 
-Hesap silme, Supabase Auth kullanıcısını silmek için **service role** gerektirir; bu nedenle bir Edge Function kurulmalıdır.
+`202609260002_account_admin.sql` ile gelen `delete_user_account(target_email)` fonksiyonu **SECURITY DEFINER**
+olduğundan fonksiyonun sahibi (`postgres`) adına çalışır ve `auth.users` kaydını doğrudan siler; Supabase'in
+kendi FK'ları (identities, sessions, refresh_tokens, mfa) ile bu projedeki `members` / `user_activities`
+kayıtları birlikte silinir. Çağıranın **admin** olduğu sunucuda doğrulanır; anon anahtarın bilinmesi tek
+başına silme yetkisi vermez. CLI, Docker, `service_role` anahtarı veya Edge Function **gerekmez** —
+yalnızca migration dosyasının SQL Editor'de bir kez çalıştırılmış olması yeterlidir.
+
+> Silinen kullanıcının açık oturumu (JWT) süresi dolana kadar teknik olarak geçerli kalabilir; `members`
+> kaydı silindiği için tüm yetkileri anında düşer (`is_member()` false döner).
+
+> Panelde "Veritabanı kurulumu eksik: … 202609260002_account_admin.sql …" uyarısı görürseniz bu dosyayı
+> henüz çalıştırmamışsınız demektir.
+
+<details>
+<summary>Eski yol (isteğe bağlı): <code>supabase/functions/delete-user</code> Edge Function</summary>
+
+Uygulama önce SQL fonksiyonunu dener; yoksa bu Edge Function'a düşer. Yeni kurulumlarda gerekmez.
 
 ```sh
-# 1. Yerinde CLI gerekli: supabase CLI kurulu olmalı
 supabase login
 supabase link --project-ref PROJE_KIMLIGI
-
-# 2. Service role anahtarını secret olarak tanımla (asla istemciye/EXPO_PUBLIC_*'a yazma)
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sb_secret_...  # Project Settings → API → service_role
-
-# 3. Fonksiyonu deploy et (anon çağrıda yetki içeride doğrulanır)
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sb_secret_...  # asla istemciye/EXPO_PUBLIC_*'a yazma
 supabase functions deploy delete-user --no-verify-jwt
 ```
 
-> `delete-user` fonksiyonu çağıranın **admin** olduğunu token + `resolve_user_id` RPC'si üzerinden
-> kendi içinde doğrular; yani anon anahtarın bilinmesi tek başına silme yetkisi vermez.
-> Fonksiyon kurulmadan panelde **Hesabı sil** butonu hata verir; engelleme ise Edge Function olmadan da çalışır.
+</details>
 
 ### 5b. Soru bildirimleri ve kullanıcı etkinliği
 
@@ -158,7 +183,8 @@ supabase functions deploy delete-user --no-verify-jwt
 | İçerik listele (taslak dahil) | ✅ | ✅ | ✅ |
 | İçerik ekle / düzenle / sil | ✅ | ✅ | ❌ |
 | Toplu soru ekle | ✅ | ✅ | ❌ |
-| Rol atama / kaldırma | ✅ | ❌ | ❌ |
+| Rol atama / kaldırma (bekleyen roller dahil) | ✅ | ❌ | ❌ |
+| Hesap oluşturma / engelleme / silme | ✅ | ❌ | ❌ |
 | İşlem günlüğü | ✅ | ❌ | ❌ |
 
 ## 6. Güvenlik sınırları
@@ -183,7 +209,8 @@ npm test
 npm run build:web
 ```
 
-`npm test`, PGlite üzerinde migration'ların RLS/trigger davranışını birlikte sınar (kota ayarları dahil).
+`npm test`, PGlite üzerinde migration'ların RLS/trigger davranışını birlikte sınar (kota ayarları, bekleyen
+roller ve Edge Function'sız hesap silme dahil).
 
 Web E2E (bağlı akış):
 

@@ -50,6 +50,9 @@ before(async () => {
   await db.exec(
     readFileSync(new URL('../supabase/migrations/202609260001_quiz_quotas.sql', import.meta.url), 'utf8'),
   );
+  await db.exec(
+    readFileSync(new URL('../supabase/migrations/202609260002_account_admin.sql', import.meta.url), 'utf8'),
+  );
   await db.query('insert into public.members(user_id, role) values ($1, $2)', [admin, 'admin']);
   await asUser('authenticated', admin);
   await insert('published', 'published');
@@ -310,4 +313,115 @@ test('plan quota settings are readable by users but writable only by admins', as
   assert.ok(
     (await db.query("select id from public.admin_audit_log where action='SET_QUIZ_QUOTAS'")).rows.length >= 2,
   );
+});
+
+test('roles can be pre-assigned to unregistered e-mails and are applied automatically at signup', async () => {
+  await asUser('authenticated', admin);
+  // Kayıtlı hesap: hemen uygulanır.
+  const applied = await db.query<{ r: { status: string; role: string } }>(
+    "select public.assign_role('student@example.com', 'viewer') as r",
+  );
+  assert.equal(applied.rows[0].r.status, 'applied');
+  assert.deepEqual(
+    (await db.query("select role from public.list_members() where email='student@example.com'")).rows,
+    [{ role: 'viewer' }],
+  );
+  await db.query("select public.assign_role('student@example.com', 'uye')");
+
+  // Kayıtsız e-posta: bekleyenlere yazılır (büyük/küçük harf ve boşluk normalize edilir).
+  const pending = await db.query<{ r: { status: string; email: string } }>(
+    "select public.assign_role('  Yeni.Editor@Example.com ', 'editor') as r",
+  );
+  assert.equal(pending.rows[0].r.status, 'pending');
+  assert.equal(pending.rows[0].r.email, 'yeni.editor@example.com');
+  assert.deepEqual(
+    (await db.query('select email, role from public.list_pending_roles()')).rows,
+    [{ email: 'yeni.editor@example.com', role: 'editor' }],
+  );
+  await assert.rejects(db.query("select public.assign_role('gecersiz', 'editor')"), /Geçerli bir e-posta/);
+  await assert.rejects(db.query("select public.assign_role('x@example.com', 'root')"), /Geçersiz rol/);
+  await assert.rejects(db.query("select public.assign_role('owner@example.com', 'uye')"), /Kendi admin/);
+
+  // Kişi üye olunca (auth.users insert) tetikleyici bekleyen rolü uygular ve kaydı temizler.
+  const newcomer = '00000000-0000-0000-0000-000000000004';
+  await db.exec('reset role');
+  await db.query('insert into auth.users(id, email, email_confirmed_at) values ($1, $2, now())', [
+    newcomer,
+    'Yeni.Editor@example.com',
+  ]);
+  await asUser('authenticated', admin);
+  assert.deepEqual(
+    (await db.query("select role from public.list_members() where email='Yeni.Editor@example.com'")).rows,
+    [{ role: 'editor' }],
+  );
+  assert.equal((await db.query('select * from public.list_pending_roles()')).rows.length, 0);
+  assert.equal(
+    (await db.query("select id from public.admin_audit_log where action='APPLY_PENDING_ROLE:editor' and entry_id=$1", [newcomer])).rows.length,
+    1,
+  );
+  // Bekleyen olmayan yeni üye yine 'uye' olur.
+  const plain = '00000000-0000-0000-0000-000000000005';
+  await db.exec('reset role');
+  await db.query('insert into auth.users(id, email, email_confirmed_at) values ($1, $2, now())', [plain, 'plain@example.com']);
+  await asUser('authenticated', admin);
+  assert.deepEqual(
+    (await db.query("select role from public.list_members() where email='plain@example.com'")).rows,
+    [{ role: 'uye' }],
+  );
+
+  // Bekleyen kaydı kaldırma.
+  await db.query("select public.assign_role('sonra@example.com', 'vip')");
+  await db.query("select public.cancel_pending_role('SONRA@example.com')");
+  await assert.rejects(db.query("select public.cancel_pending_role('sonra@example.com')"), /bekleyen rol ataması yok/);
+
+  // Admin olmayan hiçbirini çağıramaz.
+  await asUser('authenticated', student);
+  await assert.rejects(db.query("select public.assign_role('a@example.com', 'vip')"), /Yönetici yetkisi/);
+  await assert.rejects(db.query('select * from public.list_pending_roles()'), /Yönetici yetkisi/);
+  await assert.rejects(db.query("select public.cancel_pending_role('a@example.com')"), /Yönetici yetkisi/);
+  await assert.rejects(db.query('select * from public.pending_roles'), /permission denied/i);
+});
+
+test('admin deletes accounts without an Edge Function; self, admins and unknown e-mails are protected', async () => {
+  const victim = '00000000-0000-0000-0000-000000000006';
+  await db.exec('reset role');
+  await db.query('insert into auth.users(id, email, email_confirmed_at) values ($1, $2, now())', [victim, 'silinecek@example.com']);
+  await asUser('authenticated', victim);
+  await db.query(
+    "insert into public.user_activities(user_id, date, quiz_count) values ($1, to_char(now(), 'YYYY-MM-DD'), 1)",
+    [victim],
+  );
+
+  // Admin olmayan silemez.
+  await asUser('authenticated', student);
+  await assert.rejects(db.query("select public.delete_user_account('silinecek@example.com')"), /Yönetici yetkisi/);
+
+  await asUser('authenticated', admin);
+  await assert.rejects(db.query("select public.delete_user_account('owner@example.com')"), /Kendi hesabınızı/);
+  await db.query("select public.set_admin('second@example.com', true)");
+  await assert.rejects(db.query("select public.delete_user_account('second@example.com')"), /Yönetici hesabı silinemez/);
+  await db.query("select public.set_admin('second@example.com', false)");
+  await assert.rejects(db.query("select public.delete_user_account('yok@example.com')"), /kayıtlı bir hesap bulunamadı/);
+
+  const result = await db.query<{ r: { status: string; email: string } }>(
+    "select public.delete_user_account('Silinecek@Example.com') as r",
+  );
+  assert.equal(result.rows[0].r.status, 'deleted');
+  assert.equal(result.rows[0].r.email, 'silinecek@example.com');
+  await db.exec('reset role');
+  assert.equal((await db.query('select id from auth.users where id=$1', [victim])).rows.length, 0);
+  assert.equal((await db.query('select user_id from public.members where user_id=$1', [victim])).rows.length, 0);
+  assert.equal((await db.query('select user_id from public.user_activities where user_id=$1', [victim])).rows.length, 0);
+  await asUser('authenticated', admin);
+  assert.equal(
+    (await db.query("select id from public.admin_audit_log where action='DELETE_USER' and entry_id='silinecek@example.com'")).rows.length,
+    1,
+  );
+  // Yalnızca bekleyen rol kaydı olan (hesabı olmayan) e-posta: kayıt temizlenir.
+  await db.query("select public.assign_role('bekleyen@example.com', 'vip')");
+  const removed = await db.query<{ r: { status: string } }>(
+    "select public.delete_user_account('bekleyen@example.com') as r",
+  );
+  assert.equal(removed.rows[0].r.status, 'pending_removed');
+  assert.equal((await db.query('select * from public.list_pending_roles()')).rows.length, 0);
 });
