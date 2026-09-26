@@ -48,7 +48,7 @@ Değerleri **Supabase → Project Settings → API** sayfasından alın:
 
 ### 2. Supabase tarafını tamamlayın
 Hesap, panel, içerik yönetimi ve soru bildirimi özelliklerinin web'de de çalışması için:
-- 4 migration'ı SQL Editor'de **sırayla** çalıştırın (liste: `docs/ADMIN.md`).
+- 5 migration'ı SQL Editor'de **sırayla** çalıştırın (liste: `docs/ADMIN.md`).
 - İlk admini atayın.
 
 ### 3. Yerelde doğrulayın

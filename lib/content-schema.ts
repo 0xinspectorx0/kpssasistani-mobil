@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { QUESTIONS, LESSONS, NEWS, EXAM_EVENTS, TARGET_EXAMS, TABAN_PUANLAR, QUOTES } from './data';
+import { QUESTIONS, LESSONS, NEWS, EXAM_EVENTS, TARGET_EXAMS, TABAN_PUANLAR, QUOTES, QUESTION_TOPIC_IDS } from './data';
 
 const text = z
   .string()
@@ -24,6 +24,7 @@ export const schemas = {
     .object({
       id,
       category: lessonId,
+      topicId: lessonId.optional(),
       question: text,
       options: z.array(text).min(5, 'Tam 5 seçenek (A–E) olmalıdır.').max(5, 'Tam 5 seçenek (A–E) olmalıdır.'),
       answer: z.number().int().min(0).max(4),
@@ -148,6 +149,11 @@ export function publishedContent(rows: ContentEntry[]): ContentData {
   const result = emptyContent();
   for (const row of rows)
     if (row.status === 'published') (result[row.kind] as ContentPayload[]).push(row.payload);
+  // Önceden yüklenmiş sorularda konu kimliği yoksa gömülü eşlemeyi kullan.
+  result.questions = result.questions.map((question) => ({
+    ...question,
+    topicId: question.topicId ?? QUESTION_TOPIC_IDS[question.id],
+  }));
   return result;
 }
 export function seedEntries(): ContentEntry[] {
@@ -170,6 +176,7 @@ export function newPayload(kind: ContentKind): ContentPayload {
       return {
         id,
         category: 'turkce',
+        topicId: 'tr-s1',
         difficulty: 'Orta',
         question: '',
         options: ['', '', '', '', ''],

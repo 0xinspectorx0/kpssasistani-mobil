@@ -25,7 +25,8 @@
 - Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
 - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
 - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
-- Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); misafir 1, ücretsiz 3, VIP sınırsız test.
+- Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
+- Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
 - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
 - E-posta: **Brevo SMTP** (kurulum kullanıcıca tamamlandı, mail akışı çalışıyor). Host `smtp-relay.brevo.com:587`, user `bb20ab001@smtp-brevo.com`. Brevo'da "Unauthorized IP..." uyarısının aktivasyonu AÇILMAYACAK.
 - "Parolamı unuttum" linki → yeni şifre formu göstermeli, direkt giriş yaptırmayacak (`PasswordRecoveryModal` + `isRecovery`).

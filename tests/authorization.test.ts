@@ -47,6 +47,9 @@ before(async () => {
   await db.exec(
     readFileSync(new URL('../supabase/migrations/202609250003_question_reports.sql', import.meta.url), 'utf8'),
   );
+  await db.exec(
+    readFileSync(new URL('../supabase/migrations/202609260001_quiz_quotas.sql', import.meta.url), 'utf8'),
+  );
   await db.query('insert into public.members(user_id, role) values ($1, $2)', [admin, 'admin']);
   await asUser('authenticated', admin);
   await insert('published', 'published');
@@ -267,5 +270,44 @@ test('bundled import is complete and cannot overwrite existing edits', async () 
       )
     ).rows[0].status,
     'draft',
+  );
+});
+
+test('plan quota settings are readable by users but writable only by admins', async () => {
+  await asUser('anon');
+  assert.deepEqual(
+    (await db.query<{ settings: { guest: number; uye: number; vip: number | null } }>(
+      'select public.get_quiz_quota_settings() as settings',
+    )).rows[0].settings,
+    { guest: 1, uye: 3, vip: null },
+  );
+  await assert.rejects(db.query('select * from public.quiz_quota_settings'), /permission denied/i);
+  await assert.rejects(
+    db.query('select public.set_quiz_quota_settings(2, 5, 10)'),
+    /permission denied/i,
+  );
+
+  await asUser('authenticated', student);
+  await assert.rejects(db.query('select public.set_quiz_quota_settings(2, 5, 10)'), /Yönetici yetkisi/);
+  await assert.rejects(db.query('select * from public.quiz_quota_settings'), /permission denied/i);
+
+  await asUser('authenticated', admin);
+  await db.query('select public.set_quiz_quota_settings(2, 5, 10)');
+  assert.deepEqual(
+    (await db.query<{ settings: { guest: number; uye: number; vip: number | null } }>(
+      'select public.get_quiz_quota_settings() as settings',
+    )).rows[0].settings,
+    { guest: 2, uye: 5, vip: 10 },
+  );
+  await db.query('select public.set_quiz_quota_settings(0, 0, null)');
+  assert.deepEqual(
+    (await db.query<{ settings: { guest: number; uye: number; vip: number | null } }>(
+      'select public.get_quiz_quota_settings() as settings',
+    )).rows[0].settings,
+    { guest: 0, uye: 0, vip: null },
+  );
+  await assert.rejects(db.query('select public.set_quiz_quota_settings(10000, 5, null)'), /0 ile 9999/);
+  assert.ok(
+    (await db.query("select id from public.admin_audit_log where action='SET_QUIZ_QUOTAS'")).rows.length >= 2,
   );
 });

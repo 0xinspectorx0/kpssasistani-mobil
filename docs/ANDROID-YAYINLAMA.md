@@ -140,7 +140,7 @@ npx eas update --branch production --message "açıklama"
 
 ## Kontrol listesi ✅
 
-- [ ] Supabase migration'ları çalıştırıldı (4 dosya, sırayla)
+- [ ] Supabase migration'ları çalıştırıldı (5 dosya, sırayla)
 - [ ] İlk admin atandı
 - [ ] `EXPO_PUBLIC_*` değişkenleri EAS'e tanımlandı (`eas env:push`)
 - [ ] `npx eas login` yapıldı

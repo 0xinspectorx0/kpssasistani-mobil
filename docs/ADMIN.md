@@ -30,11 +30,13 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
    2. `supabase/migrations/202609250001_accounts_roles.sql`
    3. `supabase/migrations/202609250002_user_moderation.sql` (engelleme/silme desteği)
    4. `supabase/migrations/202609250003_question_reports.sql` (soru bildirimi + kullanıcı istatistikleri)
+   5. `supabase/migrations/202609260001_quiz_quotas.sql` (yönetim panelinden günlük plan kotalarını düzenleme)
 3. Tablolar oluşur:
    - `content_entries` (merkezi içerik)
    - `members` (kullanıcı rolleri + `banned` durumu)
    - `user_activities` (günlük test kotası sayacı)
    - `question_reports` (hatalı soru bildirimleri)
+   - `quiz_quota_settings` (Misafir/Üye/VIP günlük test hakları)
    - `admin_audit_log` (işlem günlüğü)
 4. **Authentication → Providers → Email** açık olsun. Kullanıcıların uygulamadan üye olabilmesi için
    **Authentication → Sign In / Sign Up → "Allow new users to sign up"** seçeneğini açık bırakın
@@ -142,6 +144,13 @@ supabase functions deploy delete-user --no-verify-jwt
   son 7 gün aktif ve toplam çözülen test sayısı (`get_user_stats` RPC'si ile).
 - Bu özellikler `202609250003_question_reports.sql` migration'ı ile gelir (yukarıda kurulum adımlarına eklendi).
 
+### Günlük test kotaları
+
+- Yönetim panelindeki **Test Kotaları** bölümünden Misafir, Üye ve VIP günlük test hakları değiştirilebilir; her değer 0–9999 arasıdır. VIP ayrıca sınırsız yapılabilir.
+- Ayarlar Supabase'de saklanır, tüm istemciler tarafından okunur ve kod değişikliği/deploy gerektirmeden uygulanır. Varsayılanlar: Misafir 1, Üye 3, VIP sınırsız.
+- Güvenlik için ayarları yalnızca `admin` rolü güncelleyebilir; değişiklikler işlem günlüğüne yazılır.
+- Özellik `202609260001_quiz_quotas.sql` migration'ı ile gelir.
+
 ### Rol → erişim özeti
 
 | Yetki | admin | editor | viewer |
@@ -162,8 +171,8 @@ supabase functions deploy delete-user --no-verify-jwt
 
 ## 7. Veri senkronu
 
-- Giriş yapan kullanıcının günlük test kotası Supabase `user_activities` tablosunda tutulur (cihaz bağımsız).
-- Misafir kotası yalnızca cihazda tutulur.
+- Giriş yapan kullanıcının günlük test sayacı Supabase `user_activities` tablosunda tutulur (cihaz bağımsız); misafir sayacı cihazda kalır.
+- Plan limitleri Supabase `quiz_quota_settings` tablosunda saklanır ve tüm istemcilerce okunur; istemcide kısa süreli çevrimdışı yedek kopya bulunur.
 - Test geçmişi, favoriler ve konu takibi hâlâ cihazda kalır (ileride merkezi senkron istenirse ayrıca geliştirilir).
 
 ## 8. Testler
@@ -174,7 +183,7 @@ npm test
 npm run build:web
 ```
 
-`npm test`, PGlite üzerinde üç migration'ın RLS/trigger davranışını birlikte sınar (engelleme/silme dahil).
+`npm test`, PGlite üzerinde migration'ların RLS/trigger davranışını birlikte sınar (kota ayarları dahil).
 
 Web E2E (bağlı akış):
 

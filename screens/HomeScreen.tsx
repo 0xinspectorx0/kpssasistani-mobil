@@ -1,6 +1,6 @@
 import { useContent } from '../lib/content';
 import React, { useMemo } from 'react';
-import { FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,11 +20,58 @@ function greeting(): string {
 }
 
 export default function HomeScreen({ navigation }: any) {
-  const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history } = useApp();
+  const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history, addQuizResult } = useApp();
   const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { lessons: LESSONS, events: EXAM_EVENTS, targets: TARGET_EXAMS, quotes: QUOTES, questions: QUESTIONS, refreshContent, syncError, source } = useContent();
   const CATEGORY_LIST = useCategoryList();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [selectedLessonId, setSelectedLessonId] = React.useState<string | null>(null);
+  const [topicSelectionMode, setTopicSelectionMode] = React.useState<'all' | 'selected'>('all');
+  const [selectedTopicIds, setSelectedTopicIds] = React.useState<string[]>([]);
+  const [topicTestCount, setTopicTestCount] = React.useState(10);
+  const [topicManualCount, setTopicManualCount] = React.useState('');
+  const [useTopicManualCount, setUseTopicManualCount] = React.useState(false);
+  const [qodModalVisible, setQodModalVisible] = React.useState(false);
+  const [qodAnswered, setQodAnswered] = React.useState<number | null>(null);
+  const selectedLesson = LESSONS.find((lesson) => lesson.id === selectedLessonId);
+  const topicTestQuestionCount = selectedLesson
+    ? topicSelectionMode === 'all'
+      ? QUESTIONS.filter((question) => question.category === selectedLesson.id).length
+      : QUESTIONS.filter((question) => question.topicId && selectedTopicIds.includes(question.topicId)).length
+    : 0;
+  const topicCountOptions = [5, 10, 20];
+  const requestedTopicTestCount = useTopicManualCount ? Number(topicManualCount) : topicTestCount;
+  const validTopicTestCount = Number.isInteger(requestedTopicTestCount) && requestedTopicTestCount > 0;
+  const effectiveTopicTestCount = validTopicTestCount ? requestedTopicTestCount : 0;
+
+  const openTopicPicker = (lessonId: string) => {
+    setSelectedLessonId(lessonId);
+    setTopicSelectionMode('all');
+    setSelectedTopicIds([]);
+    setTopicTestCount(10);
+    setTopicManualCount('');
+    setUseTopicManualCount(false);
+  };
+
+  const togglePickedTopic = (topicId: string) => {
+    if (topicSelectionMode === 'all') {
+      setTopicSelectionMode('selected');
+      setSelectedTopicIds([topicId]);
+      return;
+    }
+    setSelectedTopicIds((current) => current.includes(topicId)
+      ? current.filter((id) => id !== topicId)
+      : [...current, topicId]);
+  };
+
+  const startTopicTest = () => {
+    if (!selectedLesson || topicTestQuestionCount === 0 || !validTopicTestCount) return;
+    const params = topicSelectionMode === 'all'
+      ? { mode: 'category', categoryId: selectedLesson.id, count: effectiveTopicTestCount }
+      : { mode: 'topics', topicIds: selectedTopicIds, count: effectiveTopicTestCount };
+    setSelectedLessonId(null);
+    navigation.navigate('Quiz', params);
+  };
 
   const target = useMemo(() => {
     if (targetExamId) return TARGET_EXAMS.find((t) => t.id === targetExamId) ?? TARGET_EXAMS[0];
@@ -42,6 +89,17 @@ export default function HomeScreen({ navigation }: any) {
 
   const qod = questionOfDay(QUESTIONS);
   const qodCat = CATEGORY_LIST.find((c) => c.id === qod?.category);
+  const answerDailyQuestion = (answerIndex: number) => {
+    if (!qod || qodAnswered !== null) return;
+    setQodAnswered(answerIndex);
+    addQuizResult({
+      category: 'Günün Sorusu',
+      categoryId: qod.category,
+      total: 1,
+      correct: answerIndex === qod.answer ? 1 : 0,
+      seconds: 0,
+    });
+  };
   const quote = useMemo(() => {
     const day = Math.floor(Date.now() / 86400000);
     return QUOTES[day % QUOTES.length];
@@ -221,7 +279,10 @@ export default function HomeScreen({ navigation }: any) {
               <PrimaryButton
                 label="Soruyu Çöz"
                 icon="arrow-forward"
-                onPress={() => navigation.navigate('Quiz', { mode: 'qod' })}
+                onPress={() => {
+                  setQodAnswered(null);
+                  setQodModalVisible(true);
+                }}
               />
             </View>
           </Card>
@@ -246,7 +307,7 @@ export default function HomeScreen({ navigation }: any) {
             contentContainerStyle={{ paddingVertical: 2 }}
             renderItem={({ item }) => (
               <TouchableOpacity
-                onPress={() => navigation.navigate('Quiz', { mode: 'category', categoryId: item.id })}
+                onPress={() => openTopicPicker(item.id)}
                 activeOpacity={0.8}
                 style={{
                   width: 128,
@@ -349,6 +410,329 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={qodModalVisible && !!qod}
+        onRequestClose={() => setQodModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#02061799',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+        >
+          {qod && (
+            <View
+              role="dialog"
+              accessibilityLabel="Günün sorusu"
+              accessibilityViewIsModal
+              style={{
+                width: '100%',
+                maxWidth: 560,
+                maxHeight: '90%',
+                backgroundColor: theme.card,
+                borderRadius: 22,
+                padding: 22,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: theme.gold + '1A', alignItems: 'center', justifyContent: 'center', marginRight: 11 }}>
+                  <Ionicons name="sparkles" size={21} color={theme.gold} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>Günün Sorusu</Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>Cevabını seçerek çöz</Text>
+                </View>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Günün sorusunu kapat"
+                  onPress={() => setQodModalVisible(false)}
+                  style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: theme.card2 }}
+                >
+                  <Ionicons name="close" size={21} color={theme.muted} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ alignSelf: 'flex-start', backgroundColor: (qodCat?.color ?? theme.accent) + '1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 12 }}>
+                <Text style={{ color: qodCat?.color ?? theme.accent, fontSize: 11.5, fontWeight: '800' }}>
+                  {qodCat?.name ?? 'KPSS'} · {qod.difficulty}
+                </Text>
+              </View>
+              <Text style={{ color: theme.text, fontSize: 16, lineHeight: 24, fontWeight: '700', marginBottom: 14 }}>
+                {qod.question}
+              </Text>
+
+              <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                {qod.options.map((option, index) => {
+                  const answered = qodAnswered !== null;
+                  const isCorrect = index === qod.answer;
+                  const isSelected = index === qodAnswered;
+                  const highlighted = answered && (isCorrect || isSelected);
+                  const backgroundColor = !highlighted
+                    ? theme.card2
+                    : isCorrect
+                      ? theme.successSoft
+                      : theme.dangerSoft;
+                  const borderColor = !highlighted
+                    ? theme.border
+                    : isCorrect
+                      ? theme.success
+                      : theme.danger;
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: answered }}
+                      disabled={answered}
+                      onPress={() => answerDailyQuestion(index)}
+                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor, borderColor, borderWidth: highlighted ? 2 : 1, borderRadius: 13, padding: 12, marginBottom: 8 }}
+                    >
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: answered && (isCorrect || isSelected) ? (isCorrect ? theme.success : theme.danger) : theme.card, borderWidth: 1, borderColor, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                        <Text style={{ color: answered && (isCorrect || isSelected) ? '#fff' : theme.muted, fontSize: 12, fontWeight: '900' }}>
+                          {['A', 'B', 'C', 'D', 'E'][index]}
+                        </Text>
+                      </View>
+                      <Text style={{ flex: 1, color: theme.text, fontSize: 13.5, lineHeight: 20, fontWeight: '600' }}>{option}</Text>
+                      {answered && isCorrect && <Ionicons name="checkmark-circle" size={20} color={theme.success} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {qodAnswered !== null && (
+                <View style={{ backgroundColor: theme.card2, borderRadius: 13, padding: 14, marginTop: 8 }}>
+                  <Text style={{ color: qodAnswered === qod.answer ? theme.success : theme.danger, fontSize: 14, fontWeight: '900', marginBottom: 5 }}>
+                    {qodAnswered === qod.answer ? 'Doğru cevap!' : 'Yanlış cevap'}
+                  </Text>
+                  <Text style={{ color: theme.text, fontSize: 12.5, lineHeight: 19 }}>{qod.explanation}</Text>
+                </View>
+              )}
+              <View style={{ marginTop: 16 }}>
+                <PrimaryButton label="Kapat" icon="checkmark" onPress={() => setQodModalVisible(false)} />
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={!!selectedLesson}
+        onRequestClose={() => setSelectedLessonId(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#02061799',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+        >
+          {selectedLesson && (
+            <View
+              role="dialog"
+              accessibilityLabel={`${selectedLesson.name} konuları`}
+              accessibilityViewIsModal
+              style={{
+                width: '100%',
+                maxWidth: 500,
+                maxHeight: '90%',
+                backgroundColor: theme.card,
+                borderRadius: 22,
+                padding: 20,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 13,
+                    backgroundColor: `${selectedLesson.color}1A`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 11,
+                  }}
+                >
+                  <Ionicons name={selectedLesson.icon as any} size={21} color={selectedLesson.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>{selectedLesson.name}</Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>Çözmek istediğin konuları seç</Text>
+                </View>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Konu penceresini kapat"
+                  onPress={() => setSelectedLessonId(null)}
+                  style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: theme.card2 }}
+                >
+                  <Ionicons name="close" size={21} color={theme.muted} />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                accessibilityRole="radio"
+                accessibilityState={{ checked: topicSelectionMode === 'all' }}
+                onPress={() => {
+                  setTopicSelectionMode('all');
+                  setSelectedTopicIds([]);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: topicSelectionMode === 'all' ? theme.accentSoft : theme.card2,
+                  borderWidth: 1,
+                  borderColor: topicSelectionMode === 'all' ? theme.accent : theme.border,
+                  borderRadius: 13,
+                  padding: 12,
+                  marginBottom: 10,
+                }}
+              >
+                <Ionicons name="layers" size={19} color={topicSelectionMode === 'all' ? theme.accent : theme.muted} />
+                <Text style={{ flex: 1, marginLeft: 9, color: theme.text, fontSize: 13, fontWeight: '800' }}>
+                  Tüm konular
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
+                  {QUESTIONS.filter((question) => question.category === selectedLesson.id).length} soru
+                </Text>
+              </TouchableOpacity>
+
+              <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+                {selectedLesson.topics.map((topic) => {
+                  const selected = topicSelectionMode === 'selected' && selectedTopicIds.includes(topic.id);
+                  const available = QUESTIONS.filter((question) => question.topicId === topic.id).length;
+                  return (
+                    <TouchableOpacity
+                      key={topic.id}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected, disabled: available === 0 }}
+                      disabled={available === 0}
+                      onPress={() => togglePickedTopic(topic.id)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 11,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.border,
+                        opacity: available === 0 ? 0.45 : 1,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 6,
+                          borderWidth: 1.5,
+                          borderColor: selected ? selectedLesson.color : theme.border,
+                          backgroundColor: selected ? selectedLesson.color : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 10,
+                        }}
+                      >
+                        {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                      </View>
+                      <Text style={{ flex: 1, color: theme.text, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
+                        {topic.name}
+                      </Text>
+                      <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>{available} soru</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={{ marginTop: 14 }}>
+                <Text style={{ color: theme.text, fontSize: 12, fontWeight: '800', marginBottom: 8 }}>
+                  Soru sayısı · {topicTestQuestionCount} farklı soru{topicTestQuestionCount > 0 ? ' · gerekirse tekrar eder' : ''}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 7 }}>
+                  {topicCountOptions.map((value) => {
+                    const active = !useTopicManualCount && topicTestCount === value;
+                    return (
+                      <TouchableOpacity
+                        key={value}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: active }}
+                        onPress={() => {
+                          setTopicTestCount(value);
+                          setUseTopicManualCount(false);
+                        }}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          backgroundColor: active ? theme.text : theme.card2,
+                          borderWidth: 1,
+                          borderColor: active ? theme.text : theme.border,
+                        }}
+                      >
+                        <Text style={{ color: active ? theme.card : theme.text, fontSize: 12, fontWeight: '800' }}>
+                          {value}
+                        </Text>
+                        <Text style={{ color: active ? theme.card : theme.muted, fontSize: 9.5, marginTop: 1 }}>soru</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <View style={{
+                    flex: 1,
+                    minWidth: 0,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 5,
+                    paddingVertical: 4,
+                    borderRadius: 10,
+                    backgroundColor: useTopicManualCount ? theme.text : theme.card2,
+                    borderWidth: 1,
+                    borderColor: useTopicManualCount ? theme.text : theme.border,
+                  }}>
+                    <TextInput
+                      accessibilityLabel="Manuel soru sayısı"
+                      keyboardType="number-pad"
+                      maxLength={3}
+                      value={topicManualCount}
+                      placeholder="Sayı"
+                      placeholderTextColor={useTopicManualCount ? theme.card : theme.muted}
+                      onFocus={() => setUseTopicManualCount(true)}
+                      onChangeText={(value) => {
+                        setTopicManualCount(value.replace(/\D/g, '').slice(0, 3));
+                        setUseTopicManualCount(true);
+                      }}
+                      style={{ width: '100%', padding: 0, textAlign: 'center', color: useTopicManualCount ? theme.card : theme.text, fontSize: 13, lineHeight: 18, fontWeight: '800' }}
+                    />
+                    <Text style={{ color: useTopicManualCount ? theme.card : theme.muted, fontSize: 9.5, marginTop: 1 }}>manuel</Text>
+                  </View>
+                </View>
+                <View style={{ marginTop: 14 }}>
+                  <PrimaryButton
+                    label={topicTestQuestionCount === 0
+                      ? 'Soru bulunamadı'
+                      : !validTopicTestCount
+                        ? 'Manuel soru sayısı gir'
+                        : `Teste Başla (${effectiveTopicTestCount} soru)`}
+                    icon="play"
+                    disabled={topicTestQuestionCount === 0 || !validTopicTestCount}
+                    onPress={startTopicTest}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
