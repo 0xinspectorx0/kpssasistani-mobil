@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -9,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { useAdminAuth } from '../lib/admin-auth';
@@ -120,33 +118,57 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
   const alreadyAuthed = !!session;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#02061799',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 440, maxHeight: '90%' }}
+        >
           <View
+            role="dialog"
+            accessibilityLabel="Hesabım"
+            accessibilityViewIsModal
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderColor: theme.border,
+              width: '100%',
+              maxHeight: '100%',
               backgroundColor: theme.card,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: theme.border,
+              overflow: 'hidden',
             }}
           >
-            <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>Hesabım</Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Kapat"
-              onPress={onClose}
-              style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderColor: theme.border,
+              }}
             >
-              <Ionicons name="close" size={22} color={theme.text} />
-            </TouchableOpacity>
-          </View>
+              <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>Hesabım</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Kapat"
+                onPress={onClose}
+                style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.card2 }}
+              >
+                <Ionicons name="close" size={22} color={theme.text} />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
             {alreadyAuthed && tab === 'login' ? (
               <View style={{ alignItems: 'center', marginTop: 20 }}>
                 <View
@@ -175,7 +197,7 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                       width: '100%',
                       maxWidth: 400,
                       marginTop: 18,
-                      backgroundColor: theme.card,
+                      backgroundColor: theme.card2,
                       borderRadius: 14,
                       borderWidth: 1,
                       borderColor: theme.border,
@@ -276,7 +298,7 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                         borderRadius: 12,
                         borderWidth: 1,
                         borderColor: tab === t.id ? theme.accent : theme.border,
-                        backgroundColor: tab === t.id ? theme.accentSoft : theme.card,
+                        backgroundColor: tab === t.id ? theme.accentSoft : theme.card2,
                         marginRight: t.id === 'login' ? 8 : 0,
                       }}
                     >
@@ -347,7 +369,7 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                 {forgot && (
                   <View
                     style={{
-                      backgroundColor: theme.card,
+                      backgroundColor: theme.card2,
                       borderRadius: 14,
                       borderWidth: 1,
                       borderColor: theme.border,
@@ -404,7 +426,7 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                         alignItems: 'center',
                         padding: 12,
                         borderRadius: 12,
-                        backgroundColor: theme.card,
+                        backgroundColor: theme.card2,
                         borderWidth: 1,
                         borderColor: theme.border,
                         marginBottom: 8,
@@ -426,9 +448,10 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
             ) : (
               <Notice text={`Hesap altyapısı (Supabase) bağlanmadığı için şimdilik misafir olarak devam ediyorsun. Günlük ${dailyLimit('guest', quotaSettings)} test hakkıyla tüm içeriklere erişebilirsin.`} />
             )}
-          </ScrollView>
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

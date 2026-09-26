@@ -2,9 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kpss-onboarding-seen', '1'));
-  await page.goto('/');
-  await page.getByRole('tab', { name: /Profil/ }).click();
-  await page.getByText('Yönetici Paneli', { exact: true }).click();
+  await page.goto('/Admin');
 });
 test('admin entry is discoverable and disconnected mode cannot authenticate', async ({ page }) => {
   await expect(page.getByText('Yönetici girişi', { exact: true })).toBeVisible();

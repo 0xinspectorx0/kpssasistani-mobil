@@ -17,8 +17,8 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
 | **Yönetici** (admin) | Her şey + rol atama | Sınırsız |
 
 - **Giriş/kayıt:** Profil → **Hesabım** bölümünden. Üyelik herkese açık olabilir (önerilen) veya kapatılabilir.
-- **Yönetim girişi:** Profil → **Yönetici Paneli**. Aynı hesap girişini kullanır; yetkisiz hesap
-  "Yönetim yetkiniz yok" ekranını görür.
+- **Yönetim girişi:** Profil → Hesabım ile admin hesabıyla giriş yapın. **Yönetici Paneli** yalnızca
+  admin hesaplarında Profil sayfasının en üstünde görünür. Yetkisiz hesap "Yönetim yetkiniz yok" ekranını görür.
 - **Dersler artık sabit değil:** Panelden yeni ders eklenebilir, ders adı/değişkenleri düzenlenebilir.
 - **Toplu soru ekleme:** Panel → Soru Bankası → **Toplu soru ekle** (JSON veya satır bazlı metin/CSV).
 
@@ -86,7 +86,7 @@ Değişken değişince Metro'yu yeniden başlatın. Web production: `npx expo ex
 
 ## 4. İçerikleri yayınlama ve yönetme
 
-1. **Profil → Yönetici Paneli** → giriş yapın.
+1. **Profil → Hesabım** ile admin hesabına giriş yapın, ardından sayfanın en üstündeki **Yönetici Paneli**ne girin.
 2. **Genel Bakış → Hazır içerikleri aktar** ile gömülü soruları/içerikleri veritabanına aktarın.
 3. **Soru Bankası** bölümünden tek tek soru ekleyin veya **Toplu soru ekle** ile:
    - **JSON** dizisi yapıştırın: `[{ "category":"tarih","difficulty":"Orta","question":"…","options":["A","B","C","D","E"],"answer":1,"explanation":"…" }]`

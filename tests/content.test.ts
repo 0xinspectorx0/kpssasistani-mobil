@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newPayload, parseEntry, publishedContent, schemas, seedEntries } from '../lib/content-schema';
-import { LESSONS, QUESTIONS, QUESTION_TOPIC_IDS, questionOfDay } from '../lib/data';
+import { LESSONS, QUESTIONS, QUESTION_TOPIC_IDS, pickRandomQuestion, questionOfDay } from '../lib/data';
 
 const q = {
   id: 'q1',
@@ -54,6 +54,10 @@ test('published empty collection stays empty rather than reviving bundled questi
   assert.deepEqual(publishedContent([]).questions, []);
   assert.equal(questionOfDay([]), undefined);
   assert.ok(questionOfDay([schemas.questions.parse(q)])?.id === q.id);
+  const pool = [q, { ...q, id: 'q2' }, { ...q, id: 'q3' }].map((item) => schemas.questions.parse(item));
+  assert.notEqual(questionOfDay(pool, new Date(0))?.id, questionOfDay(pool, new Date(60_000))?.id);
+  assert.equal(pickRandomQuestion([]), undefined);
+  assert.equal(pickRandomQuestion(pool, 'q1')?.id !== 'q1', true);
 });
 test('entry id and payload id must match', () => {
   assert.throws(() => parseEntry({ kind: 'questions', id: 'other', payload: q, status: 'published' }));
