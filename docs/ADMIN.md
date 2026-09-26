@@ -22,6 +22,25 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
 - **Dersler artık sabit değil:** Panelden yeni ders eklenebilir, ders adı/değişkenleri düzenlenebilir.
 - **Toplu soru ekleme:** Panel → Soru Bankası → **Toplu soru ekle** (JSON veya satır bazlı metin/CSV).
 
+## Soru bankası: ders → konu → sorular
+
+- **Soru Bankası** bölümünde ders kartına dokunun. Konular ortalanmış bir balonda açılır;
+  bir konuya dokununca yalnızca o konunun soruları görünür (taslaklar dahil).
+- Sorunun **Düzenle** düğmesi formu açar; **Sil** düğmesi kalıcı silmeden önce onay ister.
+- Seçim kutuları ile birden fazla soru işaretleyin veya **Tümünü seç** kullanın.
+  Bu düğme yalnızca açık konudaki arama/yayın filtresine uyan soruları, **tüm sayfalarda** seçer.
+  **Seçilenleri sil** onayında adet ve konu gösterilir. Konu veya filtre değişince seçim temizlenir.
+- Toplu silmede her soru mevcut yetki ve `updated_at` kontrolüyle ayrı ayrı silinir.
+  Çakışma/ağ/yetki hatasında işlem durur; silinen adet ve hata gösterilir. Önceden silinen
+  sorular geri alınmaz; kalanları kontrol edip tekrar seçin.
+- Konusu atanmamış veya silinmiş sorular ayrı bir grupta görünür; kaybolmaz.
+- Konu listesindeki **Yukarı / Aşağı** düğmeleri sırayı **hemen kaydeder**.
+  Alternatif: **Dersler ve Konular → Düzenle** içinde taşıyıp formu kaydedin.
+  Sıra, dersin `payload.topics` dizisinde saklanır; konu kimlikleri ve öğrenci ilerlemesi korunur.
+  Taslak dersin sırası öğrencilere ancak ders yayınlandıktan sonra görünür.
+- Yönetici ve editör değişiklik yapabilir; görüntüleyici ve bağlantısız önizleme salt okunurdur.
+- Bu özellikler için **yeni migration gerekmez**; mevcut içerik tablosu, RLS ve işlem günlüğü kullanılır.
+
 ## 1. Supabase veritabanı kurulumu
 
 1. Kendi Supabase projenizi oluşturun veya mevcut projenizi seçin.
@@ -144,7 +163,6 @@ yalnızca migration dosyasının SQL Editor'de bir kez çalıştırılmış olma
 
 > Panelde "Veritabanı kurulumu eksik: … 202609260002_account_admin.sql …" uyarısı görürseniz bu dosyayı
 > henüz çalıştırmamışsınız demektir.
-
 <details>
 <summary>Eski yol (isteğe bağlı): <code>supabase/functions/delete-user</code> Edge Function</summary>
 

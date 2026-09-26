@@ -14,6 +14,7 @@ import { useApp } from '../../lib/store';
 
 export function AdminButton({
   label,
+  accessibilityLabel,
   onPress,
   icon,
   secondary = false,
@@ -22,6 +23,7 @@ export function AdminButton({
   busy = false,
 }: {
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
   icon?: string;
   secondary?: boolean;
@@ -34,7 +36,7 @@ export function AdminButton({
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: disabled || busy }}
       disabled={disabled || busy}
       onPress={onPress}

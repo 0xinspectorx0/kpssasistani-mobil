@@ -49,3 +49,19 @@
 ## Kullanıcı profili
 - Türkçe iletişim; kısa ve net cevaplar sever; "push et", "PR at" gibi kısa komutlar verir.
 - Değişiklikler canlıda (Vercel) görünür; sert yenileme (Ctrl+Shift+R) gerektiğini hatırlat.
+
+
+## Yerel çalışma — 2026-09-26: konu bazlı soru yönetimi
+
+- Soru Bankası'nda ders → konu balonu → sorular; düzenleme, tekli/toplu silme, konu içi arama/yayın filtresi.
+- Toplu seçim tüm sayfaları kapsar; konu/filtre değişince temizlenir. Silme her satır için
+  mevcut `deleteEntry` RLS + `updated_at` kontrolünü kullanır; ilk hatada durup kısmi sonucu bildirir.
+- Konu sırası balondan hemen veya ders düzenleyicisinden form kaydıyla değiştirilir.
+  `payload.topics` dizisi kullanılır; kimlik/ilerleme korunur. Ek migration yok.
+- Yeni dosyalar: `components/admin/QuestionManager.tsx`, `lib/admin-questions.ts`,
+  `tests/admin-questions.test.ts`. UI senaryoları mevcut Playwright testlerine eklendi.
+- Doğrulama: typecheck, 39/39 birim/PostgreSQL testi, web build başarılı.
+  Playwright test listeleri yükleniyor; Chromium indirmesi ve sistem tarayıcısı kurulumu
+  ağ/TLS erişim hatası nedeniyle başarısız. Masaüstü/mobil tarayıcı testleri henüz çalıştırılmadı.
+- Bu değişiklikler yalnızca yerelde: önceki PR birleştiği için mevcut kodlama oturumu kapalı.
+  Yeni oturumda değişiklikleri taşıyıp tarayıcı testleri, PR ve production deploy tamamlanmalı.

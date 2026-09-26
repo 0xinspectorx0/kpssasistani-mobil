@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../lib/store';
+import { moveTopic } from '../../lib/admin-questions';
 import { ContentEntry, ContentPayload, kindLabels, schemas } from '../../lib/content-schema';
 import { readableError } from '../../lib/content-api';
 import { useCategoryList } from '../../lib/lesson-catalog';
@@ -288,9 +289,9 @@ export default function ContentEditor({
             {field('icon')}
             {field('color')}
             <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 12 }}>Konular</Text>
-            <Notice text="Konu adını düzenlemek öğrencinin ilerlemesini korur. Konuyu silip yeniden eklemek yeni bir kimlik oluşturur." />
+            <Notice text="Konu adını veya sırasını değiştirmek öğrencinin ilerlemesini korur. Yukarı/aşağı ile taşıyın, ardından Kaydet’e basın. Konuyu silip yeniden eklemek yeni bir kimlik oluşturur." />
             {draft.topics.map((topic: { id: string; name: string }, i: number) => (
-              <View key={topic.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View key={topic.id} style={{ borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 12 }}>
                 <Field
                   label={`Konu ${i + 1}`}
                   value={topic.name}
@@ -303,17 +304,23 @@ export default function ContentEditor({
                     )
                   }
                 />
-                <AdminButton
-                  secondary
-                  danger
-                  label="Kaldır"
-                  onPress={() =>
-                    set(
-                      'topics',
-                      draft.topics.filter((_: unknown, index: number) => index !== i),
-                    )
-                  }
-                />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  <AdminButton label="Yukarı" accessibilityLabel={`${topic.name || `Konu ${i + 1}`} yukarı`} secondary icon="arrow-up"
+                    disabled={previewOnly || busy || i === 0} onPress={() => set('topics', moveTopic(draft.topics, i, -1))} />
+                  <AdminButton label="Aşağı" accessibilityLabel={`${topic.name || `Konu ${i + 1}`} aşağı`} secondary icon="arrow-down"
+                    disabled={previewOnly || busy || i === draft.topics.length - 1} onPress={() => set('topics', moveTopic(draft.topics, i, 1))} />
+                  <AdminButton
+                    secondary
+                    danger
+                    label="Kaldır"
+                    onPress={() =>
+                      set(
+                        'topics',
+                        draft.topics.filter((_: unknown, index: number) => index !== i),
+                      )
+                    }
+                  />
+                </View>
               </View>
             ))}
             <AdminButton

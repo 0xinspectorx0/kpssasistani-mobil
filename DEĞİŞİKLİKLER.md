@@ -1,5 +1,15 @@
 # KPSS Asistanım — Yapılan Değişiklikler
 
+## 2026-09-26 — Konu bazlı soru yönetimi
+
+- Soru Bankası: ders kartı → konu balonu → konuya ait sorular, arama ve yayın filtresi.
+- Balondan soru düzenleme, tekli silme, seçim kutuları ve tüm sayfaları kapsayan toplu silme.
+- Silmeden önce konu/adet onayı; kısmi hata halinde tamamlanan adet ve hata bildirimi.
+- Konu balonunda doğrudan, ders düzenleyicisinde kaydederek yukarı/aşağı sıralama.
+- Konu kimlikleri ve ilerleme korunur; eksik/silinmiş konuya bağlı sorular ayrı listelenir.
+- Yeni migration gerekmez; mevcut sürüm kontrolü, RLS ve içerik işlem günlüğü korunur.
+
+
 > Tarih: 2026-09-25 • Kapsam: Hesap sistemi, roller, üyelik kotaları, esnek dersler, toplu soru ekleme,
 > kullanıcı denetimi, 5 seçenekli testler, soru bildirimi ve kullanıcı etkinliği
 
