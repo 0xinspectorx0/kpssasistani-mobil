@@ -13,6 +13,7 @@ import 'react-native-gesture-handler';
 import { AppProvider, useApp } from './lib/store';
 import OnboardingModal from './components/Onboarding';
 import PasswordRecoveryModal from './components/PasswordRecoveryModal';
+import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
 import HomeScreen from './screens/HomeScreen';
 import QuizSetupScreen from './screens/QuizSetupScreen';
 import QuizScreen from './screens/QuizScreen';
@@ -30,8 +31,11 @@ const Stack = createNativeStackNavigator();
 
 function Tabs() {
   const { theme, mode } = useApp();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
+  // Günün sözü balonu ölçülür; Profil'in altında sığacak yer varsa sol menüye, yoksa ana sayfaya konur.
+  const [quoteHeight, setQuoteHeight] = useState(0);
+  const quoteInSidebar = isDesktopWeb && height >= SIDEBAR_QUOTE_TOP + quoteHeight + SIDEBAR_QUOTE_GAP;
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       {isDesktopWeb && (
@@ -68,85 +72,105 @@ function Tabs() {
           </View>
         </View>
       )}
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          // Web masaüstünde site tipi yan menü; mobilde sabit alt sekme çubuğu.
-          tabBarPosition: isDesktopWeb ? 'left' : 'bottom',
-          tabBarVariant: 'uikit',
-          tabBarLabelPosition: isDesktopWeb ? 'beside-icon' : 'below-icon',
-          tabBarActiveTintColor: theme.accent,
-          tabBarInactiveTintColor: theme.muted,
-          tabBarActiveBackgroundColor: isDesktopWeb ? theme.accentSoft : 'transparent',
-          tabBarInactiveBackgroundColor: 'transparent',
-          tabBarAllowFontScaling: false,
-          tabBarStyle: {
-            backgroundColor: theme.tabBar,
-            borderColor: theme.border,
-            ...(isDesktopWeb
+      {quoteInSidebar && (
+        <View
+          pointerEvents="none"
+          onLayout={(event) => setQuoteHeight(event.nativeEvent.layout.height)}
+          style={{
+            position: 'absolute',
+            zIndex: 20,
+            // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
+            left: 27,
+            top: SIDEBAR_QUOTE_TOP,
+            width: 306,
+          }}
+        >
+          <QuoteOfTheDay compact />
+        </View>
+      )}
+      <QuoteInSidebarProvider value={quoteInSidebar}>
+        <Tab.Navigator
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            // Web masaüstünde site tipi yan menü; mobilde sabit alt sekme çubuğu.
+            tabBarPosition: isDesktopWeb ? 'left' : 'bottom',
+            tabBarVariant: 'uikit',
+            tabBarLabelPosition: isDesktopWeb ? 'beside-icon' : 'below-icon',
+            tabBarActiveTintColor: theme.accent,
+            tabBarInactiveTintColor: theme.muted,
+            tabBarActiveBackgroundColor: isDesktopWeb ? theme.accentSoft : 'transparent',
+            tabBarInactiveBackgroundColor: 'transparent',
+            tabBarAllowFontScaling: false,
+            tabBarStyle: {
+              backgroundColor: theme.tabBar,
+              borderColor: theme.border,
+              ...(isDesktopWeb
+                ? {
+                    // Yan menü kütüphanenin 360px taban genişliğinde kalır; söz balonu buna hizalanır.
+                    width: 360,
+                    minWidth: 360,
+                    paddingTop: 92,
+                    paddingBottom: 24,
+                    borderTopWidth: 0,
+                    borderRightWidth: 1,
+                  }
+                : {
+                    borderTopWidth: 1,
+                    height: 66,
+                    paddingTop: 2,
+                    paddingBottom: 8,
+                  }),
+            },
+            tabBarItemStyle: isDesktopWeb
               ? {
-                  width: 252,
-                  paddingTop: 92,
-                  paddingBottom: 24,
-                  borderTopWidth: 0,
-                  borderRightWidth: 1,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  marginHorizontal: 12,
+                  marginVertical: 4,
+                  borderRadius: 12,
+                  alignItems: 'flex-start',
                 }
-              : {
-                  borderTopWidth: 1,
-                  height: 66,
-                  paddingTop: 2,
-                  paddingBottom: 8,
-                }),
-          },
-          tabBarItemStyle: isDesktopWeb
-            ? {
-                paddingHorizontal: 12,
-                paddingVertical: 12,
-                marginHorizontal: 12,
-                marginVertical: 4,
-                borderRadius: 12,
-                alignItems: 'flex-start',
-              }
-            : { padding: 0 },
-          tabBarLabel: ({ color }) => (
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit={!isDesktopWeb}
-              minimumFontScale={0.8}
-              style={{
-                color,
-                fontSize: isDesktopWeb ? 14 : 9.5,
-                fontWeight: '700',
-                lineHeight: isDesktopWeb ? 20 : 12,
-                width: isDesktopWeb ? undefined : '100%',
-                flex: isDesktopWeb ? 1 : undefined,
-                marginLeft: isDesktopWeb ? 8 : 0,
-                textAlign: isDesktopWeb ? 'left' : 'center',
-              }}
-            >
-              {route.name}
-            </Text>
-          ),
-          tabBarIcon: ({ color, focused }) => {
-            const icons: Record<string, string> = {
-              'Ana Sayfa': focused ? 'home' : 'home-outline',
-              'Testler': focused ? 'help-circle' : 'help-circle-outline',
-              'Konular': focused ? 'list' : 'list-outline',
-              'Güncel': focused ? 'newspaper' : 'newspaper-outline',
-              'Araçlar': focused ? 'construct' : 'construct-outline',
-              'Profil': focused ? 'person' : 'person-outline',
-            };
-            return <Icons name={icons[route.name] as any} size={isDesktopWeb ? 20 : 23} color={color} />;
-          },
-        })}
-      >
-        <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
-        <Tab.Screen name="Testler" component={QuizSetupScreen} />
-        <Tab.Screen name="Konular" component={TopicsScreen} />
-        <Tab.Screen name="Güncel" component={NewsScreen} />
-        <Tab.Screen name="Araçlar" component={ToolsScreen} />
-        <Tab.Screen name="Profil" component={ProfileScreen} />
-      </Tab.Navigator>
+              : { padding: 0 },
+            tabBarLabel: ({ color }) => (
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit={!isDesktopWeb}
+                minimumFontScale={0.8}
+                style={{
+                  color,
+                  fontSize: isDesktopWeb ? 14 : 9.5,
+                  fontWeight: '700',
+                  lineHeight: isDesktopWeb ? 20 : 12,
+                  width: isDesktopWeb ? undefined : '100%',
+                  flex: isDesktopWeb ? 1 : undefined,
+                  marginLeft: isDesktopWeb ? 8 : 0,
+                  textAlign: isDesktopWeb ? 'left' : 'center',
+                }}
+              >
+                {route.name}
+              </Text>
+            ),
+            tabBarIcon: ({ color, focused }) => {
+              const icons: Record<string, string> = {
+                'Ana Sayfa': focused ? 'home' : 'home-outline',
+                'Testler': focused ? 'help-circle' : 'help-circle-outline',
+                'Konular': focused ? 'list' : 'list-outline',
+                'Güncel': focused ? 'newspaper' : 'newspaper-outline',
+                'Araçlar': focused ? 'construct' : 'construct-outline',
+                'Profil': focused ? 'person' : 'person-outline',
+              };
+              return <Icons name={icons[route.name] as any} size={isDesktopWeb ? 20 : 23} color={color} />;
+            },
+          })}
+        >
+          <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+          <Tab.Screen name="Testler" component={QuizSetupScreen} />
+          <Tab.Screen name="Konular" component={TopicsScreen} />
+          <Tab.Screen name="Güncel" component={NewsScreen} />
+          <Tab.Screen name="Araçlar" component={ToolsScreen} />
+          <Tab.Screen name="Profil" component={ProfileScreen} />
+        </Tab.Navigator>
+      </QuoteInSidebarProvider>
     </View>
   );
 }
