@@ -27,9 +27,11 @@ import {
 } from '../lib/content-schema';
 import {
   AdminMember,
+  assignRole,
   AuditItem,
+  cancelPendingRole,
   changeAdmin,
-  changeRole,
+  createUserAccount,
   deleteEntry,
   deleteUserAccount,
   fetchEntries,
@@ -39,8 +41,10 @@ import {
   listAdmins,
   listAudit,
   listMembers,
+  listPendingRoles,
   listReports,
   Member,
+  PendingRole,
   readableError,
   ReportItem,
   saveEntry,
@@ -89,13 +93,35 @@ function auditActionLabel(action: string): string {
     REMOVE_MEMBER: 'Üyelik kaldırıldı',
     BAN_USER: 'Kullanıcı engellendi',
     UNBAN_USER: 'Kullanıcı engeli kaldırıldı',
+    DELETE_USER: 'Hesap kalıcı olarak silindi',
+    CANCEL_PENDING_ROLE: 'Bekleyen rol ataması kaldırıldı',
   };
   if (fixed[action]) return fixed[action];
   if (action.startsWith('SET_ROLE:')) {
     const role = action.slice('SET_ROLE:'.length);
     return `Rol atandı: ${roleLabels[role] ?? role}`;
   }
+  if (action.startsWith('PENDING_ROLE:')) {
+    const role = action.slice('PENDING_ROLE:'.length);
+    return `Rol önceden atandı (üye olunca uygulanacak): ${roleLabels[role] ?? role}`;
+  }
+  if (action.startsWith('APPLY_PENDING_ROLE:')) {
+    const role = action.slice('APPLY_PENDING_ROLE:'.length);
+    return `Bekleyen rol uygulandı: ${roleLabels[role] ?? role}`;
+  }
   return action;
+}
+function roleAssignedMessage(status: 'applied' | 'pending', email: string, role: string): string {
+  const label = roleLabels[role] ?? role;
+  return status === 'applied'
+    ? `${label} rolü verildi.`
+    : `${email} henüz üye değil: ${label} rolü bekleyenlere eklendi; kişi bu e-postayla üye olur olmaz otomatik uygulanacak.`;
+}
+function randomPassword(length = 10): string {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < length; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
 }
 
 function AdminLogin({ onPreview }: { onPreview: () => void }) {
@@ -235,6 +261,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const [entries, setEntries] = useState<ContentEntry[]>(() => (previewOnly ? seedEntries() : []));
   const [admins, setAdmins] = useState<AdminMember[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [pendingRoles, setPendingRoles] = useState<PendingRole[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -256,6 +283,9 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
     action: () => Promise<void>;
   } | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
+  const [newAccountEmail, setNewAccountEmail] = useState('');
+  const [newAccountPassword, setNewAccountPassword] = useState('');
+  const [newAccountRole, setNewAccountRole] = useState('uye');
   const [quotaGuestInput, setQuotaGuestInput] = useState('1');
   const [quotaMemberInput, setQuotaMemberInput] = useState('3');
   const [quotaVipInput, setQuotaVipInput] = useState('');
@@ -272,16 +302,18 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
     setLoading(true);
     setError('');
     try {
-      const [rows, membersList, adminsList, logs, reportList, userStats] = await Promise.all([
+      const [rows, membersList, adminsList, logs, reportList, userStats, pendingList] = await Promise.all([
         fetchEntries(),
         listMembers(),
         listAdmins(),
         listAudit(),
         listReports().catch(() => [] as ReportItem[]),
         getUserStats().catch(() => null as UserStats | null),
+        listPendingRoles().catch(() => [] as PendingRole[]),
       ]);
       setEntries(rows);
       setMembers(membersList);
+      setPendingRoles(pendingList);
       setAdmins(adminsList);
       setAudit(logs);
       setReports(reportList);
@@ -985,18 +1017,19 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
             <Notice
               text={
                 canGrantRoles
-                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP ve Üye (günlük test kotası Test Kotaları bölümünden ayarlanır). Yeni hesabın önce uygulamadan üye olması veya Supabase Authentication üzerinden oluşturulması gerekir.'
+                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP ve Üye (günlük test kotası Test Kotaları bölümünden ayarlanır). Hesap henüz yoksa e-postaya rol önceden atanabilir; kişi üye olur olmaz rol otomatik uygulanır. Dilerseniz hesabı buradan "Yeni hesap oluştur" ile de açabilirsiniz.'
                   : 'Bu bölümü yalnızca yöneticiler düzenleyebilir. Editör ve görüntüleyici rollerinin içerik üzerindeki yetkileri otomatik sınırlandırılır.'
               }
             />
             {canGrantRoles && (
               <Card style={{ marginBottom: 18 }}>
                 <Field
-                  label="Rol atanacak hesabın e-postası"
+                  label="Rol atanacak e-posta (kayıtlı olmasa da olur)"
                   placeholder="kullanici@ornek.com"
                   value={adminEmail}
                   onChangeText={setAdminEmail}
                   autoCapitalize="none"
+                  autoCorrect={false}
                   keyboardType="email-address"
                 />
                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -1010,9 +1043,9 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                         description: `${adminEmail} hesabı tüm içerikleri ve diğer rolleri yönetebilecek.`,
                         label: 'Admin yap',
                         action: async () => {
-                          await changeRole(adminEmail, 'admin');
+                          const result = await assignRole(adminEmail, 'admin');
                           setAdminEmail('');
-                          await afterChange('Yönetici yetkisi verildi.');
+                          await afterChange(roleAssignedMessage(result.status, result.email, 'admin'));
                         },
                       })
                     }
@@ -1028,9 +1061,9 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                         description: `${adminEmail} hesabı içerik ekleyip düzenleyebilir ve silebilir; ancak rol atayamaz.`,
                         label: 'Editör yap',
                         action: async () => {
-                          await changeRole(adminEmail, 'editor');
+                          const result = await assignRole(adminEmail, 'editor');
                           setAdminEmail('');
-                          await afterChange('Editör yetkisi verildi.');
+                          await afterChange(roleAssignedMessage(result.status, result.email, 'editor'));
                         },
                       })
                     }
@@ -1046,9 +1079,9 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                         description: `${adminEmail} hesabı taslaklar dahil içeriği görebilir; değiştiremez.`,
                         label: 'Görüntüleyici yap',
                         action: async () => {
-                          await changeRole(adminEmail, 'viewer');
+                          const result = await assignRole(adminEmail, 'viewer');
                           setAdminEmail('');
-                          await afterChange('Görüntüleyici yetkisi verildi.');
+                          await afterChange(roleAssignedMessage(result.status, result.email, 'viewer'));
                         },
                       })
                     }
@@ -1064,14 +1097,158 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                         description: `${adminEmail} hesabı VIP planına alınacak. Günlük test hakkı Test Kotaları bölümündeki ayara göre uygulanır.`,
                         label: 'VIP yap',
                         action: async () => {
-                          await changeRole(adminEmail, 'vip');
+                          const result = await assignRole(adminEmail, 'vip');
                           setAdminEmail('');
-                          await afterChange('VIP üyelik verildi.');
+                          await afterChange(roleAssignedMessage(result.status, result.email, 'vip'));
                         },
                       })
                     }
                   />
                 </View>
+              </Card>
+            )}
+            {canGrantRoles && (
+              <Card style={{ marginBottom: 18 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Ionicons name="person-add-outline" size={18} color={theme.accent} />
+                  <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>Yeni hesap oluştur</Text>
+                </View>
+                <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 18, marginBottom: 12 }}>
+                  Hesap buradan açılır; kişiye doğrulama e-postası gider ve seçtiğiniz rol otomatik uygulanır. Geçici
+                  şifreyi kişiye iletin; ilk girişten sonra Hesabım bölümünden değiştirebilir.
+                </Text>
+                <Field
+                  label="E-posta"
+                  placeholder="yeni.kullanici@ornek.com"
+                  value={newAccountEmail}
+                  onChangeText={setNewAccountEmail}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+                  <Field
+                    label="Geçici şifre (en az 6 karakter)"
+                    placeholder="örn. Kpss2026x"
+                    value={newAccountPassword}
+                    onChangeText={setNewAccountPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <View style={{ marginBottom: 15 }}>
+                    <AdminButton
+                      label="Rastgele"
+                      secondary
+                      icon="shuffle-outline"
+                      disabled={previewOnly}
+                      onPress={() => setNewAccountPassword(randomPassword())}
+                    />
+                  </View>
+                </View>
+                <Choice
+                  label="Rol"
+                  value={newAccountRole}
+                  onChange={setNewAccountRole}
+                  options={[
+                    { value: 'uye', label: 'Üye' },
+                    { value: 'vip', label: 'VIP' },
+                    { value: 'viewer', label: 'Görüntüleyici' },
+                    { value: 'editor', label: 'Editör' },
+                    { value: 'admin', label: 'Yönetici' },
+                  ]}
+                />
+                <View style={{ flexDirection: 'row' }}>
+                  <AdminButton
+                    label="Hesabı oluştur"
+                    icon="person-add"
+                    disabled={
+                      previewOnly || loading || !newAccountEmail.trim() || newAccountPassword.length < 6
+                    }
+                    onPress={() =>
+                      setConfirm({
+                        title: 'Yeni hesap oluşturulsun mu?',
+                        description: `${newAccountEmail.trim().toLowerCase()} için ${
+                          roleLabels[newAccountRole] ?? newAccountRole
+                        } rolüyle hesap açılacak ve doğrulama e-postası gönderilecek.`,
+                        label: 'Hesabı oluştur',
+                        action: async () => {
+                          const result = await createUserAccount(newAccountEmail, newAccountPassword, newAccountRole);
+                          const label = roleLabels[result.role] ?? result.role;
+                          if (result.status === 'exists') {
+                            await afterChange(
+                              result.roleStatus === 'applied'
+                                ? `${result.email} zaten kayıtlı; ${label} rolü uygulandı.`
+                                : `${result.email} zaten kayıtlı (henüz doğrulanmamış olabilir); ${label} rolü bekleyenlere eklendi.`,
+                            );
+                            return;
+                          }
+                          const password = newAccountPassword;
+                          setNewAccountEmail('');
+                          setNewAccountPassword('');
+                          await afterChange(
+                            `Hesap oluşturuldu: ${result.email} (${label}). Geçici şifre: ${password}` +
+                              (result.confirmationRequired
+                                ? ' — kişi e-postasındaki doğrulama bağlantısına tıkladıktan sonra bu şifreyle giriş yapabilir.'
+                                : ' — kişi bu şifreyle hemen giriş yapabilir.'),
+                          );
+                        },
+                      })
+                    }
+                  />
+                </View>
+              </Card>
+            )}
+            {canGrantRoles && pendingRoles.length > 0 && (
+              <Card style={{ marginBottom: 18, gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="hourglass-outline" size={18} color={theme.accent} />
+                  <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>
+                    Bekleyen rol atamaları ({pendingRoles.length})
+                  </Text>
+                </View>
+                <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 18 }}>
+                  Bu e-postalar henüz üye değil. Kişi aynı e-postayla üye olduğunda rol otomatik uygulanır.
+                </Text>
+                {pendingRoles.map((p) => (
+                  <View
+                    key={p.email}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      flexWrap: 'wrap',
+                      borderTopWidth: 1,
+                      borderTopColor: theme.border,
+                      paddingTop: 10,
+                    }}
+                  >
+                    <View style={{ flex: 1, minWidth: 180 }}>
+                      <Text style={{ color: theme.text, fontWeight: '700' }}>{p.email}</Text>
+                      <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
+                        Bekleyen rol: {roleLabels[p.role] ?? p.role}
+                      </Text>
+                    </View>
+                    <AdminButton
+                      label="Kaldır"
+                      secondary
+                      danger
+                      icon="close-outline"
+                      disabled={previewOnly || loading}
+                      onPress={() =>
+                        setConfirm({
+                          title: 'Bekleyen rol kaldırılsın mı?',
+                          description: `${p.email} üye olduğunda ${roleLabels[p.role] ?? p.role} yerine normal üye olacak.`,
+                          label: 'Kaldır',
+                          danger: true,
+                          action: async () => {
+                            await cancelPendingRole(p.email);
+                            await afterChange('Bekleyen rol ataması kaldırıldı.');
+                          },
+                        })
+                      }
+                    />
+                  </View>
+                ))}
               </Card>
             )}
             {members.map((m) => (
@@ -1145,7 +1322,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                             label: 'Yetkiyi kaldır',
                             danger: true,
                             action: async () => {
-                              await changeRole(m.email, 'uye');
+                              await assignRole(m.email, 'uye');
                               await afterChange('Yetki geri alındı; hesap üye olarak kaldı.');
                             },
                           })
@@ -1200,14 +1377,8 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                           label: 'Kalıcı sil',
                           danger: true,
                           action: async () => {
-                            await deleteUserAccount(m.email).catch((e) => {
-                              setError(
-                                readableError(e) +
-                                  ' (Hesap silme için supabase/functions/delete-user Edge Function kurulumu gerekir — docs/ADMIN.md)',
-                              );
-                              throw e;
-                            });
-                            await afterChange('Hesap silindi.');
+                            await deleteUserAccount(m.email);
+                            await afterChange('Hesap kalıcı olarak silindi.');
                           },
                         })
                       }
@@ -1225,7 +1396,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
               <EmptyState
                 icon="people-outline"
                 title="Henüz hesap yok"
-                desc="Kullanıcılar uygulamadan üye oldukça burada listelenecek."
+                desc="Kullanıcılar uygulamadan üye oldukça veya yukarıdan hesap oluşturdukça burada listelenecek."
               />
             )}
             {previewOnly && (

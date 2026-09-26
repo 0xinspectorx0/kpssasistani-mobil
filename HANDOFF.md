@@ -32,6 +32,14 @@
 - "Parolamı unuttum" linki → yeni şifre formu göstermeli, direkt giriş yaptırmayacak (`PasswordRecoveryModal` + `isRecovery`).
 
 ## Bekleyenler / bilinmesi gerekenler
+- **Canlıya alınacak commit (oturum 01a0dee6, 2. tur):** "feat: Edge Function'sız hesap silme, e-postaya önceden rol
+  atama, panelden hesap oluşturma". Bu oturum kapalı olduğu için push edilemedi. Temiz patch: `hesap-yonetimi.patch`
+  (`git format-patch` çıktısı; `main` = b12c908 üzerine `git am hesap-yonetimi.patch` ile uygulanır). Oturumun
+  kümülatif patch artefaktı ayrıca PR #5 (QuizSheet) içeriğini de taşır — o kısım main'de zaten var, atlanmalı.
+- **Hesap yönetimi migration'ı:** `supabase/migrations/202609260002_account_admin.sql` Supabase Dashboard > SQL Editor'de
+  çalıştırılacak (Edge Function'sız hesap silme `delete_user_account`, bekleyen roller `pending_roles`/`assign_role`,
+  panelden hesap oluşturma). Çalıştırılmadan panelde "Hesabı sil" → "Veritabanı kurulumu eksik: …" uyarısı verir.
+  `delete-user` Edge Function artık gerekmez (isteğe bağlı eski yol).
 - **İçerik aktarımı:** `supabase/icerik-aktar.sql` Supabase Dashboard > SQL Editor'de çalıştırılacak (117 kayıt: 48 soru + dersler/haberler/etkinlikler). Kod tarafında fallback eklendi: sunucu boşsa paketlenmiş veriler siteyi gösterir, site asla boş kalmaz.
 - Admin hesabı: `orangeulrica@uberip.com` → Supabase Dashboard > Authentication > Users > "Add user" + `supabase/ilk-admin-kurulumu.sql` çalıştırılacak (kullanıcı henüz doğrulamadı).
 - Her yeni oturumda `node_modules` ve `dist` temiz olur: `npm ci` + `npx expo export --clear --platform web` şart.

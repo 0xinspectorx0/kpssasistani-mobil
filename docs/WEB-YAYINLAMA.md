@@ -163,8 +163,9 @@ RewriteRule . /index.html [L]
 
 `EXPO_PUBLIC_*` değerleri tarayıcıya gömülür ve herkes okuyabilir. Bu **tasarım gereğidir**:
 - Yalnızca **anon/publishable** anahtar kullanın (RLS zaten rollerin ötesinde erişimi engeller).
-- `service_role` anahtarı **asla** web'e/istemciye gömülmez; yalnızca `supabase/functions/delete-user`
-  Edge Function'ında secret olarak saklanır.
+- `service_role` anahtarı **asla** web'e/istemciye gömülmez. Hesap silme artık `delete_user_account` SQL
+  fonksiyonuyla (SECURITY DEFINER) yapılır; `service_role` yalnızca isteğe bağlı eski
+  `supabase/functions/delete-user` Edge Function'ında secret olarak kullanılır.
 - Spam/kötüye kullanım sınırlaması isterseniz Supabase → Auth → Rate limits / Bot Protection ayarlarına bakın.
 
 ---
