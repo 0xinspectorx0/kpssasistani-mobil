@@ -6,8 +6,8 @@
 - GitHub: https://github.com/0xinspectorx0/kpssasistani-mobil
 
 ## Git durumu (2026-09-26 itibarıyla)
-- Local HEAD = GitHub `main` = **`6d8d572`** (eşit, temiz çalışma ağacı; bu dosya da push edildi)
-- Önceki önemli commit'ler: `4282d93` (script temizliği), `e67e0e5` (sekme etiketleri), `dd1def0` (hızlı erişim kartları)
+- Local HEAD = GitHub `main` (her zaman eşit; en son hash: `git log -1`)
+- Bu dosya repoda da mevcut: repo kökünde `HANDOFF.md`
 - Dallar: `main`, `ilk-surdum` (PR baz dalı, ilk commit `0ee804d`)
 - PR açmak için tek tıklık link: https://github.com/0xinspectorx0/kpssasistani-mobil/compare/ilk-surdum...main
 - **PAT hiçbir yerde saklanmaz**; remote URL token'sız: `https://github.com/0xinspectorx0/kpssasistani-mobil.git`
@@ -29,6 +29,7 @@
 - "Parolamı unuttum" linki → yeni şifre formu göstermeli, direkt giriş yaptırmayacak (`PasswordRecoveryModal` + `isRecovery`).
 
 ## Bekleyenler / bilinmesi gerekenler
+- **İçerik aktarımı:** `supabase/icerik-aktar.sql` Supabase Dashboard > SQL Editor'de çalıştırılacak (117 kayıt: 48 soru + dersler/haberler/etkinlikler). Kod tarafında fallback eklendi: sunucu boşsa paketlenmiş veriler siteyi gösterir, site asla boş kalmaz.
 - Admin hesabı: `orangeulrica@uberip.com` → Supabase Dashboard > Authentication > Users > "Add user" + `supabase/ilk-admin-kurulumu.sql` çalıştırılacak (kullanıcı henüz doğrulamadı).
 - Her yeni oturumda `node_modules` ve `dist` temiz olur: `npm ci` + `npx expo export --clear --platform web` şart.
 - Lokal görsel doğrulama kurulabilir: `sudo apt-get update && sudo apt-get install -y libnspr4 libnss3 ...` + `npx playwright install chromium` + `pip install rapidocr-onnxruntime` (oturumlar arası silinebilir).

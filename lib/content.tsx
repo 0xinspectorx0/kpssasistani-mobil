@@ -14,12 +14,14 @@ interface ContentContextValue extends ContentData {
 }
 const Context = createContext<ContentContextValue | null>(null);
 const CACHE_KEY = `kpss-content-v1:${process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'bundled'}`;
+// Sunucu/önbellek boşsa paketlenmiş test ve veriler gösterilir; site asla boş kalmasın.
+const pickContent = (rows: ContentEntry[]): ContentData => (rows.length ? publishedContent(rows) : bundledContent);
 export function ContentProvider({ children }: { children: React.ReactNode }) {
-  const [content, setContent] = useState<ContentData>(supabase ? publishedContent([]) : bundledContent);
+  const [content, setContent] = useState<ContentData>(bundledContent);
   const [loaded, setLoaded] = useState(!supabase);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [source, setSource] = useState<ContentContextValue['source']>(supabase ? 'cache' : 'bundled');
+  const [source, setSource] = useState<ContentContextValue['source']>('bundled');
   const running = useRef<Promise<void> | null>(null);
   const refreshContent = useCallback((): Promise<void> => {
     if (!supabase) return Promise.resolve();
@@ -28,8 +30,8 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       setSyncing(true);
       try {
         const rows = await fetchEntries(true);
-        setContent(publishedContent(rows));
-        setSource('server');
+        setContent(pickContent(rows));
+        setSource(rows.length ? 'server' : 'bundled');
         setSyncError(null);
         // Only published records are cached, never drafts or admin sessions.
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(rows)).catch(() => {});
@@ -54,7 +56,8 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
         const cached = await AsyncStorage.getItem(CACHE_KEY);
         if (cached && !cancelled) {
           const rows: ContentEntry[] = JSON.parse(cached).map(parseEntry);
-          setContent(publishedContent(rows));
+          setContent(pickContent(rows));
+          setSource(rows.length ? 'cache' : 'bundled');
           setLoaded(true);
         }
       } catch {
