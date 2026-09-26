@@ -15,12 +15,13 @@ import { useApp } from '../lib/store';
 import { useAdminAuth } from '../lib/admin-auth';
 import { supabase } from '../lib/supabase';
 import { readableError } from '../lib/content-api';
-import { PLAN_META } from '../lib/membership';
+import { dailyLimit, PLAN_META, useQuizQuotaSettings } from '../lib/membership';
 import { AdminButton, Field, Notice } from './admin/AdminUI';
 
 export default function AuthScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { theme } = useApp();
   const { signIn, signUp, session, role, resetPassword, changePassword } = useAdminAuth();
+  const { settings: quotaSettings } = useQuizQuotaSettings();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -412,14 +413,18 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
                       <Ionicons name={PLAN_META[p].icon as any} size={20} color={PLAN_META[p].color} />
                       <View style={{ flex: 1, marginLeft: 10 }}>
                         <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>{PLAN_META[p].label}</Text>
-                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{PLAN_META[p].desc}</Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                          {Number.isFinite(dailyLimit(p, quotaSettings))
+                            ? `Günde ${dailyLimit(p, quotaSettings)} test çözebilirsin.`
+                            : 'Sınırsız test çözebilirsin.'}
+                        </Text>
                       </View>
                     </View>
                   ))}
                 </View>
               </>
             ) : (
-              <Notice text="Hesap altyapısı (Supabase) bağlanmadığı için şimdilik misafir olarak devam ediyorsun. Yine de günlük 1 test kotasıyla tüm içeriklere erişebilirsin." />
+              <Notice text={`Hesap altyapısı (Supabase) bağlanmadığı için şimdilik misafir olarak devam ediyorsun. Günlük ${dailyLimit('guest', quotaSettings)} test hakkıyla tüm içeriklere erişebilirsin.`} />
             )}
           </ScrollView>
         </KeyboardAvoidingView>

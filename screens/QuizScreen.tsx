@@ -1,6 +1,6 @@
 import { useContent } from '../lib/content';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -9,14 +9,19 @@ import { Card, ProgressBar } from '../components/ui';
 import { QuizQuestion, questionOfDay } from '../lib/data';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { useAdminAuth } from '../lib/admin-auth';
-import { planFor, dailyLimit, todayCount, consumeQuiz, quotaUserKey } from '../lib/membership';
+import { planFor, dailyLimit, todayCount, consumeQuiz, quotaUserKey, useQuizQuotaSettings } from '../lib/membership';
 import { radius } from '../lib/theme';
 import { ContentEntry } from '../lib/content-schema';
 import { fetchEntries, readableError, saveEntry, submitReport } from '../lib/content-api';
+import { selectBalancedQuestions, selectQuestionsWithReplacement } from '../lib/quiz-selection';
 import ContentEditor from '../components/admin/ContentEditor';
 import { AdminButton } from '../components/admin/AdminUI';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+
+function quotaLabel(limit: number): string {
+  return Number.isFinite(limit) ? `günde ${limit} test` : 'sınırsız test';
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -33,7 +38,9 @@ export default function QuizScreen({ navigation, route }: any) {
   const CATEGORY_LIST = useCategoryList();
   const { session, role, canManageContent } = useAdminAuth();
   const plan = planFor(role, !!session);
-  const { mode = 'mixed', categoryId, count = 10, reviewIds } = route?.params ?? {};
+  const { settings: quotaSettings, loading: quotaSettingsLoading } = useQuizQuotaSettings();
+  const quotaLimit = dailyLimit(plan, quotaSettings);
+  const { mode = 'mixed', categoryId, count = 10, reviewIds, topicIds } = route?.params ?? {};
 
   // Freeze the published question set at test start; background refresh must not alter answers.
   const [questions] = useState<QuizQuestion[]>(() => {
@@ -45,8 +52,14 @@ export default function QuizScreen({ navigation, route }: any) {
     if (mode === 'review' && Array.isArray(reviewIds)) {
       return QUESTIONS.filter((q) => reviewIds.includes(q.id));
     }
+    if (mode === 'topics' && Array.isArray(topicIds)) {
+      return selectBalancedQuestions(QUESTIONS, topicIds, count);
+    }
     const pool = mode === 'category' && categoryId ? QUESTIONS.filter((q) => q.category === categoryId) : QUESTIONS;
-    return shuffle(pool).slice(0, Math.min(count, pool.length));
+    const poolTopicIds = Array.from(new Set(pool.flatMap((question) => question.topicId ? [question.topicId] : [])));
+    return poolTopicIds.length > 0
+      ? selectBalancedQuestions(pool, poolTopicIds, count)
+      : selectQuestionsWithReplacement(pool, count);
   });
 
   const [index, setIndex] = useState(0);
@@ -55,7 +68,7 @@ export default function QuizScreen({ navigation, route }: any) {
   const [seconds, setSeconds] = useState(0);
   const [showExit, setShowExit] = useState(false);
   const [quotaBlocked, setQuotaBlocked] = useState(false);
-  const [quotaUsed, setQuotaUsed] = useState(0);
+  const [quotaCheckLoading, setQuotaCheckLoading] = useState(mode !== 'qod');
   const timer = useRef<any>(null);
 
   // Admin: soru üzerinde düzenleme (inline editor)
@@ -71,20 +84,39 @@ export default function QuizScreen({ navigation, route }: any) {
   const quotaExempt = mode === 'qod';
 
   useEffect(() => {
-    if (quotaExempt) return;
+    if (quotaExempt) {
+      setQuotaCheckLoading(false);
+      return;
+    }
+    if (quotaSettingsLoading) {
+      setQuotaCheckLoading(true);
+      return;
+    }
+    let active = true;
+    setQuotaCheckLoading(true);
     (async () => {
       const userKey = quotaUserKey(session?.user.id, role);
-      const limit = dailyLimit(plan);
       const used = await todayCount(userKey);
-      setQuotaUsed(used);
-      if (Number.isFinite(limit) && used >= limit) setQuotaBlocked(true);
+      if (!active) return;
+      setQuotaBlocked(Number.isFinite(quotaLimit) && used >= quotaLimit);
+      setQuotaCheckLoading(false);
     })();
-  }, [session?.user.id, role, plan, quotaExempt]);
+    return () => { active = false; };
+  }, [session?.user.id, role, plan, quotaExempt, quotaSettingsLoading, quotaLimit]);
 
   useEffect(() => {
     timer.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer.current);
   }, []);
+
+  if (!quotaExempt && (quotaSettingsLoading || quotaCheckLoading)) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <ActivityIndicator size="large" color={theme.accent} />
+        <Text style={{ color: theme.muted, marginTop: 12 }}>Günlük test hakkın kontrol ediliyor…</Text>
+      </SafeAreaView>
+    );
+  }
 
   if (quotaBlocked) {
     return (
@@ -107,8 +139,10 @@ export default function QuizScreen({ navigation, route }: any) {
         </Text>
         <Text style={{ color: theme.muted, textAlign: 'center', lineHeight: 21, marginTop: 10 }}>
           {plan === 'guest'
-            ? 'Misafirler günde 1 test çözebilir. Üye olup günde 3 test çözebilir, VIP ile sınırsız erişim sağlayabilirsin.'
-            : 'Üye planında günde 3 test çözebilirsin. VIP üyelik sınırsız test imkânı sunar.'}
+            ? `Misafir planındaki ${quotaLabel(quotaLimit)} hakkın doldu. Üye planında ${quotaLabel(dailyLimit('uye', quotaSettings))}, VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
+            : plan === 'uye'
+              ? `Üye planındaki ${quotaLabel(quotaLimit)} hakkın doldu. VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
+              : `VIP planındaki ${quotaLabel(quotaLimit)} hakkın doldu.`}
         </Text>
         <View style={{ marginTop: 22, width: '100%', maxWidth: 320, gap: 10 }}>
           <TouchableOpacity
@@ -184,11 +218,19 @@ export default function QuizScreen({ navigation, route }: any) {
   const finish = () => {
     clearInterval(timer.current);
     if (!quotaExempt) {
-      void consumeQuiz(quotaUserKey(session?.user.id, role), plan).catch(() => {});
+      void consumeQuiz(quotaUserKey(session?.user.id, role), plan, quotaSettings).catch(() => {});
     }
     const total = questions.length;
     const correct = answers.filter((a, i) => a !== null && a === questions[i].answer).length;
-    const label = mode === 'qod' ? 'Günün Sorusu' : mode === 'favorites' ? 'Favoriler' : mode === 'category' ? cat?.name ?? 'Test' : 'Karışık Test';
+    const label = mode === 'qod'
+      ? 'Günün Sorusu'
+      : mode === 'favorites'
+        ? 'Favoriler'
+        : mode === 'topics'
+          ? 'Seçilen Konular'
+          : mode === 'category'
+            ? cat?.name ?? 'Test'
+            : 'Karışık Test';
     addQuizResult({
       category: label,
       categoryId: (mode === 'category' ? (categoryId as string) : 'mixed') ?? 'mixed',
@@ -204,15 +246,16 @@ export default function QuizScreen({ navigation, route }: any) {
       category: label,
       mode,
       categoryId,
+      topicIds,
       wrongIds,
     });
   };
 
-  const tryExit = () => {
-    Alert.alert('Testten çıkılsın mı?', 'İlerlemen kaydedilmeyecek.', [
-      { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Çık', style: 'destructive', onPress: () => navigation.goBack() },
-    ]);
+  const tryExit = () => setShowExit(true);
+  const confirmExit = () => {
+    clearInterval(timer.current);
+    setShowExit(false);
+    navigation.goBack();
   };
 
   // Admin: soruyu yerinde düzenle (yayındaki kaydı bul veya yeni olarak aç).
@@ -259,7 +302,12 @@ export default function QuizScreen({ navigation, route }: any) {
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <TouchableOpacity onPress={tryExit} style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Testten çık"
+            onPress={tryExit}
+            style={{ minWidth: 44, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}
+          >
             <Ionicons name="close" size={24} color={theme.text} />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: theme.border }}>
@@ -515,6 +563,53 @@ export default function QuizScreen({ navigation, route }: any) {
           )}
         </View>
       </ScrollView>
+
+      <Modal transparent animationType="fade" visible={showExit} onRequestClose={() => setShowExit(false)}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#02061799',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 22,
+          }}
+        >
+          <View
+            role="dialog"
+            accessibilityLabel="Testten çıkış onayı"
+            accessibilityViewIsModal
+            style={{ width: '100%', maxWidth: 420, borderRadius: 20, backgroundColor: theme.card, padding: 24 }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: theme.dangerSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="exit-outline" size={26} color={theme.danger} />
+              </View>
+            </View>
+            <Text style={{ color: theme.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>
+              Testten çıkılsın mı?
+            </Text>
+            <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 8 }}>
+              Bu testteki ilerlemen kaydedilmeyecek.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setShowExit(false)}
+                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 13, backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.border }}
+              >
+                <Text style={{ color: theme.text, fontWeight: '800' }}>Teste devam et</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={confirmExit}
+                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 13, backgroundColor: theme.danger }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '800' }}>Testten çık</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Admin: soruyu yerinde düzenle */}
       {editing && (

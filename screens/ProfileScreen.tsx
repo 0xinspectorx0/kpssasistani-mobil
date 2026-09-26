@@ -7,7 +7,7 @@ import { useApp } from '../lib/store';
 import { useAdminAuth } from '../lib/admin-auth';
 import { supabase } from '../lib/supabase';
 import { usePlan, roleLabels } from '../lib/membership';
-import { Card, EmptyState, PrimaryButton, ProgressBar, SectionTitle, StatTile } from '../components/ui';
+import { Card, EmptyState, PrimaryButton, ProgressBar, SectionTitle, StatTile, useResponsiveLayout } from '../components/ui';
 import AuthScreen from '../components/AuthScreen';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { radius } from '../lib/theme';
@@ -18,6 +18,7 @@ export default function ProfileScreen({ navigation }: any) {
     streak, totalQuestions, totalCorrect, accuracy, totalSeconds, themeChoice, setThemeChoice,
     completedTopics, resetAll, activityDates,
   } = useApp();
+  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { questions: QUESTIONS, lessons: LESSONS, targets: TARGET_EXAMS } = useContent();
   const CATEGORY_LIST = useCategoryList();
   const { session, role, signOut } = useAdminAuth();
@@ -63,7 +64,16 @@ export default function ProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: pageMaxWidth,
+          alignSelf: 'center',
+          padding: pagePadding,
+          paddingBottom: isDesktopWeb ? 36 : 28,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile header */}
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>

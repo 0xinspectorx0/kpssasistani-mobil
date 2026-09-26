@@ -4,11 +4,12 @@ import { FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
-import { Card, Chip, EmptyState, SectionTitle } from '../components/ui';
+import { Card, Chip, EmptyState, SectionTitle, useResponsiveLayout } from '../components/ui';
 
 
 export default function TopicsScreen({ navigation }: any) {
   const { theme, completedTopics, toggleTopic } = useApp();
+  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { lessons: LESSONS } = useContent();
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<string | null>('turkce');
@@ -25,9 +26,18 @@ export default function TopicsScreen({ navigation }: any) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
       <FlatList
+        key={isDesktopWeb ? 'web-grid' : 'mobile-list'}
         data={filtered}
+        numColumns={isDesktopWeb ? 2 : 1}
+        columnWrapperStyle={isDesktopWeb ? { gap: 16 } : undefined}
         keyExtractor={(i) => i.id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: pageMaxWidth,
+          alignSelf: 'center',
+          padding: pagePadding,
+          paddingBottom: 36,
+        }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
@@ -86,7 +96,7 @@ export default function TopicsScreen({ navigation }: any) {
           const lessonDone = item.topics.filter((t) => completedTopics.includes(t.id)).length;
           const isOpen = expanded === item.id;
           return (
-            <Card style={{ marginBottom: 10, padding: 0, overflow: 'hidden' }}>
+            <Card style={{ flex: 1, marginBottom: 10, padding: 0, overflow: 'hidden' }}>
               <TouchableOpacity
                 onPress={() => setExpanded(isOpen ? null : item.id)}
                 style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}

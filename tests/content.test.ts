@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newPayload, parseEntry, publishedContent, schemas, seedEntries } from '../lib/content-schema';
-import { questionOfDay } from '../lib/data';
+import { LESSONS, QUESTIONS, QUESTION_TOPIC_IDS, questionOfDay } from '../lib/data';
 
 const q = {
   id: 'q1',
@@ -72,6 +72,25 @@ test('date ranges and score bounds are validated', () => {
     false,
   );
 });
+test('every bundled question is assigned to a topic in its lesson', () => {
+  const topicIdsByLesson = new Map(LESSONS.map((lesson) => [lesson.id, new Set(lesson.topics.map((topic) => topic.id))]));
+  for (const question of QUESTIONS) {
+    assert.equal(question.topicId, QUESTION_TOPIC_IDS[question.id], `${question.id} topic mapping`);
+    assert.ok(topicIdsByLesson.get(question.category)?.has(question.topicId ?? ''), `${question.id} belongs to its lesson`);
+  }
+});
+test('legacy server questions inherit their bundled topic mapping', () => {
+  const question = QUESTIONS.find((item) => item.topicId)!;
+  const { topicId: _topicId, ...legacyQuestion } = question;
+  const content = publishedContent([{
+    kind: 'questions',
+    id: question.id,
+    payload: legacyQuestion,
+    status: 'published',
+  } as any]);
+  assert.equal(content.questions[0].topicId, question.topicId);
+});
+
 test('topic names can change while stable identifiers preserve progress', () => {
   const lesson = seedEntries().find((e) => e.kind === 'lessons')!;
   const parsed = schemas.lessons.parse(lesson.payload);

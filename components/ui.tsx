@@ -1,8 +1,19 @@
 import React from 'react';
-import { Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Platform, Text, TouchableOpacity, useWindowDimensions, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
 import { radius } from '../lib/theme';
+
+/** Responsive breakpoint shared by web screens; native layouts retain the compact mobile spacing. */
+export function useResponsiveLayout() {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
+  return {
+    isDesktopWeb,
+    pageMaxWidth: isDesktopWeb ? 1360 : undefined,
+    pagePadding: isDesktopWeb ? 32 : 16,
+  };
+}
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { theme } = useApp();

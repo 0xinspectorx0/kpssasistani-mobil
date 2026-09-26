@@ -6,7 +6,8 @@
 - GitHub: https://github.com/0xinspectorx0/kpssasistani-mobil
 
 ## Git durumu (2026-09-26 itibarıyla)
-- Local HEAD = GitHub `main` = **`4282d93`** (eşit, temiz çalışma ağacı, 66 dosya)
+- Uygulama geliştirme tabanı `4282d93`; sonrasında HANDOFF dosyası eklenmiş ve ana dala içerik aktarımı fallback'i eklenmiştir.
+- Yeni oturumda başlangıç dalının `origin/main` ile eşit olduğunu `git log -1` ve `git status` ile kontrol et.
 - Dallar: `main`, `ilk-surdum` (PR baz dalı, ilk commit `0ee804d`)
 - PR açmak için tek tıklık link: https://github.com/0xinspectorx0/kpssasistani-mobil/compare/ilk-surdum...main
 - **PAT hiçbir yerde saklanmaz**; remote URL token'sız: `https://github.com/0xinspectorx0/kpssasistani-mobil.git`
@@ -20,14 +21,18 @@
 
 ## Kullanıcı düzeltmeleri / kurallar (BU OTURUMDAN, ihmal edilmesin)
 - **Alt sekme etiketleri asla yarım/kesik görünmemeli** — kullanıcı 3 kez bu geri bildirimi verdi; son çözüm onaylandı ("çok iyi oldu").
+- Alt bar etiketleri her ekran boyutu/yönünde simgelerin hemen altında ve aynı sabit dikey düzende kalmalı (`tabBarLabelPosition: 'below-icon'`, sabit bar yüksekliği).
+- Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
 - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
 - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
-- Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); misafir 1, ücretsiz 3, VIP sınırsız test.
+- Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
+- Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
 - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
 - E-posta: **Brevo SMTP** (kurulum kullanıcıca tamamlandı, mail akışı çalışıyor). Host `smtp-relay.brevo.com:587`, user `bb20ab001@smtp-brevo.com`. Brevo'da "Unauthorized IP..." uyarısının aktivasyonu AÇILMAYACAK.
 - "Parolamı unuttum" linki → yeni şifre formu göstermeli, direkt giriş yaptırmayacak (`PasswordRecoveryModal` + `isRecovery`).
 
 ## Bekleyenler / bilinmesi gerekenler
+- **İçerik aktarımı:** `supabase/icerik-aktar.sql` Supabase Dashboard > SQL Editor'de çalıştırılacak (117 kayıt: 48 soru + dersler/haberler/etkinlikler). Kod tarafında fallback eklendi: sunucu boşsa paketlenmiş veriler siteyi gösterir, site asla boş kalmaz.
 - Admin hesabı: `orangeulrica@uberip.com` → Supabase Dashboard > Authentication > Users > "Add user" + `supabase/ilk-admin-kurulumu.sql` çalıştırılacak (kullanıcı henüz doğrulamadı).
 - Her yeni oturumda `node_modules` ve `dist` temiz olur: `npm ci` + `npx expo export --clear --platform web` şart.
 - Lokal görsel doğrulama kurulabilir: `sudo apt-get update && sudo apt-get install -y libnspr4 libnss3 ...` + `npx playwright install chromium` + `pip install rapidocr-onnxruntime` (oturumlar arası silinebilir).

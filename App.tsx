@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, useWindowDimensions, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,55 +30,124 @@ const Stack = createNativeStackNavigator();
 
 function Tabs() {
   const { theme, mode } = useApp();
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.muted,
-        // Cihaz yazı büyütme ayarı etiketleri büyütüp taşırmasın.
-        tabBarAllowFontScaling: false,
-        tabBarStyle: {
-          backgroundColor: theme.tabBar,
-          borderTopColor: theme.border,
-          borderTopWidth: 1,
-          height: 66,
-          paddingTop: 2,
-          paddingBottom: 8,
-        },
-        // Sekme öğesinin yatay iç boşluğu (5px+5px) "Ana Sayfa" gibi uzun ismi kesiyor; sıfırla.
-        tabBarItemStyle: { padding: 0 },
-        // Sığmayan etiket kendini hafif küçültsün; satır sarmadan, diğerleri sabit kalsın.
-        tabBarLabel: ({ color }) => (
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            style={{ color, fontSize: 9.5, fontWeight: '700', lineHeight: 12, width: '100%', textAlign: 'center' }}
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      {isDesktopWeb && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            zIndex: 20,
+            top: 22,
+            left: 22,
+            width: 210,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              backgroundColor: theme.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 10,
+            }}
           >
-            {route.name}
-          </Text>
-        ),
-        tabBarIcon: ({ color, size, focused }) => {
-          const icons: Record<string, string> = {
-            'Ana Sayfa': focused ? 'home' : 'home-outline',
-            'Testler': focused ? 'help-circle' : 'help-circle-outline',
-            'Konular': focused ? 'list' : 'list-outline',
-            'Güncel': focused ? 'newspaper' : 'newspaper-outline',
-            'Araçlar': focused ? 'construct' : 'construct-outline',
-            'Profil': focused ? 'person' : 'person-outline',
-          };
-          return <Icons name={icons[route.name] as any} size={23} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
-      <Tab.Screen name="Testler" component={QuizSetupScreen} />
-      <Tab.Screen name="Konular" component={TopicsScreen} />
-      <Tab.Screen name="Güncel" component={NewsScreen} />
-      <Tab.Screen name="Araçlar" component={ToolsScreen} />
-      <Tab.Screen name="Profil" component={ProfileScreen} />
-    </Tab.Navigator>
+            <Icons name="school" size={23} color="#fff" />
+          </View>
+          <View>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '900' }}>KPSS Asistanım</Text>
+            <Text style={{ color: theme.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1.1, marginTop: 2 }}>
+              SINAVA HAZIRLIK
+            </Text>
+          </View>
+        </View>
+      )}
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          // Web masaüstünde site tipi yan menü; mobilde sabit alt sekme çubuğu.
+          tabBarPosition: isDesktopWeb ? 'left' : 'bottom',
+          tabBarVariant: 'uikit',
+          tabBarLabelPosition: isDesktopWeb ? 'beside-icon' : 'below-icon',
+          tabBarActiveTintColor: theme.accent,
+          tabBarInactiveTintColor: theme.muted,
+          tabBarActiveBackgroundColor: isDesktopWeb ? theme.accentSoft : 'transparent',
+          tabBarInactiveBackgroundColor: 'transparent',
+          tabBarAllowFontScaling: false,
+          tabBarStyle: {
+            backgroundColor: theme.tabBar,
+            borderColor: theme.border,
+            ...(isDesktopWeb
+              ? {
+                  width: 252,
+                  paddingTop: 92,
+                  paddingBottom: 24,
+                  borderTopWidth: 0,
+                  borderRightWidth: 1,
+                }
+              : {
+                  borderTopWidth: 1,
+                  height: 66,
+                  paddingTop: 2,
+                  paddingBottom: 8,
+                }),
+          },
+          tabBarItemStyle: isDesktopWeb
+            ? {
+                paddingHorizontal: 12,
+                paddingVertical: 12,
+                marginHorizontal: 12,
+                marginVertical: 4,
+                borderRadius: 12,
+                alignItems: 'flex-start',
+              }
+            : { padding: 0 },
+          tabBarLabel: ({ color }) => (
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit={!isDesktopWeb}
+              minimumFontScale={0.8}
+              style={{
+                color,
+                fontSize: isDesktopWeb ? 14 : 9.5,
+                fontWeight: '700',
+                lineHeight: isDesktopWeb ? 20 : 12,
+                width: isDesktopWeb ? undefined : '100%',
+                flex: isDesktopWeb ? 1 : undefined,
+                marginLeft: isDesktopWeb ? 8 : 0,
+                textAlign: isDesktopWeb ? 'left' : 'center',
+              }}
+            >
+              {route.name}
+            </Text>
+          ),
+          tabBarIcon: ({ color, focused }) => {
+            const icons: Record<string, string> = {
+              'Ana Sayfa': focused ? 'home' : 'home-outline',
+              'Testler': focused ? 'help-circle' : 'help-circle-outline',
+              'Konular': focused ? 'list' : 'list-outline',
+              'Güncel': focused ? 'newspaper' : 'newspaper-outline',
+              'Araçlar': focused ? 'construct' : 'construct-outline',
+              'Profil': focused ? 'person' : 'person-outline',
+            };
+            return <Icons name={icons[route.name] as any} size={isDesktopWeb ? 20 : 23} color={color} />;
+          },
+        })}
+      >
+        <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+        <Tab.Screen name="Testler" component={QuizSetupScreen} />
+        <Tab.Screen name="Konular" component={TopicsScreen} />
+        <Tab.Screen name="Güncel" component={NewsScreen} />
+        <Tab.Screen name="Araçlar" component={ToolsScreen} />
+        <Tab.Screen name="Profil" component={ProfileScreen} />
+      </Tab.Navigator>
+    </View>
   );
 }
 
