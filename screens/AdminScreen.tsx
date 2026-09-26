@@ -63,6 +63,7 @@ import { Card, EmptyState } from '../components/ui';
 import { AdminButton, Choice, ConfirmDialog, Field, Notice } from '../components/admin/AdminUI';
 import ContentEditor from '../components/admin/ContentEditor';
 import BulkAdd from '../components/admin/BulkAdd';
+import QuestionManager from '../components/admin/QuestionManager';
 
 type Section = ContentKind | 'overview' | 'admins' | 'audit' | 'reports' | 'quotas';
 const sectionLabels: Record<Section, string> = {
@@ -763,14 +764,14 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                 alignItems: 'center',
               }}
             >
-              <View style={{ flex: 1, minWidth: 180 }}>
+              {section !== 'questions' && <View style={{ flex: 1, minWidth: 180 }}>
                 <Field
                   label="İçerik ara"
                   placeholder="Başlık, soru metni veya kimlik…"
                   value={query}
                   onChangeText={setQuery}
                 />
-              </View>
+              </View>}
               <AdminButton
                 label={section === 'questions' ? 'Yeni soru' : 'Yeni içerik'}
                 icon="add"
@@ -793,6 +794,16 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                 />
               )}
             </View>
+            {section === 'questions' ? (
+              <QuestionManager
+                entries={entries}
+                readOnly={previewOnly || !canManage}
+                loading={loading}
+                onSave={save}
+                onChanged={afterChange}
+                onReload={load}
+              />
+            ) : <>
             <Choice
               label="Yayın durumu"
               value={filter}
@@ -803,17 +814,6 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
               ]}
               onChange={setFilter}
             />
-            {section === 'questions' && (
-              <Choice
-                label="Ders filtresi"
-                value={category}
-                options={[
-                  { value: 'all', label: 'Tüm dersler' },
-                  ...CATEGORY_LIST.map((c) => ({ value: c.id, label: c.name })),
-                ]}
-                onChange={setCategory}
-              />
-            )}
             <View
               style={{
                 flexDirection: 'row',
@@ -942,6 +942,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                 />
               </View>
             )}
+            </>}
           </>
         )}
         {section === 'quotas' && canGrantRoles && (

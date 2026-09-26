@@ -425,3 +425,47 @@ test('admin deletes accounts without an Edge Function; self, admins and unknown 
   assert.equal(removed.rows[0].r.status, 'pending_removed');
   assert.equal((await db.query('select * from public.list_pending_roles()')).rows.length, 0);
 });
+
+test('topic order persists in PostgreSQL and viewers cannot reorder or delete questions', async () => {
+  const lesson = seedEntries().find((entry) => entry.kind === 'lessons' && entry.id === 'turkce')!;
+  assert.ok('topics' in lesson.payload);
+  const original = lesson.payload.topics;
+  const topics = [original[1], original[0], ...original.slice(2)];
+  const payload = { ...lesson.payload, topics };
+  await asUser('authenticated', admin);
+  await db.query(
+    "update public.content_entries set payload=$1 where kind='lessons' and id='turkce'",
+    [JSON.stringify(payload)],
+  );
+  await asUser('anon');
+  const saved = await db.query<{ topics: typeof topics }>(
+    "select payload->'topics' as topics from public.content_entries where kind='lessons' and id='turkce'",
+  );
+  assert.deepEqual(saved.rows[0].topics, topics);
+  await asUser('authenticated', admin);
+  await db.query("select public.assign_role('student@example.com', 'viewer')");
+  await asUser('authenticated', student);
+  assert.equal((await db.query(
+    "update public.content_entries set payload=$1 where kind='lessons' and id='turkce' returning id",
+    [JSON.stringify(lesson.payload)],
+  )).rows.length, 0);
+  assert.equal((await db.query("delete from public.content_entries where kind='questions' returning id")).rows.length, 0);
+  await asUser('authenticated', admin);
+  await db.query("select public.assign_role('student@example.com', 'uye')");
+  await db.query("update public.content_entries set payload=$1 where kind='lessons' and id='turkce'", [JSON.stringify(lesson.payload)]);
+});
+
+test('question deletion with an outdated version never removes an edited row', async () => {
+  await asUser('authenticated', admin);
+  await insert('versioned-delete', 'draft');
+  const row = (await db.query<{ version: string }>(
+    "select updated_at::text as version from public.content_entries where kind='questions' and id='versioned-delete'",
+  )).rows[0];
+  await db.query("update public.content_entries set status='published' where kind='questions' and id='versioned-delete'");
+  assert.equal((await db.query(
+    "delete from public.content_entries where kind='questions' and id='versioned-delete' and updated_at=$1::timestamptz returning id",
+    [row.version],
+  )).rows.length, 0);
+  assert.equal((await db.query("select id from public.content_entries where id='versioned-delete'")).rows.length, 1);
+  await db.query("delete from public.content_entries where kind='questions' and id='versioned-delete'");
+});
