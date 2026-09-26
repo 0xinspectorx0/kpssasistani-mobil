@@ -15,6 +15,53 @@ export function useResponsiveLayout() {
   };
 }
 
+/** Centered balloon dialog used by quiz-taking and result screens. */
+export function QuizSheet({
+  children,
+  fill = false,
+  accessibilityLabel,
+  maxWidth = 680,
+}: {
+  children: React.ReactNode;
+  fill?: boolean;
+  accessibilityLabel?: string;
+  maxWidth?: number;
+}) {
+  const { theme } = useApp();
+  const { height } = useWindowDimensions();
+  const maxH = Math.max(320, Math.round(height * 0.92));
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: '#02061799',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+      }}
+    >
+      <View
+        role="dialog"
+        accessibilityLabel={accessibilityLabel ?? 'Test'}
+        accessibilityViewIsModal
+        style={{
+          width: '100%',
+          maxWidth,
+          height: fill ? maxH : undefined,
+          maxHeight: maxH,
+          backgroundColor: theme.card,
+          borderRadius: 22,
+          borderWidth: 1,
+          borderColor: theme.border,
+          overflow: 'hidden',
+        }}
+      >
+        <View style={fill ? { flex: 1 } : undefined}>{children}</View>
+      </View>
+    </View>
+  );
+}
+
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { theme } = useApp();
   return (

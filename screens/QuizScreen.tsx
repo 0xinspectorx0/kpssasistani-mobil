@@ -1,11 +1,10 @@
 import { useContent } from '../lib/content';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useApp } from '../lib/store';
-import { Card, ProgressBar } from '../components/ui';
+import { Card, ProgressBar, QuizSheet } from '../components/ui';
 import { QuizQuestion, questionOfDay } from '../lib/data';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { useAdminAuth } from '../lib/admin-auth';
@@ -111,86 +110,92 @@ export default function QuizScreen({ navigation, route }: any) {
 
   if (!quotaExempt && (quotaSettingsLoading || quotaCheckLoading)) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <ActivityIndicator size="large" color={theme.accent} />
-        <Text style={{ color: theme.muted, marginTop: 12 }}>Günlük test hakkın kontrol ediliyor…</Text>
-      </SafeAreaView>
+      <QuizSheet accessibilityLabel="Test yükleniyor">
+        <View style={{ padding: 32, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text style={{ color: theme.muted, marginTop: 12 }}>Günlük test hakkın kontrol ediliyor…</Text>
+        </View>
+      </QuizSheet>
     );
   }
 
   if (quotaBlocked) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
-        <View
-          style={{
-            width: 84,
-            height: 84,
-            borderRadius: 42,
-            backgroundColor: theme.accentSoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 16,
-          }}
-        >
-          <Ionicons name="lock-closed" size={38} color={theme.accent} />
-        </View>
-        <Text style={{ color: theme.text, fontWeight: '900', fontSize: 20, textAlign: 'center' }}>
-          Günlük test hakkın doldu
-        </Text>
-        <Text style={{ color: theme.muted, textAlign: 'center', lineHeight: 21, marginTop: 10 }}>
-          {plan === 'guest'
-            ? `Misafir planındaki ${quotaLabel(quotaLimit)} hakkın doldu. Üye planında ${quotaLabel(dailyLimit('uye', quotaSettings))}, VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
-            : plan === 'uye'
-              ? `Üye planındaki ${quotaLabel(quotaLimit)} hakkın doldu. VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
-              : `VIP planındaki ${quotaLabel(quotaLimit)} hakkın doldu.`}
-        </Text>
-        <View style={{ marginTop: 22, width: '100%', maxWidth: 320, gap: 10 }}>
-          <TouchableOpacity
-            onPress={() => {
-              navigation.goBack();
-              navigation.navigate('Main', { screen: 'Profil' });
-            }}
+      <QuizSheet accessibilityLabel="Günlük test hakkı doldu">
+        <View style={{ padding: 28, alignItems: 'center' }}>
+          <View
             style={{
-              backgroundColor: theme.accent,
-              borderRadius: radius.md,
-              paddingVertical: 14,
+              width: 84,
+              height: 84,
+              borderRadius: 42,
+              backgroundColor: theme.accentSoft,
               alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
             }}
           >
-            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Üye Ol / Hesabıma Git</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={{
-              backgroundColor: theme.card,
-              borderRadius: radius.md,
-              paddingVertical: 14,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: theme.border,
-            }}
-          >
-            <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>Geri Dön</Text>
-          </TouchableOpacity>
+            <Ionicons name="lock-closed" size={38} color={theme.accent} />
+          </View>
+          <Text style={{ color: theme.text, fontWeight: '900', fontSize: 20, textAlign: 'center' }}>
+            Günlük test hakkın doldu
+          </Text>
+          <Text style={{ color: theme.muted, textAlign: 'center', lineHeight: 21, marginTop: 10 }}>
+            {plan === 'guest'
+              ? `Misafir planındaki ${quotaLabel(quotaLimit)} hakkın doldu. Üye planında ${quotaLabel(dailyLimit('uye', quotaSettings))}, VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
+              : plan === 'uye'
+                ? `Üye planındaki ${quotaLabel(quotaLimit)} hakkın doldu. VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
+                : `VIP planındaki ${quotaLabel(quotaLimit)} hakkın doldu.`}
+          </Text>
+          <View style={{ marginTop: 22, width: '100%', maxWidth: 320, gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => {
+                navigation.goBack();
+                navigation.navigate('Main', { screen: 'Profil' });
+              }}
+              style={{
+                backgroundColor: theme.accent,
+                borderRadius: radius.md,
+                paddingVertical: 14,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Üye Ol / Hesabıma Git</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{
+                backgroundColor: theme.card2,
+                borderRadius: radius.md,
+                paddingVertical: 14,
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>Geri Dön</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </SafeAreaView>
+      </QuizSheet>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Ionicons name="star-outline" size={48} color={theme.muted} />
-        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16, marginTop: 12, textAlign: 'center' }}>
-          Bu test için soru bulunamadı
-        </Text>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ marginTop: 16, backgroundColor: theme.accent, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '800' }}>Geri Dön</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <QuizSheet accessibilityLabel="Soru bulunamadı">
+        <View style={{ padding: 28, alignItems: 'center' }}>
+          <Ionicons name="star-outline" size={48} color={theme.muted} />
+          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16, marginTop: 12, textAlign: 'center' }}>
+            Bu test için soru bulunamadı
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ marginTop: 16, backgroundColor: theme.accent, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '800' }}>Geri Dön</Text>
+          </TouchableOpacity>
+        </View>
+      </QuizSheet>
     );
   }
 
@@ -298,9 +303,10 @@ export default function QuizScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+    <>
+    <QuizSheet fill accessibilityLabel="Test çöz">
       {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <TouchableOpacity
             accessibilityRole="button"
@@ -331,7 +337,7 @@ export default function QuizScreen({ navigation, route }: any) {
         <ProgressBar progress={(index + 1) / questions.length} height={8} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         {/* Question dots */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
           <View style={{ flexDirection: 'row' }}>
@@ -366,7 +372,7 @@ export default function QuizScreen({ navigation, route }: any) {
           </View>
         </ScrollView>
 
-        <Card>
+        <Card style={{ backgroundColor: theme.card2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <View style={{ backgroundColor: (cat?.color ?? theme.accent) + '1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
               <Text style={{ fontSize: 12, fontWeight: '800', color: cat?.color ?? theme.accent }}>
@@ -428,7 +434,7 @@ export default function QuizScreen({ navigation, route }: any) {
           {q.options.map((opt, i) => {
             const isAnswer = i === q.answer;
             const isSelected = selected === i;
-            let bg = theme.card;
+            let bg = theme.card2;
             let border = theme.border;
             let textColor = theme.text;
             if (locked) {
@@ -510,7 +516,7 @@ export default function QuizScreen({ navigation, route }: any) {
             }}
             style={{
               flex: 1,
-              backgroundColor: theme.card,
+              backgroundColor: theme.card2,
               borderRadius: radius.md,
               paddingVertical: 14,
               alignItems: 'center',
@@ -563,6 +569,7 @@ export default function QuizScreen({ navigation, route }: any) {
           )}
         </View>
       </ScrollView>
+    </QuizSheet>
 
       <Modal transparent animationType="fade" visible={showExit} onRequestClose={() => setShowExit(false)}>
         <View
@@ -694,6 +701,6 @@ export default function QuizScreen({ navigation, route }: any) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </>
   );
 }

@@ -223,9 +223,23 @@ function Root() {
           <Stack.Screen
             name="Quiz"
             component={QuizScreen}
-            options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade',
+              gestureEnabled: false,
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
           />
-          <Stack.Screen name="QuizResult" component={QuizResultScreen} options={{ gestureEnabled: false }} />
+          <Stack.Screen
+            name="QuizResult"
+            component={QuizResultScreen}
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade',
+              gestureEnabled: false,
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
       <OnboardingModal
