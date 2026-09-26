@@ -1,6 +1,7 @@
 export interface QuizQuestion {
   id: string;
   category: string;
+  topicId?: string;
   question: string;
   options: string[];
   answer: number;
@@ -28,7 +29,7 @@ export const CATEGORY_LIST: Category[] = [
   { id: 'guncel', name: 'Güncel Bilgiler', short: 'GU', icon: 'newspaper', color: '#EA580C', desc: '2025-2026 gündemi ve klasikler' },
 ];
 
-export const QUESTIONS: QuizQuestion[] = [
+const RAW_QUESTIONS: QuizQuestion[] = [
   { id: 'tr1', category: 'turkce', difficulty: 'Kolay', question: 'Aşağıdaki sözcüklerden hangisinin yazımı doğrudur?', options: ['Herşey', 'Hiç birşey', 'Her şey', 'Herşeyi', 'Hiçbirşey'], answer: 2, explanation: '"şey" sözcüğü her zaman ayrı yazılır: her şey, bir şey, hiçbir şey.' },
   { id: 'tr2', category: 'turkce', difficulty: 'Kolay', question: '"Çiçek" sözcüğünün "çiçeği" biçiminde yazılmasının nedeni nedir?', options: ['Ünsüz yumuşaması', 'Ünsüz benzeşmesi', 'Ünlü daralması', 'Kaynaştırma ünsüzü', 'Ünlü türemesi'], answer: 0, explanation: 'Sert ünsüzle (p, ç, t, k) biten sözcüklere ünlüyle başlayan ek gelince yumuşama olur: çiçek → çiçeği.' },
   { id: 'tr3', category: 'turkce', difficulty: 'Orta', question: 'Aşağıdaki cümlelerin hangisinde virgülün kullanım amacı diğerlerinden farklıdır?', options: ['Genç, yaşlı demeden herkes katıldı.', 'Ankara, İstanbul, İzmir büyükşehirlerdendir.', 'Öğrenciler, sınavda çok heyecanlıydı.', 'Elma, armut, kiraz aldık.', 'Sınıfta, herkes çalışıyordu.'], answer: 2, explanation: 'Diğerlerinde eş görevli sözcükleri ayırmak için kullanılırken C seçeneğinde özneyi vurgulamak için kullanılmıştır.' },
@@ -149,6 +150,21 @@ export const LESSONS: TopicLesson[] = [
     ],
   },
 ];
+
+// Soruların alt konu eşlemesi; eski sunucu kayıtları da istemcide bu kimliklerle tamamlanır.
+export const QUESTION_TOPIC_IDS: Record<string, string> = {
+  tr1: 'tr-s5', tr2: 'tr-s4', tr3: 'tr-s6', tr4: 'tr-s8', tr5: 'tr-s9', tr6: 'tr-s7', tr7: 'tr-s11', tr8: 'tr-s8',
+  mt1: 'mt-s5', mt2: 'mt-s10', mt3: 'mt-s3', mt4: 'mt-s1', mt5: 'mt-s8', mt6: 'mt-s9', mt7: 'mt-s12', mt8: 'mt-s13',
+  ta1: 'ta-s2', ta2: 'ta-s3', ta3: 'ta-s6', ta4: 'ta-s7', ta5: 'ta-s7', ta6: 'ta-s8', ta7: 'ta-s3', ta8: 'ta-s7',
+  co1: 'co-s5', co2: 'co-s2', co3: 'co-s1', co4: 'co-s4', co5: 'co-s7', co6: 'co-s6', co7: 'co-s1', co8: 'co-s9',
+  va1: 'va-s2', va2: 'va-s2', va3: 'va-s4', va4: 'va-s3', va5: 'va-s2', va6: 'va-s6', va7: 'va-s6', va8: 'va-s1',
+  gu1: 'gu-s1', gu2: 'gu-s1', gu3: 'gu-s1', gu4: 'gu-s3', gu5: 'gu-s3', gu6: 'gu-s2', gu7: 'gu-s5', gu8: 'gu-s1',
+};
+
+export const QUESTIONS: QuizQuestion[] = RAW_QUESTIONS.map((question) => ({
+  ...question,
+  topicId: QUESTION_TOPIC_IDS[question.id],
+}));
 
 export type NewsCategory = 'Spor' | 'Kültür-Sanat' | 'Bilim' | 'Kurumlar' | 'Klasikler';
 

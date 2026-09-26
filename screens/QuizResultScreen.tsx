@@ -8,7 +8,7 @@ import { radius } from '../lib/theme';
 
 export default function QuizResultScreen({ navigation, route }: any) {
   const { theme } = useApp();
-  const { total, correct, seconds, category, mode, categoryId, wrongIds = [] } = route.params;
+  const { total, correct, seconds, category, mode, categoryId, topicIds, wrongIds = [] } = route.params;
   const wrong = total - correct;
   const net = correct - wrong / 4;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -91,7 +91,7 @@ export default function QuizResultScreen({ navigation, route }: any) {
               onPress={() =>
                 mode === 'qod'
                   ? navigation.replace('Quiz', { mode: 'mixed', count: 10 })
-                  : navigation.replace('Quiz', { mode, categoryId, count: total })
+                  : navigation.replace('Quiz', { mode, categoryId, topicIds, count: total })
               }
             />
           </View>

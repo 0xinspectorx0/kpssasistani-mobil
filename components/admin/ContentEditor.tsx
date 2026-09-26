@@ -61,6 +61,7 @@ const labels: Record<string, string> = {
   explanation: 'Çözüm açıklaması',
   options: 'Seçenekler',
   answer: 'Doğru cevap',
+  topicId: 'Konu',
   topics: 'Konular',
   eventId: 'Bağlı sınav',
 };
@@ -122,6 +123,13 @@ export default function ContentEditor({
       );
       return;
     }
+    if (entry.kind === 'questions') {
+      const options = topicChoicesFor(String(normalized.category ?? ''));
+      if (options.length > 0 && !options.some((option) => option.value === normalized.topicId)) {
+        setError('Sorunun konusunu seçin.');
+        return;
+      }
+    }
     if (
       entry.kind === 'targets' &&
       !entries.some(
@@ -175,14 +183,31 @@ export default function ContentEditor({
   function select(key: string, label: string, values: { value: string; label: string }[]) {
     return <Choice label={label} value={draft[key]} options={values} onChange={(v) => set(key, v)} />;
   }
+  function topicChoicesFor(categoryId: string) {
+    const lesson = entries.find((e) => e.kind === 'lessons' && e.id === categoryId);
+    if (!lesson || !('topics' in lesson.payload)) return [];
+    return lesson.payload.topics.map((topic) => ({ value: topic.id, label: topic.name }));
+  }
+  const questionTopicChoices = topicChoicesFor(String(draft.category ?? ''));
   const questionForm = (
     <>
       <Choice
         label="Ders"
         value={draft.category}
         options={buildQuestionCategories(entries)}
-        onChange={(v) => set('category', v)}
+        onChange={(v) => {
+          set('category', v);
+          set('topicId', topicChoicesFor(v)[0]?.value);
+        }}
       />
+      {questionTopicChoices.length > 0 && (
+        <Choice
+          label="Konu"
+          value={draft.topicId}
+          options={questionTopicChoices}
+          onChange={(v) => set('topicId', v)}
+        />
+      )}
       <View style={{ marginBottom: 14 }}>
         <Notice text="Ders listede yoksa kimliği elle yazabilirsin (küçük harf, ör. 'hukuk'). Soru, bu kimliğe sahip bir ders kaydına bağlanır." />
         <Field

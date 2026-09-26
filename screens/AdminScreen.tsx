@@ -49,19 +49,25 @@ import {
   UserStats,
 } from '../lib/content-api';
 import { useCategoryList } from '../lib/lesson-catalog';
-import { roleLabels } from '../lib/membership';
+import {
+  QuizQuotaSettings,
+  roleLabels,
+  saveQuizQuotaSettings,
+  useQuizQuotaSettings,
+} from '../lib/membership';
 import { Card, EmptyState } from '../components/ui';
 import { AdminButton, Choice, ConfirmDialog, Field, Notice } from '../components/admin/AdminUI';
 import ContentEditor from '../components/admin/ContentEditor';
 import BulkAdd from '../components/admin/BulkAdd';
 
-type Section = ContentKind | 'overview' | 'admins' | 'audit' | 'reports';
+type Section = ContentKind | 'overview' | 'admins' | 'audit' | 'reports' | 'quotas';
 const sectionLabels: Record<Section, string> = {
   overview: 'Genel Bakış',
   ...kindLabels,
   admins: 'Yöneticiler',
   reports: 'Soru Bildirimleri',
   audit: 'İşlem Geçmişi',
+  quotas: 'Test Kotaları',
 };
 const sectionIcons: Record<Section, string> = {
   overview: 'grid-outline',
@@ -69,6 +75,7 @@ const sectionIcons: Record<Section, string> = {
   admins: 'people-outline',
   reports: 'flag-outline',
   audit: 'time-outline',
+  quotas: 'speedometer-outline',
 };
 const sections = Object.keys(sectionLabels) as Section[];
 
@@ -214,6 +221,13 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const { session, signOut, role: myRole } = useAdminAuth();
   const { refreshContent } = useContent();
   const CATEGORY_LIST = useCategoryList();
+  const {
+    settings: quotaSettings,
+    setSettings: setQuotaSettings,
+    loading: quotaSettingsLoading,
+    error: quotaSettingsError,
+    reload: reloadQuotaSettings,
+  } = useQuizQuotaSettings();
   const canManage = myRole === 'admin' || myRole === 'editor';
   const canGrantRoles = myRole === 'admin';
   const wide = useWindowDimensions().width >= 960;
@@ -242,6 +256,17 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
     action: () => Promise<void>;
   } | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
+  const [quotaGuestInput, setQuotaGuestInput] = useState('1');
+  const [quotaMemberInput, setQuotaMemberInput] = useState('3');
+  const [quotaVipInput, setQuotaVipInput] = useState('');
+  const [quotaVipUnlimited, setQuotaVipUnlimited] = useState(true);
+  const [quotaBusy, setQuotaBusy] = useState(false);
+  useEffect(() => {
+    setQuotaGuestInput(String(quotaSettings.guest));
+    setQuotaMemberInput(String(quotaSettings.uye));
+    setQuotaVipUnlimited(quotaSettings.vip === null);
+    setQuotaVipInput(quotaSettings.vip === null ? '' : String(quotaSettings.vip));
+  }, [quotaSettings]);
   const load = useCallback(async () => {
     if (previewOnly) return;
     setLoading(true);
@@ -284,6 +309,34 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   async function afterChange(text: string) {
     setMessage(text);
     await Promise.all([load(), refreshContent()]);
+  }
+  async function saveQuotaSettingsForm() {
+    const guest = /^\d+$/.test(quotaGuestInput) ? Number(quotaGuestInput) : NaN;
+    const uye = /^\d+$/.test(quotaMemberInput) ? Number(quotaMemberInput) : NaN;
+    const vip = quotaVipUnlimited
+      ? null
+      : /^\d+$/.test(quotaVipInput)
+        ? Number(quotaVipInput)
+        : NaN;
+    const valid = (value: number | null) => value === null || (Number.isInteger(value) && value >= 0 && value <= 9999);
+    if (!valid(guest) || !valid(uye) || !valid(vip)) {
+      setError('Her plan için 0 ile 9999 arasında tam sayı girin.');
+      return;
+    }
+    const next: QuizQuotaSettings = { guest, uye, vip };
+    setQuotaBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await saveQuizQuotaSettings(next);
+      setQuotaSettings(next);
+      await reloadQuotaSettings();
+      setMessage('Günlük test kotaları kaydedildi. Yeni ayarlar kullanıcılara uygulanacak.');
+    } catch (e) {
+      setError(readableError(e));
+    } finally {
+      setQuotaBusy(false);
+    }
   }
   async function runConfirm() {
     if (!confirm || busy || previewOnly) return;
@@ -352,7 +405,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
   const published = entries.filter((e) => e.status === 'published').length;
   const isContent = section in kindLabels;
   const newReports = reports.filter((r) => r.status === 'new').length;
-  const visibleSections = sections.filter((s) => (s !== 'admins' && s !== 'reports') || canGrantRoles);
+  const visibleSections = sections.filter((s) => (s !== 'admins' && s !== 'reports' && s !== 'quotas') || canGrantRoles);
   const navigation = (
     <View style={{ gap: wide ? 5 : 8, flexDirection: wide ? 'column' : 'row' }}>
       {visibleSections.map((s) => (
@@ -468,7 +521,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                 marginBottom: 7,
               }}
             >
-              YÖNETİM / {section === 'overview' ? 'ÖZET' : 'İÇERİK'}
+              YÖNETİM / {section === 'overview' ? 'ÖZET' : isContent ? 'İÇERİK' : 'AYARLAR'}
             </Text>
             <Text style={{ color: theme.text, fontWeight: '900', fontSize: 26 }}>
               {sectionLabels[section]}
@@ -859,12 +912,80 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
             )}
           </>
         )}
+        {section === 'quotas' && canGrantRoles && (
+          <>
+            <Notice text="Misafir, Üye ve VIP kullanıcıların günlük test haklarını buradan değiştirebilirsiniz. Değişiklik kod güncellemesi gerektirmeden tüm istemcilere uygulanır. 0 test hakkı erişimi kapatır; VIP için sınırsız seçeneği de vardır." />
+            {!!quotaSettingsError && (
+              <Notice text={`Kota ayarları sunucudan okunamadı. Yeni migration kurulmamış olabilir: ${quotaSettingsError}`} error />
+            )}
+            <Card style={{ marginTop: 14, padding: 20 }}>
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '900', marginBottom: 5 }}>Günlük test hakları</Text>
+              <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 18, marginBottom: 16 }}>
+                Sınırlar her gün sıfırlanır. Değerleri 0–9999 arasında belirleyebilirsiniz.
+              </Text>
+              <Field
+                label="Misafir planı · günlük test sayısı"
+                value={quotaGuestInput}
+                onChangeText={(value) => setQuotaGuestInput(value.replace(/\D/g, '').slice(0, 4))}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+              <Field
+                label="Üye planı · günlük test sayısı"
+                value={quotaMemberInput}
+                onChangeText={(value) => setQuotaMemberInput(value.replace(/\D/g, '').slice(0, 4))}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+              <TouchableOpacity
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: quotaVipUnlimited }}
+                onPress={() => setQuotaVipUnlimited((current) => !current)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, marginBottom: 10 }}
+              >
+                <Ionicons name={quotaVipUnlimited ? 'checkbox' : 'square-outline'} size={22} color={theme.accent} />
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: '700' }}>VIP planı sınırsız olsun</Text>
+              </TouchableOpacity>
+              {!quotaVipUnlimited && (
+                <Field
+                  label="VIP planı · günlük test sayısı"
+                  value={quotaVipInput}
+                  onChangeText={(value) => setQuotaVipInput(value.replace(/\D/g, '').slice(0, 4))}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                <AdminButton
+                  label="Kotaları kaydet"
+                  icon="save-outline"
+                  busy={quotaBusy}
+                  disabled={previewOnly || !canGrantRoles || quotaSettingsLoading}
+                  onPress={() => void saveQuotaSettingsForm()}
+                />
+                <AdminButton
+                  label="Sunucudan yenile"
+                  icon="refresh"
+                  secondary
+                  disabled={quotaSettingsLoading || previewOnly}
+                  onPress={() => void reloadQuotaSettings()}
+                />
+              </View>
+              {quotaSettingsLoading && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
+                  <ActivityIndicator size="small" color={theme.accent} />
+                  <Text style={{ color: theme.muted, fontSize: 12 }}>Kota ayarları yükleniyor…</Text>
+                </View>
+              )}
+            </Card>
+          </>
+        )}
         {section === 'admins' && (
           <>
             <Notice
               text={
                 canGrantRoles
-                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP (sınırsız test), Üye (günde 3 test). Yeni hesabın önce uygulamadan üye olması veya Supabase Authentication üzerinden oluşturulması gerekir.'
+                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP ve Üye (günlük test kotası Test Kotaları bölümünden ayarlanır). Yeni hesabın önce uygulamadan üye olması veya Supabase Authentication üzerinden oluşturulması gerekir.'
                   : 'Bu bölümü yalnızca yöneticiler düzenleyebilir. Editör ve görüntüleyici rollerinin içerik üzerindeki yetkileri otomatik sınırlandırılır.'
               }
             />
@@ -940,7 +1061,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
                     onPress={() =>
                       setConfirm({
                         title: 'VIP üyelik verilsin mi?',
-                        description: `${adminEmail} hesabı sınırsız test çözebilecek.`,
+                        description: `${adminEmail} hesabı VIP planına alınacak. Günlük test hakkı Test Kotaları bölümündeki ayara göre uygulanır.`,
                         label: 'VIP yap',
                         action: async () => {
                           await changeRole(adminEmail, 'vip');
