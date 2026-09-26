@@ -1,0 +1,3102 @@
+diff --git a/App.tsx b/App.tsx
+index b3ea4f6..d88bd33 100644
+--- a/App.tsx
++++ b/App.tsx
+@@ -1,6 +1,6 @@
+ import React, { useEffect, useState } from 'react';
+ import { StatusBar } from 'expo-status-bar';
+-import { ActivityIndicator, Text, View } from 'react-native';
++import { ActivityIndicator, Platform, Text, useWindowDimensions, View } from 'react-native';
+ import { useFonts } from 'expo-font';
+ import Ionicons from '@expo/vector-icons/Ionicons';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+@@ -30,55 +30,124 @@ const Stack = createNativeStackNavigator();
+ 
+ function Tabs() {
+   const { theme, mode } = useApp();
++  const { width } = useWindowDimensions();
++  const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
+   return (
+-    <Tab.Navigator
+-      screenOptions={({ route }) => ({
+-        headerShown: false,
+-        tabBarActiveTintColor: theme.accent,
+-        tabBarInactiveTintColor: theme.muted,
+-        // Cihaz yazı büyütme ayarı etiketleri büyütüp taşırmasın.
+-        tabBarAllowFontScaling: false,
+-        tabBarStyle: {
+-          backgroundColor: theme.tabBar,
+-          borderTopColor: theme.border,
+-          borderTopWidth: 1,
+-          height: 66,
+-          paddingTop: 2,
+-          paddingBottom: 8,
+-        },
+-        // Sekme öğesinin yatay iç boşluğu (5px+5px) "Ana Sayfa" gibi uzun ismi kesiyor; sıfırla.
+-        tabBarItemStyle: { padding: 0 },
+-        // Sığmayan etiket kendini hafif küçültsün; satır sarmadan, diğerleri sabit kalsın.
+-        tabBarLabel: ({ color }) => (
+-          <Text
+-            numberOfLines={1}
+-            adjustsFontSizeToFit
+-            minimumFontScale={0.8}
+-            style={{ color, fontSize: 9.5, fontWeight: '700', lineHeight: 12, width: '100%', textAlign: 'center' }}
++    <View style={{ flex: 1, backgroundColor: theme.bg }}>
++      {isDesktopWeb && (
++        <View
++          pointerEvents="none"
++          style={{
++            position: 'absolute',
++            zIndex: 20,
++            top: 22,
++            left: 22,
++            width: 210,
++            flexDirection: 'row',
++            alignItems: 'center',
++          }}
++        >
++          <View
++            style={{
++              width: 42,
++              height: 42,
++              borderRadius: 14,
++              backgroundColor: theme.accent,
++              alignItems: 'center',
++              justifyContent: 'center',
++              marginRight: 10,
++            }}
+           >
+-            {route.name}
+-          </Text>
+-        ),
+-        tabBarIcon: ({ color, size, focused }) => {
+-          const icons: Record<string, string> = {
+-            'Ana Sayfa': focused ? 'home' : 'home-outline',
+-            'Testler': focused ? 'help-circle' : 'help-circle-outline',
+-            'Konular': focused ? 'list' : 'list-outline',
+-            'Güncel': focused ? 'newspaper' : 'newspaper-outline',
+-            'Araçlar': focused ? 'construct' : 'construct-outline',
+-            'Profil': focused ? 'person' : 'person-outline',
+-          };
+-          return <Icons name={icons[route.name] as any} size={23} color={color} />;
+-        },
+-      })}
+-    >
+-      <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+-      <Tab.Screen name="Testler" component={QuizSetupScreen} />
+-      <Tab.Screen name="Konular" component={TopicsScreen} />
+-      <Tab.Screen name="Güncel" component={NewsScreen} />
+-      <Tab.Screen name="Araçlar" component={ToolsScreen} />
+-      <Tab.Screen name="Profil" component={ProfileScreen} />
+-    </Tab.Navigator>
++            <Icons name="school" size={23} color="#fff" />
++          </View>
++          <View>
++            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '900' }}>KPSS Asistanım</Text>
++            <Text style={{ color: theme.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1.1, marginTop: 2 }}>
++              SINAVA HAZIRLIK
++            </Text>
++          </View>
++        </View>
++      )}
++      <Tab.Navigator
++        screenOptions={({ route }) => ({
++          headerShown: false,
++          // Web masaüstünde site tipi yan menü; mobilde sabit alt sekme çubuğu.
++          tabBarPosition: isDesktopWeb ? 'left' : 'bottom',
++          tabBarVariant: 'uikit',
++          tabBarLabelPosition: isDesktopWeb ? 'beside-icon' : 'below-icon',
++          tabBarActiveTintColor: theme.accent,
++          tabBarInactiveTintColor: theme.muted,
++          tabBarActiveBackgroundColor: isDesktopWeb ? theme.accentSoft : 'transparent',
++          tabBarInactiveBackgroundColor: 'transparent',
++          tabBarAllowFontScaling: false,
++          tabBarStyle: {
++            backgroundColor: theme.tabBar,
++            borderColor: theme.border,
++            ...(isDesktopWeb
++              ? {
++                  width: 252,
++                  paddingTop: 92,
++                  paddingBottom: 24,
++                  borderTopWidth: 0,
++                  borderRightWidth: 1,
++                }
++              : {
++                  borderTopWidth: 1,
++                  height: 66,
++                  paddingTop: 2,
++                  paddingBottom: 8,
++                }),
++          },
++          tabBarItemStyle: isDesktopWeb
++            ? {
++                paddingHorizontal: 12,
++                paddingVertical: 12,
++                marginHorizontal: 12,
++                marginVertical: 4,
++                borderRadius: 12,
++                alignItems: 'flex-start',
++              }
++            : { padding: 0 },
++          tabBarLabel: ({ color }) => (
++            <Text
++              numberOfLines={1}
++              adjustsFontSizeToFit={!isDesktopWeb}
++              minimumFontScale={0.8}
++              style={{
++                color,
++                fontSize: isDesktopWeb ? 14 : 9.5,
++                fontWeight: '700',
++                lineHeight: isDesktopWeb ? 20 : 12,
++                width: isDesktopWeb ? undefined : '100%',
++                flex: isDesktopWeb ? 1 : undefined,
++                marginLeft: isDesktopWeb ? 8 : 0,
++                textAlign: isDesktopWeb ? 'left' : 'center',
++              }}
++            >
++              {route.name}
++            </Text>
++          ),
++          tabBarIcon: ({ color, focused }) => {
++            const icons: Record<string, string> = {
++              'Ana Sayfa': focused ? 'home' : 'home-outline',
++              'Testler': focused ? 'help-circle' : 'help-circle-outline',
++              'Konular': focused ? 'list' : 'list-outline',
++              'Güncel': focused ? 'newspaper' : 'newspaper-outline',
++              'Araçlar': focused ? 'construct' : 'construct-outline',
++              'Profil': focused ? 'person' : 'person-outline',
++            };
++            return <Icons name={icons[route.name] as any} size={isDesktopWeb ? 20 : 23} color={color} />;
++          },
++        })}
++      >
++        <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
++        <Tab.Screen name="Testler" component={QuizSetupScreen} />
++        <Tab.Screen name="Konular" component={TopicsScreen} />
++        <Tab.Screen name="Güncel" component={NewsScreen} />
++        <Tab.Screen name="Araçlar" component={ToolsScreen} />
++        <Tab.Screen name="Profil" component={ProfileScreen} />
++      </Tab.Navigator>
++    </View>
+   );
+ }
+ 
+diff --git a/HANDOFF.md b/HANDOFF.md
+index b682ce0..b55c85c 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -6,7 +6,8 @@
+ - GitHub: https://github.com/0xinspectorx0/kpssasistani-mobil
+ 
+ ## Git durumu (2026-09-26 itibarıyla)
+-- Local HEAD = GitHub `main` = **`4282d93`** (eşit, temiz çalışma ağacı, 66 dosya)
++- Uygulama geliştirme tabanı `4282d93`; sonrasında HANDOFF dosyası eklenmiş ve ana dala içerik aktarımı fallback'i eklenmiştir.
++- Yeni oturumda başlangıç dalının `origin/main` ile eşit olduğunu `git log -1` ve `git status` ile kontrol et.
+ - Dallar: `main`, `ilk-surdum` (PR baz dalı, ilk commit `0ee804d`)
+ - PR açmak için tek tıklık link: https://github.com/0xinspectorx0/kpssasistani-mobil/compare/ilk-surdum...main
+ - **PAT hiçbir yerde saklanmaz**; remote URL token'sız: `https://github.com/0xinspectorx0/kpssasistani-mobil.git`
+@@ -20,14 +21,18 @@
+ 
+ ## Kullanıcı düzeltmeleri / kurallar (BU OTURUMDAN, ihmal edilmesin)
+ - **Alt sekme etiketleri asla yarım/kesik görünmemeli** — kullanıcı 3 kez bu geri bildirimi verdi; son çözüm onaylandı ("çok iyi oldu").
++- Alt bar etiketleri her ekran boyutu/yönünde simgelerin hemen altında ve aynı sabit dikey düzende kalmalı (`tabBarLabelPosition: 'below-icon'`, sabit bar yüksekliği).
++- Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
+ - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
+ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
+-- Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); misafir 1, ücretsiz 3, VIP sınırsız test.
++- Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
++- Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
+ - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
+ - E-posta: **Brevo SMTP** (kurulum kullanıcıca tamamlandı, mail akışı çalışıyor). Host `smtp-relay.brevo.com:587`, user `bb20ab001@smtp-brevo.com`. Brevo'da "Unauthorized IP..." uyarısının aktivasyonu AÇILMAYACAK.
+ - "Parolamı unuttum" linki → yeni şifre formu göstermeli, direkt giriş yaptırmayacak (`PasswordRecoveryModal` + `isRecovery`).
+ 
+ ## Bekleyenler / bilinmesi gerekenler
++- **İçerik aktarımı:** `supabase/icerik-aktar.sql` Supabase Dashboard > SQL Editor'de çalıştırılacak (117 kayıt: 48 soru + dersler/haberler/etkinlikler). Kod tarafında fallback eklendi: sunucu boşsa paketlenmiş veriler siteyi gösterir, site asla boş kalmaz.
+ - Admin hesabı: `orangeulrica@uberip.com` → Supabase Dashboard > Authentication > Users > "Add user" + `supabase/ilk-admin-kurulumu.sql` çalıştırılacak (kullanıcı henüz doğrulamadı).
+ - Her yeni oturumda `node_modules` ve `dist` temiz olur: `npm ci` + `npx expo export --clear --platform web` şart.
+ - Lokal görsel doğrulama kurulabilir: `sudo apt-get update && sudo apt-get install -y libnspr4 libnss3 ...` + `npx playwright install chromium` + `pip install rapidocr-onnxruntime` (oturumlar arası silinebilir).
+diff --git a/components/AuthScreen.tsx b/components/AuthScreen.tsx
+index aa4c7a6..47b444d 100644
+--- a/components/AuthScreen.tsx
++++ b/components/AuthScreen.tsx
+@@ -15,12 +15,13 @@ import { useApp } from '../lib/store';
+ import { useAdminAuth } from '../lib/admin-auth';
+ import { supabase } from '../lib/supabase';
+ import { readableError } from '../lib/content-api';
+-import { PLAN_META } from '../lib/membership';
++import { dailyLimit, PLAN_META, useQuizQuotaSettings } from '../lib/membership';
+ import { AdminButton, Field, Notice } from './admin/AdminUI';
+ 
+ export default function AuthScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+   const { theme } = useApp();
+   const { signIn, signUp, session, role, resetPassword, changePassword } = useAdminAuth();
++  const { settings: quotaSettings } = useQuizQuotaSettings();
+   const [tab, setTab] = useState<'login' | 'signup'>('login');
+   const [email, setEmail] = useState('');
+   const [password, setPassword] = useState('');
+@@ -412,14 +413,18 @@ export default function AuthScreen({ visible, onClose }: { visible: boolean; onC
+                       <Ionicons name={PLAN_META[p].icon as any} size={20} color={PLAN_META[p].color} />
+                       <View style={{ flex: 1, marginLeft: 10 }}>
+                         <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>{PLAN_META[p].label}</Text>
+-                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{PLAN_META[p].desc}</Text>
++                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
++                          {Number.isFinite(dailyLimit(p, quotaSettings))
++                            ? `Günde ${dailyLimit(p, quotaSettings)} test çözebilirsin.`
++                            : 'Sınırsız test çözebilirsin.'}
++                        </Text>
+                       </View>
+                     </View>
+                   ))}
+                 </View>
+               </>
+             ) : (
+-              <Notice text="Hesap altyapısı (Supabase) bağlanmadığı için şimdilik misafir olarak devam ediyorsun. Yine de günlük 1 test kotasıyla tüm içeriklere erişebilirsin." />
++              <Notice text={`Hesap altyapısı (Supabase) bağlanmadığı için şimdilik misafir olarak devam ediyorsun. Günlük ${dailyLimit('guest', quotaSettings)} test hakkıyla tüm içeriklere erişebilirsin.`} />
+             )}
+           </ScrollView>
+         </KeyboardAvoidingView>
+diff --git a/components/admin/ContentEditor.tsx b/components/admin/ContentEditor.tsx
+index 1dde82a..3857810 100644
+--- a/components/admin/ContentEditor.tsx
++++ b/components/admin/ContentEditor.tsx
+@@ -61,6 +61,7 @@ const labels: Record<string, string> = {
+   explanation: 'Çözüm açıklaması',
+   options: 'Seçenekler',
+   answer: 'Doğru cevap',
++  topicId: 'Konu',
+   topics: 'Konular',
+   eventId: 'Bağlı sınav',
+ };
+@@ -122,6 +123,13 @@ export default function ContentEditor({
+       );
+       return;
+     }
++    if (entry.kind === 'questions') {
++      const options = topicChoicesFor(String(normalized.category ?? ''));
++      if (options.length > 0 && !options.some((option) => option.value === normalized.topicId)) {
++        setError('Sorunun konusunu seçin.');
++        return;
++      }
++    }
+     if (
+       entry.kind === 'targets' &&
+       !entries.some(
+@@ -175,14 +183,31 @@ export default function ContentEditor({
+   function select(key: string, label: string, values: { value: string; label: string }[]) {
+     return <Choice label={label} value={draft[key]} options={values} onChange={(v) => set(key, v)} />;
+   }
++  function topicChoicesFor(categoryId: string) {
++    const lesson = entries.find((e) => e.kind === 'lessons' && e.id === categoryId);
++    if (!lesson || !('topics' in lesson.payload)) return [];
++    return lesson.payload.topics.map((topic) => ({ value: topic.id, label: topic.name }));
++  }
++  const questionTopicChoices = topicChoicesFor(String(draft.category ?? ''));
+   const questionForm = (
+     <>
+       <Choice
+         label="Ders"
+         value={draft.category}
+         options={buildQuestionCategories(entries)}
+-        onChange={(v) => set('category', v)}
++        onChange={(v) => {
++          set('category', v);
++          set('topicId', topicChoicesFor(v)[0]?.value);
++        }}
+       />
++      {questionTopicChoices.length > 0 && (
++        <Choice
++          label="Konu"
++          value={draft.topicId}
++          options={questionTopicChoices}
++          onChange={(v) => set('topicId', v)}
++        />
++      )}
+       <View style={{ marginBottom: 14 }}>
+         <Notice text="Ders listede yoksa kimliği elle yazabilirsin (küçük harf, ör. 'hukuk'). Soru, bu kimliğe sahip bir ders kaydına bağlanır." />
+         <Field
+diff --git a/components/ui.tsx b/components/ui.tsx
+index 8663716..4f632ea 100644
+--- a/components/ui.tsx
++++ b/components/ui.tsx
+@@ -1,9 +1,20 @@
+ import React from 'react';
+-import { Text, TouchableOpacity, View, ViewStyle } from 'react-native';
++import { Platform, Text, TouchableOpacity, useWindowDimensions, View, ViewStyle } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useApp } from '../lib/store';
+ import { radius } from '../lib/theme';
+ 
++/** Responsive breakpoint shared by web screens; native layouts retain the compact mobile spacing. */
++export function useResponsiveLayout() {
++  const { width } = useWindowDimensions();
++  const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
++  return {
++    isDesktopWeb,
++    pageMaxWidth: isDesktopWeb ? 1360 : undefined,
++    pagePadding: isDesktopWeb ? 32 : 16,
++  };
++}
++
+ export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+   const { theme } = useApp();
+   return (
+diff --git a/docs/ADMIN.md b/docs/ADMIN.md
+index fc49b27..ed48e1a 100644
+--- a/docs/ADMIN.md
++++ b/docs/ADMIN.md
+@@ -30,11 +30,13 @@ Bu sürümde uygulamaya **hesap sistemi**, **kademeli roller** ve **üyelik plan
+    2. `supabase/migrations/202609250001_accounts_roles.sql`
+    3. `supabase/migrations/202609250002_user_moderation.sql` (engelleme/silme desteği)
+    4. `supabase/migrations/202609250003_question_reports.sql` (soru bildirimi + kullanıcı istatistikleri)
++   5. `supabase/migrations/202609260001_quiz_quotas.sql` (yönetim panelinden günlük plan kotalarını düzenleme)
+ 3. Tablolar oluşur:
+    - `content_entries` (merkezi içerik)
+    - `members` (kullanıcı rolleri + `banned` durumu)
+    - `user_activities` (günlük test kotası sayacı)
+    - `question_reports` (hatalı soru bildirimleri)
++   - `quiz_quota_settings` (Misafir/Üye/VIP günlük test hakları)
+    - `admin_audit_log` (işlem günlüğü)
+ 4. **Authentication → Providers → Email** açık olsun. Kullanıcıların uygulamadan üye olabilmesi için
+    **Authentication → Sign In / Sign Up → "Allow new users to sign up"** seçeneğini açık bırakın
+@@ -142,6 +144,13 @@ supabase functions deploy delete-user --no-verify-jwt
+   son 7 gün aktif ve toplam çözülen test sayısı (`get_user_stats` RPC'si ile).
+ - Bu özellikler `202609250003_question_reports.sql` migration'ı ile gelir (yukarıda kurulum adımlarına eklendi).
+ 
++### Günlük test kotaları
++
++- Yönetim panelindeki **Test Kotaları** bölümünden Misafir, Üye ve VIP günlük test hakları değiştirilebilir; her değer 0–9999 arasıdır. VIP ayrıca sınırsız yapılabilir.
++- Ayarlar Supabase'de saklanır, tüm istemciler tarafından okunur ve kod değişikliği/deploy gerektirmeden uygulanır. Varsayılanlar: Misafir 1, Üye 3, VIP sınırsız.
++- Güvenlik için ayarları yalnızca `admin` rolü güncelleyebilir; değişiklikler işlem günlüğüne yazılır.
++- Özellik `202609260001_quiz_quotas.sql` migration'ı ile gelir.
++
+ ### Rol → erişim özeti
+ 
+ | Yetki | admin | editor | viewer |
+@@ -162,8 +171,8 @@ supabase functions deploy delete-user --no-verify-jwt
+ 
+ ## 7. Veri senkronu
+ 
+-- Giriş yapan kullanıcının günlük test kotası Supabase `user_activities` tablosunda tutulur (cihaz bağımsız).
+-- Misafir kotası yalnızca cihazda tutulur.
++- Giriş yapan kullanıcının günlük test sayacı Supabase `user_activities` tablosunda tutulur (cihaz bağımsız); misafir sayacı cihazda kalır.
++- Plan limitleri Supabase `quiz_quota_settings` tablosunda saklanır ve tüm istemcilerce okunur; istemcide kısa süreli çevrimdışı yedek kopya bulunur.
+ - Test geçmişi, favoriler ve konu takibi hâlâ cihazda kalır (ileride merkezi senkron istenirse ayrıca geliştirilir).
+ 
+ ## 8. Testler
+@@ -174,7 +183,7 @@ npm test
+ npm run build:web
+ ```
+ 
+-`npm test`, PGlite üzerinde üç migration'ın RLS/trigger davranışını birlikte sınar (engelleme/silme dahil).
++`npm test`, PGlite üzerinde migration'ların RLS/trigger davranışını birlikte sınar (kota ayarları dahil).
+ 
+ Web E2E (bağlı akış):
+ 
+diff --git a/docs/ANDROID-YAYINLAMA.md b/docs/ANDROID-YAYINLAMA.md
+index 6f84f11..c94394c 100644
+--- a/docs/ANDROID-YAYINLAMA.md
++++ b/docs/ANDROID-YAYINLAMA.md
+@@ -140,7 +140,7 @@ npx eas update --branch production --message "açıklama"
+ 
+ ## Kontrol listesi ✅
+ 
+-- [ ] Supabase migration'ları çalıştırıldı (4 dosya, sırayla)
++- [ ] Supabase migration'ları çalıştırıldı (5 dosya, sırayla)
+ - [ ] İlk admin atandı
+ - [ ] `EXPO_PUBLIC_*` değişkenleri EAS'e tanımlandı (`eas env:push`)
+ - [ ] `npx eas login` yapıldı
+diff --git a/docs/WEB-YAYINLAMA.md b/docs/WEB-YAYINLAMA.md
+index 4c77ee0..37eef63 100644
+--- a/docs/WEB-YAYINLAMA.md
++++ b/docs/WEB-YAYINLAMA.md
+@@ -48,7 +48,7 @@ Değerleri **Supabase → Project Settings → API** sayfasından alın:
+ 
+ ### 2. Supabase tarafını tamamlayın
+ Hesap, panel, içerik yönetimi ve soru bildirimi özelliklerinin web'de de çalışması için:
+-- 4 migration'ı SQL Editor'de **sırayla** çalıştırın (liste: `docs/ADMIN.md`).
++- 5 migration'ı SQL Editor'de **sırayla** çalıştırın (liste: `docs/ADMIN.md`).
+ - İlk admini atayın.
+ 
+ ### 3. Yerelde doğrulayın
+diff --git a/lib/content-schema.ts b/lib/content-schema.ts
+index a33815d..5e7a59f 100644
+--- a/lib/content-schema.ts
++++ b/lib/content-schema.ts
+@@ -1,5 +1,5 @@
+ import { z } from 'zod';
+-import { QUESTIONS, LESSONS, NEWS, EXAM_EVENTS, TARGET_EXAMS, TABAN_PUANLAR, QUOTES } from './data';
++import { QUESTIONS, LESSONS, NEWS, EXAM_EVENTS, TARGET_EXAMS, TABAN_PUANLAR, QUOTES, QUESTION_TOPIC_IDS } from './data';
+ 
+ const text = z
+   .string()
+@@ -24,6 +24,7 @@ export const schemas = {
+     .object({
+       id,
+       category: lessonId,
++      topicId: lessonId.optional(),
+       question: text,
+       options: z.array(text).min(5, 'Tam 5 seçenek (A–E) olmalıdır.').max(5, 'Tam 5 seçenek (A–E) olmalıdır.'),
+       answer: z.number().int().min(0).max(4),
+@@ -148,6 +149,11 @@ export function publishedContent(rows: ContentEntry[]): ContentData {
+   const result = emptyContent();
+   for (const row of rows)
+     if (row.status === 'published') (result[row.kind] as ContentPayload[]).push(row.payload);
++  // Önceden yüklenmiş sorularda konu kimliği yoksa gömülü eşlemeyi kullan.
++  result.questions = result.questions.map((question) => ({
++    ...question,
++    topicId: question.topicId ?? QUESTION_TOPIC_IDS[question.id],
++  }));
+   return result;
+ }
+ export function seedEntries(): ContentEntry[] {
+@@ -170,6 +176,7 @@ export function newPayload(kind: ContentKind): ContentPayload {
+       return {
+         id,
+         category: 'turkce',
++        topicId: 'tr-s1',
+         difficulty: 'Orta',
+         question: '',
+         options: ['', '', '', '', ''],
+diff --git a/lib/content.tsx b/lib/content.tsx
+index 30ec591..354ef69 100644
+--- a/lib/content.tsx
++++ b/lib/content.tsx
+@@ -14,12 +14,14 @@ interface ContentContextValue extends ContentData {
+ }
+ const Context = createContext<ContentContextValue | null>(null);
+ const CACHE_KEY = `kpss-content-v1:${process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'bundled'}`;
++// Sunucu/önbellek boşsa paketlenmiş test ve veriler gösterilir; site asla boş kalmasın.
++const pickContent = (rows: ContentEntry[]): ContentData => (rows.length ? publishedContent(rows) : bundledContent);
+ export function ContentProvider({ children }: { children: React.ReactNode }) {
+-  const [content, setContent] = useState<ContentData>(supabase ? publishedContent([]) : bundledContent);
++  const [content, setContent] = useState<ContentData>(bundledContent);
+   const [loaded, setLoaded] = useState(!supabase);
+   const [syncing, setSyncing] = useState(false);
+   const [syncError, setSyncError] = useState<string | null>(null);
+-  const [source, setSource] = useState<ContentContextValue['source']>(supabase ? 'cache' : 'bundled');
++  const [source, setSource] = useState<ContentContextValue['source']>('bundled');
+   const running = useRef<Promise<void> | null>(null);
+   const refreshContent = useCallback((): Promise<void> => {
+     if (!supabase) return Promise.resolve();
+@@ -28,8 +30,8 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
+       setSyncing(true);
+       try {
+         const rows = await fetchEntries(true);
+-        setContent(publishedContent(rows));
+-        setSource('server');
++        setContent(pickContent(rows));
++        setSource(rows.length ? 'server' : 'bundled');
+         setSyncError(null);
+         // Only published records are cached, never drafts or admin sessions.
+         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(rows)).catch(() => {});
+@@ -54,7 +56,8 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
+         const cached = await AsyncStorage.getItem(CACHE_KEY);
+         if (cached && !cancelled) {
+           const rows: ContentEntry[] = JSON.parse(cached).map(parseEntry);
+-          setContent(publishedContent(rows));
++          setContent(pickContent(rows));
++          setSource(rows.length ? 'cache' : 'bundled');
+           setLoaded(true);
+         }
+       } catch {
+diff --git a/lib/data.ts b/lib/data.ts
+index c28d00a..d7ba23d 100644
+--- a/lib/data.ts
++++ b/lib/data.ts
+@@ -1,6 +1,7 @@
+ export interface QuizQuestion {
+   id: string;
+   category: string;
++  topicId?: string;
+   question: string;
+   options: string[];
+   answer: number;
+@@ -28,7 +29,7 @@ export const CATEGORY_LIST: Category[] = [
+   { id: 'guncel', name: 'Güncel Bilgiler', short: 'GU', icon: 'newspaper', color: '#EA580C', desc: '2025-2026 gündemi ve klasikler' },
+ ];
+ 
+-export const QUESTIONS: QuizQuestion[] = [
++const RAW_QUESTIONS: QuizQuestion[] = [
+   { id: 'tr1', category: 'turkce', difficulty: 'Kolay', question: 'Aşağıdaki sözcüklerden hangisinin yazımı doğrudur?', options: ['Herşey', 'Hiç birşey', 'Her şey', 'Herşeyi', 'Hiçbirşey'], answer: 2, explanation: '"şey" sözcüğü her zaman ayrı yazılır: her şey, bir şey, hiçbir şey.' },
+   { id: 'tr2', category: 'turkce', difficulty: 'Kolay', question: '"Çiçek" sözcüğünün "çiçeği" biçiminde yazılmasının nedeni nedir?', options: ['Ünsüz yumuşaması', 'Ünsüz benzeşmesi', 'Ünlü daralması', 'Kaynaştırma ünsüzü', 'Ünlü türemesi'], answer: 0, explanation: 'Sert ünsüzle (p, ç, t, k) biten sözcüklere ünlüyle başlayan ek gelince yumuşama olur: çiçek → çiçeği.' },
+   { id: 'tr3', category: 'turkce', difficulty: 'Orta', question: 'Aşağıdaki cümlelerin hangisinde virgülün kullanım amacı diğerlerinden farklıdır?', options: ['Genç, yaşlı demeden herkes katıldı.', 'Ankara, İstanbul, İzmir büyükşehirlerdendir.', 'Öğrenciler, sınavda çok heyecanlıydı.', 'Elma, armut, kiraz aldık.', 'Sınıfta, herkes çalışıyordu.'], answer: 2, explanation: 'Diğerlerinde eş görevli sözcükleri ayırmak için kullanılırken C seçeneğinde özneyi vurgulamak için kullanılmıştır.' },
+@@ -150,6 +151,21 @@ export const LESSONS: TopicLesson[] = [
+   },
+ ];
+ 
++// Soruların alt konu eşlemesi; eski sunucu kayıtları da istemcide bu kimliklerle tamamlanır.
++export const QUESTION_TOPIC_IDS: Record<string, string> = {
++  tr1: 'tr-s5', tr2: 'tr-s4', tr3: 'tr-s6', tr4: 'tr-s8', tr5: 'tr-s9', tr6: 'tr-s7', tr7: 'tr-s11', tr8: 'tr-s8',
++  mt1: 'mt-s5', mt2: 'mt-s10', mt3: 'mt-s3', mt4: 'mt-s1', mt5: 'mt-s8', mt6: 'mt-s9', mt7: 'mt-s12', mt8: 'mt-s13',
++  ta1: 'ta-s2', ta2: 'ta-s3', ta3: 'ta-s6', ta4: 'ta-s7', ta5: 'ta-s7', ta6: 'ta-s8', ta7: 'ta-s3', ta8: 'ta-s7',
++  co1: 'co-s5', co2: 'co-s2', co3: 'co-s1', co4: 'co-s4', co5: 'co-s7', co6: 'co-s6', co7: 'co-s1', co8: 'co-s9',
++  va1: 'va-s2', va2: 'va-s2', va3: 'va-s4', va4: 'va-s3', va5: 'va-s2', va6: 'va-s6', va7: 'va-s6', va8: 'va-s1',
++  gu1: 'gu-s1', gu2: 'gu-s1', gu3: 'gu-s1', gu4: 'gu-s3', gu5: 'gu-s3', gu6: 'gu-s2', gu7: 'gu-s5', gu8: 'gu-s1',
++};
++
++export const QUESTIONS: QuizQuestion[] = RAW_QUESTIONS.map((question) => ({
++  ...question,
++  topicId: QUESTION_TOPIC_IDS[question.id],
++}));
++
+ export type NewsCategory = 'Spor' | 'Kültür-Sanat' | 'Bilim' | 'Kurumlar' | 'Klasikler';
+ 
+ export interface NewsItem {
+diff --git a/lib/membership.ts b/lib/membership.ts
+index 6272cfc..040050e 100644
+--- a/lib/membership.ts
++++ b/lib/membership.ts
+@@ -1,13 +1,22 @@
+-// Üyelik planları ve günlük test kotası.
+-//  - Misafir (giriş yapmamış): günde 1 test
+-//  - Üye (ücretsiz hesap):     günde 3 test
+-//  - VIP / yönetici personeli: sınırsız
++// Üyelik planları ve günlük test kotası; plan adetleri yönetim panelinden ayarlanır.
+ import AsyncStorage from '@react-native-async-storage/async-storage';
++import React, { useCallback, useState } from 'react';
++import { useFocusEffect } from '@react-navigation/native';
+ import { useAdminAuth, MemberRole } from './admin-auth';
+ import { supabase } from './supabase';
+ import { dayKey } from './data';
+ 
+ export type PlanId = 'guest' | 'uye' | 'vip' | 'staff';
++export interface QuizQuotaSettings {
++  guest: number;
++  uye: number;
++  /** null means unlimited. */
++  vip: number | null;
++}
++
++export const DEFAULT_QUIZ_QUOTAS: QuizQuotaSettings = { guest: 1, uye: 3, vip: null };
++const QUIZ_QUOTA_STORAGE_KEY = 'kpss-quiz-quota-settings-v1';
++let cachedQuizQuotas: QuizQuotaSettings = { ...DEFAULT_QUIZ_QUOTAS };
+ 
+ export const PLAN_META: Record<
+   PlanId,
+@@ -18,21 +27,21 @@ export const PLAN_META: Record<
+     daily: 1,
+     icon: 'person-outline',
+     color: '#64748B',
+-    desc: 'Günde 1 ücretsiz test çözebilirsin.',
++    desc: 'Günlük test hakkı yönetici tarafından belirlenir.',
+   },
+   uye: {
+     label: 'Üye',
+     daily: 3,
+     icon: 'person',
+     color: '#2563EB',
+-    desc: 'Günde 3 test çözebilirsin.',
++    desc: 'Günlük test hakkı yönetici tarafından belirlenir.',
+   },
+   vip: {
+     label: 'VIP',
+     daily: Infinity,
+     icon: 'diamond',
+     color: '#E8A020',
+-    desc: 'Sınırsız test ve tüm özellikler.',
++    desc: 'Yönetici ayarına göre günlük test hakkı veya sınırsız erişim.',
+   },
+   staff: {
+     label: 'Yönetici',
+@@ -43,6 +52,80 @@ export const PLAN_META: Record<
+   },
+ };
+ 
++function parseQuizQuotaSettings(value: unknown): QuizQuotaSettings | null {
++  if (!value || typeof value !== 'object') return null;
++  const record = value as Record<string, unknown>;
++  const guest = record.guest;
++  const uye = record.uye;
++  const vip = record.vip;
++  const validLimit = (limit: unknown): limit is number =>
++    typeof limit === 'number' && Number.isInteger(limit) && limit >= 0 && limit <= 9999;
++  if (!validLimit(guest) || !validLimit(uye) || (vip !== null && !validLimit(vip))) return null;
++  return { guest, uye, vip: vip as number | null };
++}
++
++export function getCachedQuizQuotaSettings(): QuizQuotaSettings {
++  return { ...cachedQuizQuotas };
++}
++
++export async function loadQuizQuotaSettings(): Promise<QuizQuotaSettings> {
++  try {
++    const stored = await AsyncStorage.getItem(QUIZ_QUOTA_STORAGE_KEY);
++    const parsed = stored ? parseQuizQuotaSettings(JSON.parse(stored)) : null;
++    if (parsed) cachedQuizQuotas = parsed;
++  } catch {
++    // Keep the in-memory/default values when local cache cannot be read.
++  }
++
++  if (!supabase) return getCachedQuizQuotaSettings();
++  const { data, error } = await supabase.rpc('get_quiz_quota_settings');
++  if (error) throw error;
++  const settings = parseQuizQuotaSettings(data);
++  if (!settings) throw new Error('Test kotası ayarları okunamadı. Supabase migration kurulumunu kontrol edin.');
++  cachedQuizQuotas = settings;
++  await AsyncStorage.setItem(QUIZ_QUOTA_STORAGE_KEY, JSON.stringify(settings)).catch(() => {});
++  return getCachedQuizQuotaSettings();
++}
++
++export async function saveQuizQuotaSettings(settings: QuizQuotaSettings): Promise<void> {
++  const parsed = parseQuizQuotaSettings(settings);
++  if (!parsed) throw new Error('Her plan için 0 ile 9999 arasında geçerli test sayısı girin.');
++  if (!supabase) throw new Error('Test kotası ayarlarını kaydetmek için Supabase bağlantısı gerekiyor.');
++  const { error } = await supabase.rpc('set_quiz_quota_settings', {
++    p_guest_limit: parsed.guest,
++    p_member_limit: parsed.uye,
++    p_vip_limit: parsed.vip,
++  });
++  if (error) throw error;
++  cachedQuizQuotas = parsed;
++  await AsyncStorage.setItem(QUIZ_QUOTA_STORAGE_KEY, JSON.stringify(parsed)).catch(() => {});
++}
++
++export function useQuizQuotaSettings() {
++  const [settings, setSettings] = useState<QuizQuotaSettings>(() => getCachedQuizQuotaSettings());
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState('');
++  const reload = useCallback(async () => {
++    setLoading(true);
++    try {
++      const next = await loadQuizQuotaSettings();
++      setSettings(next);
++      setError('');
++      return next;
++    } catch (e) {
++      setSettings(getCachedQuizQuotaSettings());
++      setError(e instanceof Error ? e.message : 'Test kotası ayarları yüklenemedi.');
++      return null;
++    } finally {
++      setLoading(false);
++    }
++  }, []);
++  useFocusEffect(useCallback(() => {
++    void reload();
++  }, [reload]));
++  return { settings, setSettings, loading, error, reload };
++}
++
+ export function planFor(role: MemberRole, hasSession: boolean): PlanId {
+   if (role === 'banned') return 'guest'; // engelli hesap misafir gibi bile işlem yapamaz; oturum düşürülür
+   if (role === 'vip') return 'vip';
+@@ -51,8 +134,11 @@ export function planFor(role: MemberRole, hasSession: boolean): PlanId {
+   return 'guest';
+ }
+ 
+-export function dailyLimit(plan: PlanId): number {
+-  return PLAN_META[plan].daily;
++export function dailyLimit(plan: PlanId, quotas: QuizQuotaSettings = cachedQuizQuotas): number {
++  if (plan === 'staff') return Infinity;
++  if (plan === 'guest') return quotas.guest;
++  if (plan === 'uye') return quotas.uye;
++  return quotas.vip === null ? Infinity : quotas.vip;
+ }
+ 
+ function quotaKey(userKey: string): string {
+@@ -110,8 +196,12 @@ export interface QuotaResult {
+ }
+ 
+ // Bir test hakkını tüketmeye çalışır; kota doluysa reddeder.
+-export async function consumeQuiz(userKey: string, plan: PlanId): Promise<QuotaResult> {
+-  const limit = dailyLimit(plan);
++export async function consumeQuiz(
++  userKey: string,
++  plan: PlanId,
++  quotas: QuizQuotaSettings = cachedQuizQuotas,
++): Promise<QuotaResult> {
++  const limit = dailyLimit(plan, quotas);
+   if (!Number.isFinite(limit)) return { allowed: true, used: 0, limit };
+   const used = await todayCount(userKey);
+   if (used >= limit) return { allowed: false, used, limit };
+@@ -137,7 +227,17 @@ export function quotaUserKey(sessionUserId: string | null | undefined, role: Mem
+ export function usePlan() {
+   const { session, role } = useAdminAuth();
+   const plan = planFor(role, !!session);
+-  return { plan, role, session, meta: PLAN_META[plan], limit: dailyLimit(plan) };
++  const { settings } = useQuizQuotaSettings();
++  const limit = dailyLimit(plan, settings);
++  const meta = {
++    ...PLAN_META[plan],
++    desc: plan === 'staff'
++      ? PLAN_META.staff.desc
++      : Number.isFinite(limit)
++        ? `Günde ${limit} test çözebilirsin.`
++        : 'Sınırsız test çözebilirsin.',
++  };
++  return { plan, role, session, meta, limit };
+ }
+ 
+ export const roleLabels: Record<string, string> = {
+diff --git a/lib/quiz-selection.ts b/lib/quiz-selection.ts
+new file mode 100644
+index 0000000..d4a0045
+--- /dev/null
++++ b/lib/quiz-selection.ts
+@@ -0,0 +1,83 @@
++function shuffled<T>(values: readonly T[], random: () => number): T[] {
++  const result = [...values];
++  for (let i = result.length - 1; i > 0; i--) {
++    const j = Math.floor(random() * (i + 1));
++    [result[i], result[j]] = [result[j], result[i]];
++  }
++  return result;
++}
++
++/** Selects questions round-robin so selected topics contribute evenly, repeating only after a topic's pool is exhausted. */
++export function selectBalancedQuestions<T extends { topicId?: string }>(
++  questions: readonly T[],
++  topicIds: readonly string[],
++  count: number,
++  random: () => number = Math.random,
++): T[] {
++  const topics = shuffled(
++    Array.from(new Set(topicIds)).map((topicId) => {
++      const topicQuestions = questions.filter((question) => question.topicId === topicId);
++      return {
++        questions: topicQuestions,
++        cycle: shuffled(topicQuestions, random),
++        cursor: 0,
++        lastQuestion: undefined as T | undefined,
++      };
++    }),
++    random,
++  );
++  const limit = Math.max(0, Math.floor(count));
++  const selected: T[] = [];
++
++  while (selected.length < limit) {
++    let addedThisRound = false;
++    for (const topic of topics) {
++      if (selected.length >= limit) break;
++      if (topic.questions.length === 0) continue;
++      if (topic.cursor >= topic.cycle.length) {
++        topic.cycle = shuffled(topic.questions, random);
++        // Avoid repeating the same question back-to-back at a cycle boundary when alternatives exist.
++        if (topic.cycle.length > 1 && topic.cycle[0] === topic.lastQuestion) {
++          [topic.cycle[0], topic.cycle[1]] = [topic.cycle[1], topic.cycle[0]];
++        }
++        topic.cursor = 0;
++      }
++      const question = topic.cycle[topic.cursor];
++      topic.cursor += 1;
++      topic.lastQuestion = question;
++      selected.push(question);
++      addedThisRound = true;
++    }
++    if (!addedThisRound) break;
++  }
++
++  return shuffled(selected, random);
++}
++
++/** Selects an exact count from a pool, reshuffling before reusing questions. */
++export function selectQuestionsWithReplacement<T>(
++  questions: readonly T[],
++  count: number,
++  random: () => number = Math.random,
++): T[] {
++  const limit = Math.max(0, Math.floor(count));
++  if (questions.length === 0 || limit === 0) return [];
++  const selected: T[] = [];
++  let cycle = shuffled(questions, random);
++  let cursor = 0;
++  let lastQuestion: T | undefined;
++
++  while (selected.length < limit) {
++    if (cursor >= cycle.length) {
++      cycle = shuffled(questions, random);
++      if (cycle.length > 1 && cycle[0] === lastQuestion) {
++        [cycle[0], cycle[1]] = [cycle[1], cycle[0]];
++      }
++      cursor = 0;
++    }
++    const question = cycle[cursor++];
++    selected.push(question);
++    lastQuestion = question;
++  }
++  return shuffled(selected, random);
++}
+diff --git a/screens/AdminScreen.tsx b/screens/AdminScreen.tsx
+index 45e2ece..f9045b8 100644
+--- a/screens/AdminScreen.tsx
++++ b/screens/AdminScreen.tsx
+@@ -49,19 +49,25 @@ import {
+   UserStats,
+ } from '../lib/content-api';
+ import { useCategoryList } from '../lib/lesson-catalog';
+-import { roleLabels } from '../lib/membership';
++import {
++  QuizQuotaSettings,
++  roleLabels,
++  saveQuizQuotaSettings,
++  useQuizQuotaSettings,
++} from '../lib/membership';
+ import { Card, EmptyState } from '../components/ui';
+ import { AdminButton, Choice, ConfirmDialog, Field, Notice } from '../components/admin/AdminUI';
+ import ContentEditor from '../components/admin/ContentEditor';
+ import BulkAdd from '../components/admin/BulkAdd';
+ 
+-type Section = ContentKind | 'overview' | 'admins' | 'audit' | 'reports';
++type Section = ContentKind | 'overview' | 'admins' | 'audit' | 'reports' | 'quotas';
+ const sectionLabels: Record<Section, string> = {
+   overview: 'Genel Bakış',
+   ...kindLabels,
+   admins: 'Yöneticiler',
+   reports: 'Soru Bildirimleri',
+   audit: 'İşlem Geçmişi',
++  quotas: 'Test Kotaları',
+ };
+ const sectionIcons: Record<Section, string> = {
+   overview: 'grid-outline',
+@@ -69,6 +75,7 @@ const sectionIcons: Record<Section, string> = {
+   admins: 'people-outline',
+   reports: 'flag-outline',
+   audit: 'time-outline',
++  quotas: 'speedometer-outline',
+ };
+ const sections = Object.keys(sectionLabels) as Section[];
+ 
+@@ -214,6 +221,13 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+   const { session, signOut, role: myRole } = useAdminAuth();
+   const { refreshContent } = useContent();
+   const CATEGORY_LIST = useCategoryList();
++  const {
++    settings: quotaSettings,
++    setSettings: setQuotaSettings,
++    loading: quotaSettingsLoading,
++    error: quotaSettingsError,
++    reload: reloadQuotaSettings,
++  } = useQuizQuotaSettings();
+   const canManage = myRole === 'admin' || myRole === 'editor';
+   const canGrantRoles = myRole === 'admin';
+   const wide = useWindowDimensions().width >= 960;
+@@ -242,6 +256,17 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+     action: () => Promise<void>;
+   } | null>(null);
+   const [adminEmail, setAdminEmail] = useState('');
++  const [quotaGuestInput, setQuotaGuestInput] = useState('1');
++  const [quotaMemberInput, setQuotaMemberInput] = useState('3');
++  const [quotaVipInput, setQuotaVipInput] = useState('');
++  const [quotaVipUnlimited, setQuotaVipUnlimited] = useState(true);
++  const [quotaBusy, setQuotaBusy] = useState(false);
++  useEffect(() => {
++    setQuotaGuestInput(String(quotaSettings.guest));
++    setQuotaMemberInput(String(quotaSettings.uye));
++    setQuotaVipUnlimited(quotaSettings.vip === null);
++    setQuotaVipInput(quotaSettings.vip === null ? '' : String(quotaSettings.vip));
++  }, [quotaSettings]);
+   const load = useCallback(async () => {
+     if (previewOnly) return;
+     setLoading(true);
+@@ -285,6 +310,34 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+     setMessage(text);
+     await Promise.all([load(), refreshContent()]);
+   }
++  async function saveQuotaSettingsForm() {
++    const guest = /^\d+$/.test(quotaGuestInput) ? Number(quotaGuestInput) : NaN;
++    const uye = /^\d+$/.test(quotaMemberInput) ? Number(quotaMemberInput) : NaN;
++    const vip = quotaVipUnlimited
++      ? null
++      : /^\d+$/.test(quotaVipInput)
++        ? Number(quotaVipInput)
++        : NaN;
++    const valid = (value: number | null) => value === null || (Number.isInteger(value) && value >= 0 && value <= 9999);
++    if (!valid(guest) || !valid(uye) || !valid(vip)) {
++      setError('Her plan için 0 ile 9999 arasında tam sayı girin.');
++      return;
++    }
++    const next: QuizQuotaSettings = { guest, uye, vip };
++    setQuotaBusy(true);
++    setError('');
++    setMessage('');
++    try {
++      await saveQuizQuotaSettings(next);
++      setQuotaSettings(next);
++      await reloadQuotaSettings();
++      setMessage('Günlük test kotaları kaydedildi. Yeni ayarlar kullanıcılara uygulanacak.');
++    } catch (e) {
++      setError(readableError(e));
++    } finally {
++      setQuotaBusy(false);
++    }
++  }
+   async function runConfirm() {
+     if (!confirm || busy || previewOnly) return;
+     setBusy(true);
+@@ -352,7 +405,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+   const published = entries.filter((e) => e.status === 'published').length;
+   const isContent = section in kindLabels;
+   const newReports = reports.filter((r) => r.status === 'new').length;
+-  const visibleSections = sections.filter((s) => (s !== 'admins' && s !== 'reports') || canGrantRoles);
++  const visibleSections = sections.filter((s) => (s !== 'admins' && s !== 'reports' && s !== 'quotas') || canGrantRoles);
+   const navigation = (
+     <View style={{ gap: wide ? 5 : 8, flexDirection: wide ? 'column' : 'row' }}>
+       {visibleSections.map((s) => (
+@@ -468,7 +521,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+                 marginBottom: 7,
+               }}
+             >
+-              YÖNETİM / {section === 'overview' ? 'ÖZET' : 'İÇERİK'}
++              YÖNETİM / {section === 'overview' ? 'ÖZET' : isContent ? 'İÇERİK' : 'AYARLAR'}
+             </Text>
+             <Text style={{ color: theme.text, fontWeight: '900', fontSize: 26 }}>
+               {sectionLabels[section]}
+@@ -859,12 +912,80 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+             )}
+           </>
+         )}
++        {section === 'quotas' && canGrantRoles && (
++          <>
++            <Notice text="Misafir, Üye ve VIP kullanıcıların günlük test haklarını buradan değiştirebilirsiniz. Değişiklik kod güncellemesi gerektirmeden tüm istemcilere uygulanır. 0 test hakkı erişimi kapatır; VIP için sınırsız seçeneği de vardır." />
++            {!!quotaSettingsError && (
++              <Notice text={`Kota ayarları sunucudan okunamadı. Yeni migration kurulmamış olabilir: ${quotaSettingsError}`} error />
++            )}
++            <Card style={{ marginTop: 14, padding: 20 }}>
++              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '900', marginBottom: 5 }}>Günlük test hakları</Text>
++              <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 18, marginBottom: 16 }}>
++                Sınırlar her gün sıfırlanır. Değerleri 0–9999 arasında belirleyebilirsiniz.
++              </Text>
++              <Field
++                label="Misafir planı · günlük test sayısı"
++                value={quotaGuestInput}
++                onChangeText={(value) => setQuotaGuestInput(value.replace(/\D/g, '').slice(0, 4))}
++                keyboardType="number-pad"
++                maxLength={4}
++              />
++              <Field
++                label="Üye planı · günlük test sayısı"
++                value={quotaMemberInput}
++                onChangeText={(value) => setQuotaMemberInput(value.replace(/\D/g, '').slice(0, 4))}
++                keyboardType="number-pad"
++                maxLength={4}
++              />
++              <TouchableOpacity
++                accessibilityRole="checkbox"
++                accessibilityState={{ checked: quotaVipUnlimited }}
++                onPress={() => setQuotaVipUnlimited((current) => !current)}
++                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, marginBottom: 10 }}
++              >
++                <Ionicons name={quotaVipUnlimited ? 'checkbox' : 'square-outline'} size={22} color={theme.accent} />
++                <Text style={{ color: theme.text, fontSize: 13, fontWeight: '700' }}>VIP planı sınırsız olsun</Text>
++              </TouchableOpacity>
++              {!quotaVipUnlimited && (
++                <Field
++                  label="VIP planı · günlük test sayısı"
++                  value={quotaVipInput}
++                  onChangeText={(value) => setQuotaVipInput(value.replace(/\D/g, '').slice(0, 4))}
++                  keyboardType="number-pad"
++                  maxLength={4}
++                />
++              )}
++              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
++                <AdminButton
++                  label="Kotaları kaydet"
++                  icon="save-outline"
++                  busy={quotaBusy}
++                  disabled={previewOnly || !canGrantRoles || quotaSettingsLoading}
++                  onPress={() => void saveQuotaSettingsForm()}
++                />
++                <AdminButton
++                  label="Sunucudan yenile"
++                  icon="refresh"
++                  secondary
++                  disabled={quotaSettingsLoading || previewOnly}
++                  onPress={() => void reloadQuotaSettings()}
++                />
++              </View>
++              {quotaSettingsLoading && (
++                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
++                  <ActivityIndicator size="small" color={theme.accent} />
++                  <Text style={{ color: theme.muted, fontSize: 12 }}>Kota ayarları yükleniyor…</Text>
++                </View>
++              )}
++            </Card>
++          </>
++        )}
+         {section === 'admins' && (
+           <>
+             <Notice
+               text={
+                 canGrantRoles
+-                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP (sınırsız test), Üye (günde 3 test). Yeni hesabın önce uygulamadan üye olması veya Supabase Authentication üzerinden oluşturulması gerekir.'
++                  ? 'Roller: Yönetici (her şey + rol atama), Editör (içerik yönetir), Görüntüleyici (salt okunur), VIP ve Üye (günlük test kotası Test Kotaları bölümünden ayarlanır). Yeni hesabın önce uygulamadan üye olması veya Supabase Authentication üzerinden oluşturulması gerekir.'
+                   : 'Bu bölümü yalnızca yöneticiler düzenleyebilir. Editör ve görüntüleyici rollerinin içerik üzerindeki yetkileri otomatik sınırlandırılır.'
+               }
+             />
+@@ -940,7 +1061,7 @@ function Dashboard({ previewOnly, onExit }: { previewOnly: boolean; onExit: () =
+                     onPress={() =>
+                       setConfirm({
+                         title: 'VIP üyelik verilsin mi?',
+-                        description: `${adminEmail} hesabı sınırsız test çözebilecek.`,
++                        description: `${adminEmail} hesabı VIP planına alınacak. Günlük test hakkı Test Kotaları bölümündeki ayara göre uygulanır.`,
+                         label: 'VIP yap',
+                         action: async () => {
+                           await changeRole(adminEmail, 'vip');
+diff --git a/screens/HomeScreen.tsx b/screens/HomeScreen.tsx
+index 70895bb..4e11dde 100644
+--- a/screens/HomeScreen.tsx
++++ b/screens/HomeScreen.tsx
+@@ -1,11 +1,11 @@
+ import { useContent } from '../lib/content';
+ import React, { useMemo } from 'react';
+-import { FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
++import { FlatList, Modal, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { useApp } from '../lib/store';
+-import { Card, PrimaryButton, SectionTitle, StatTile } from '../components/ui';
++import { Card, PrimaryButton, SectionTitle, StatTile, useResponsiveLayout } from '../components/ui';
+ import { daysUntil, formatDateTR, questionOfDay } from '../lib/data';
+ import { useCategoryList } from '../lib/lesson-catalog';
+ import { Notice } from '../components/admin/AdminUI';
+@@ -20,10 +20,58 @@ function greeting(): string {
+ }
+ 
+ export default function HomeScreen({ navigation }: any) {
+-  const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history } = useApp();
++  const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history, addQuizResult } = useApp();
++  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
+   const { lessons: LESSONS, events: EXAM_EVENTS, targets: TARGET_EXAMS, quotes: QUOTES, questions: QUESTIONS, refreshContent, syncError, source } = useContent();
+   const CATEGORY_LIST = useCategoryList();
+   const [refreshing, setRefreshing] = React.useState(false);
++  const [selectedLessonId, setSelectedLessonId] = React.useState<string | null>(null);
++  const [topicSelectionMode, setTopicSelectionMode] = React.useState<'all' | 'selected'>('all');
++  const [selectedTopicIds, setSelectedTopicIds] = React.useState<string[]>([]);
++  const [topicTestCount, setTopicTestCount] = React.useState(10);
++  const [topicManualCount, setTopicManualCount] = React.useState('');
++  const [useTopicManualCount, setUseTopicManualCount] = React.useState(false);
++  const [qodModalVisible, setQodModalVisible] = React.useState(false);
++  const [qodAnswered, setQodAnswered] = React.useState<number | null>(null);
++  const selectedLesson = LESSONS.find((lesson) => lesson.id === selectedLessonId);
++  const topicTestQuestionCount = selectedLesson
++    ? topicSelectionMode === 'all'
++      ? QUESTIONS.filter((question) => question.category === selectedLesson.id).length
++      : QUESTIONS.filter((question) => question.topicId && selectedTopicIds.includes(question.topicId)).length
++    : 0;
++  const topicCountOptions = [5, 10, 20];
++  const requestedTopicTestCount = useTopicManualCount ? Number(topicManualCount) : topicTestCount;
++  const validTopicTestCount = Number.isInteger(requestedTopicTestCount) && requestedTopicTestCount > 0;
++  const effectiveTopicTestCount = validTopicTestCount ? requestedTopicTestCount : 0;
++
++  const openTopicPicker = (lessonId: string) => {
++    setSelectedLessonId(lessonId);
++    setTopicSelectionMode('all');
++    setSelectedTopicIds([]);
++    setTopicTestCount(10);
++    setTopicManualCount('');
++    setUseTopicManualCount(false);
++  };
++
++  const togglePickedTopic = (topicId: string) => {
++    if (topicSelectionMode === 'all') {
++      setTopicSelectionMode('selected');
++      setSelectedTopicIds([topicId]);
++      return;
++    }
++    setSelectedTopicIds((current) => current.includes(topicId)
++      ? current.filter((id) => id !== topicId)
++      : [...current, topicId]);
++  };
++
++  const startTopicTest = () => {
++    if (!selectedLesson || topicTestQuestionCount === 0 || !validTopicTestCount) return;
++    const params = topicSelectionMode === 'all'
++      ? { mode: 'category', categoryId: selectedLesson.id, count: effectiveTopicTestCount }
++      : { mode: 'topics', topicIds: selectedTopicIds, count: effectiveTopicTestCount };
++    setSelectedLessonId(null);
++    navigation.navigate('Quiz', params);
++  };
+ 
+   const target = useMemo(() => {
+     if (targetExamId) return TARGET_EXAMS.find((t) => t.id === targetExamId) ?? TARGET_EXAMS[0];
+@@ -41,6 +89,17 @@ export default function HomeScreen({ navigation }: any) {
+ 
+   const qod = questionOfDay(QUESTIONS);
+   const qodCat = CATEGORY_LIST.find((c) => c.id === qod?.category);
++  const answerDailyQuestion = (answerIndex: number) => {
++    if (!qod || qodAnswered !== null) return;
++    setQodAnswered(answerIndex);
++    addQuizResult({
++      category: 'Günün Sorusu',
++      categoryId: qod.category,
++      total: 1,
++      correct: answerIndex === qod.answer ? 1 : 0,
++      seconds: 0,
++    });
++  };
+   const quote = useMemo(() => {
+     const day = Math.floor(Date.now() / 86400000);
+     return QUOTES[day % QUOTES.length];
+@@ -58,7 +117,13 @@ export default function HomeScreen({ navigation }: any) {
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+       <ScrollView
+-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
++        contentContainerStyle={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          padding: pagePadding,
++          paddingBottom: isDesktopWeb ? 36 : 28,
++        }}
+         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+         showsVerticalScrollIndicator={false}
+       >
+@@ -184,8 +249,10 @@ export default function HomeScreen({ navigation }: any) {
+           <StatTile icon="star" iconColor={theme.accent} value={target?.scoreType ?? '—'} label="Hedef puan türü" />
+         </View>
+ 
++        {/* Web geniş ekranda soru ve ders seçimini iki sütuna ayır; mobil sıralama aynen korunur. */}
++        <View style={isDesktopWeb ? { flexDirection: 'row', alignItems: 'flex-start', gap: 24 } : undefined}>
+         {/* Question of the day */}
+-        {qod && <View style={{ marginTop: 16 }}>
++        {qod && <View style={{ marginTop: 16, flex: isDesktopWeb ? 1 : undefined }}>
+           <SectionTitle title="Günün Sorusu" subtitle="Her gün yeni bir KPSS sorusu" />
+           <Card>
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+@@ -212,14 +279,17 @@ export default function HomeScreen({ navigation }: any) {
+               <PrimaryButton
+                 label="Soruyu Çöz"
+                 icon="arrow-forward"
+-                onPress={() => navigation.navigate('Quiz', { mode: 'qod' })}
++                onPress={() => {
++                  setQodAnswered(null);
++                  setQodModalVisible(true);
++                }}
+               />
+             </View>
+           </Card>
+         </View>}
+ 
+         {/* Quick categories */}
+-        <View style={{ marginTop: 16 }}>
++        <View style={{ marginTop: 16, flex: isDesktopWeb ? 1 : undefined, minWidth: 0 }}>
+           <SectionTitle
+             title="Dersler"
+             subtitle="Test çözmek için bir ders seç"
+@@ -237,7 +307,7 @@ export default function HomeScreen({ navigation }: any) {
+             contentContainerStyle={{ paddingVertical: 2 }}
+             renderItem={({ item }) => (
+               <TouchableOpacity
+-                onPress={() => navigation.navigate('Quiz', { mode: 'category', categoryId: item.id })}
++                onPress={() => openTopicPicker(item.id)}
+                 activeOpacity={0.8}
+                 style={{
+                   width: 128,
+@@ -270,6 +340,7 @@ export default function HomeScreen({ navigation }: any) {
+             )}
+           />
+         </View>
++        </View>
+ 
+         {/* Quote */}
+         <View style={{ marginTop: 16 }}>
+@@ -339,6 +410,329 @@ export default function HomeScreen({ navigation }: any) {
+           </View>
+         </View>
+       </ScrollView>
++
++      <Modal
++        transparent
++        animationType="fade"
++        visible={qodModalVisible && !!qod}
++        onRequestClose={() => setQodModalVisible(false)}
++      >
++        <View
++          style={{
++            flex: 1,
++            backgroundColor: '#02061799',
++            justifyContent: 'center',
++            alignItems: 'center',
++            padding: 20,
++          }}
++        >
++          {qod && (
++            <View
++              role="dialog"
++              accessibilityLabel="Günün sorusu"
++              accessibilityViewIsModal
++              style={{
++                width: '100%',
++                maxWidth: 560,
++                maxHeight: '90%',
++                backgroundColor: theme.card,
++                borderRadius: 22,
++                padding: 22,
++                borderWidth: 1,
++                borderColor: theme.border,
++              }}
++            >
++              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
++                <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: theme.gold + '1A', alignItems: 'center', justifyContent: 'center', marginRight: 11 }}>
++                  <Ionicons name="sparkles" size={21} color={theme.gold} />
++                </View>
++                <View style={{ flex: 1 }}>
++                  <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>Günün Sorusu</Text>
++                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>Cevabını seçerek çöz</Text>
++                </View>
++                <TouchableOpacity
++                  accessibilityRole="button"
++                  accessibilityLabel="Günün sorusunu kapat"
++                  onPress={() => setQodModalVisible(false)}
++                  style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: theme.card2 }}
++                >
++                  <Ionicons name="close" size={21} color={theme.muted} />
++                </TouchableOpacity>
++              </View>
++
++              <View style={{ alignSelf: 'flex-start', backgroundColor: (qodCat?.color ?? theme.accent) + '1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 12 }}>
++                <Text style={{ color: qodCat?.color ?? theme.accent, fontSize: 11.5, fontWeight: '800' }}>
++                  {qodCat?.name ?? 'KPSS'} · {qod.difficulty}
++                </Text>
++              </View>
++              <Text style={{ color: theme.text, fontSize: 16, lineHeight: 24, fontWeight: '700', marginBottom: 14 }}>
++                {qod.question}
++              </Text>
++
++              <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
++                {qod.options.map((option, index) => {
++                  const answered = qodAnswered !== null;
++                  const isCorrect = index === qod.answer;
++                  const isSelected = index === qodAnswered;
++                  const highlighted = answered && (isCorrect || isSelected);
++                  const backgroundColor = !highlighted
++                    ? theme.card2
++                    : isCorrect
++                      ? theme.successSoft
++                      : theme.dangerSoft;
++                  const borderColor = !highlighted
++                    ? theme.border
++                    : isCorrect
++                      ? theme.success
++                      : theme.danger;
++                  return (
++                    <TouchableOpacity
++                      key={index}
++                      accessibilityRole="button"
++                      accessibilityState={{ disabled: answered }}
++                      disabled={answered}
++                      onPress={() => answerDailyQuestion(index)}
++                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor, borderColor, borderWidth: highlighted ? 2 : 1, borderRadius: 13, padding: 12, marginBottom: 8 }}
++                    >
++                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: answered && (isCorrect || isSelected) ? (isCorrect ? theme.success : theme.danger) : theme.card, borderWidth: 1, borderColor, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
++                        <Text style={{ color: answered && (isCorrect || isSelected) ? '#fff' : theme.muted, fontSize: 12, fontWeight: '900' }}>
++                          {['A', 'B', 'C', 'D', 'E'][index]}
++                        </Text>
++                      </View>
++                      <Text style={{ flex: 1, color: theme.text, fontSize: 13.5, lineHeight: 20, fontWeight: '600' }}>{option}</Text>
++                      {answered && isCorrect && <Ionicons name="checkmark-circle" size={20} color={theme.success} />}
++                    </TouchableOpacity>
++                  );
++                })}
++              </ScrollView>
++
++              {qodAnswered !== null && (
++                <View style={{ backgroundColor: theme.card2, borderRadius: 13, padding: 14, marginTop: 8 }}>
++                  <Text style={{ color: qodAnswered === qod.answer ? theme.success : theme.danger, fontSize: 14, fontWeight: '900', marginBottom: 5 }}>
++                    {qodAnswered === qod.answer ? 'Doğru cevap!' : 'Yanlış cevap'}
++                  </Text>
++                  <Text style={{ color: theme.text, fontSize: 12.5, lineHeight: 19 }}>{qod.explanation}</Text>
++                </View>
++              )}
++              <View style={{ marginTop: 16 }}>
++                <PrimaryButton label="Kapat" icon="checkmark" onPress={() => setQodModalVisible(false)} />
++              </View>
++            </View>
++          )}
++        </View>
++      </Modal>
++
++      <Modal
++        transparent
++        animationType="fade"
++        visible={!!selectedLesson}
++        onRequestClose={() => setSelectedLessonId(null)}
++      >
++        <View
++          style={{
++            flex: 1,
++            backgroundColor: '#02061799',
++            justifyContent: 'center',
++            alignItems: 'center',
++            padding: 20,
++          }}
++        >
++          {selectedLesson && (
++            <View
++              role="dialog"
++              accessibilityLabel={`${selectedLesson.name} konuları`}
++              accessibilityViewIsModal
++              style={{
++                width: '100%',
++                maxWidth: 500,
++                maxHeight: '90%',
++                backgroundColor: theme.card,
++                borderRadius: 22,
++                padding: 20,
++                borderWidth: 1,
++                borderColor: theme.border,
++              }}
++            >
++              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
++                <View
++                  style={{
++                    width: 42,
++                    height: 42,
++                    borderRadius: 13,
++                    backgroundColor: `${selectedLesson.color}1A`,
++                    alignItems: 'center',
++                    justifyContent: 'center',
++                    marginRight: 11,
++                  }}
++                >
++                  <Ionicons name={selectedLesson.icon as any} size={21} color={selectedLesson.color} />
++                </View>
++                <View style={{ flex: 1 }}>
++                  <Text style={{ color: theme.text, fontSize: 17, fontWeight: '900' }}>{selectedLesson.name}</Text>
++                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>Çözmek istediğin konuları seç</Text>
++                </View>
++                <TouchableOpacity
++                  accessibilityRole="button"
++                  accessibilityLabel="Konu penceresini kapat"
++                  onPress={() => setSelectedLessonId(null)}
++                  style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: theme.card2 }}
++                >
++                  <Ionicons name="close" size={21} color={theme.muted} />
++                </TouchableOpacity>
++              </View>
++
++              <TouchableOpacity
++                accessibilityRole="radio"
++                accessibilityState={{ checked: topicSelectionMode === 'all' }}
++                onPress={() => {
++                  setTopicSelectionMode('all');
++                  setSelectedTopicIds([]);
++                }}
++                style={{
++                  flexDirection: 'row',
++                  alignItems: 'center',
++                  backgroundColor: topicSelectionMode === 'all' ? theme.accentSoft : theme.card2,
++                  borderWidth: 1,
++                  borderColor: topicSelectionMode === 'all' ? theme.accent : theme.border,
++                  borderRadius: 13,
++                  padding: 12,
++                  marginBottom: 10,
++                }}
++              >
++                <Ionicons name="layers" size={19} color={topicSelectionMode === 'all' ? theme.accent : theme.muted} />
++                <Text style={{ flex: 1, marginLeft: 9, color: theme.text, fontSize: 13, fontWeight: '800' }}>
++                  Tüm konular
++                </Text>
++                <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
++                  {QUESTIONS.filter((question) => question.category === selectedLesson.id).length} soru
++                </Text>
++              </TouchableOpacity>
++
++              <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
++                {selectedLesson.topics.map((topic) => {
++                  const selected = topicSelectionMode === 'selected' && selectedTopicIds.includes(topic.id);
++                  const available = QUESTIONS.filter((question) => question.topicId === topic.id).length;
++                  return (
++                    <TouchableOpacity
++                      key={topic.id}
++                      accessibilityRole="checkbox"
++                      accessibilityState={{ checked: selected, disabled: available === 0 }}
++                      disabled={available === 0}
++                      onPress={() => togglePickedTopic(topic.id)}
++                      style={{
++                        flexDirection: 'row',
++                        alignItems: 'center',
++                        paddingVertical: 11,
++                        borderBottomWidth: 1,
++                        borderBottomColor: theme.border,
++                        opacity: available === 0 ? 0.45 : 1,
++                      }}
++                    >
++                      <View
++                        style={{
++                          width: 20,
++                          height: 20,
++                          borderRadius: 6,
++                          borderWidth: 1.5,
++                          borderColor: selected ? selectedLesson.color : theme.border,
++                          backgroundColor: selected ? selectedLesson.color : 'transparent',
++                          alignItems: 'center',
++                          justifyContent: 'center',
++                          marginRight: 10,
++                        }}
++                      >
++                        {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
++                      </View>
++                      <Text style={{ flex: 1, color: theme.text, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
++                        {topic.name}
++                      </Text>
++                      <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>{available} soru</Text>
++                    </TouchableOpacity>
++                  );
++                })}
++              </ScrollView>
++
++              <View style={{ marginTop: 14 }}>
++                <Text style={{ color: theme.text, fontSize: 12, fontWeight: '800', marginBottom: 8 }}>
++                  Soru sayısı · {topicTestQuestionCount} farklı soru{topicTestQuestionCount > 0 ? ' · gerekirse tekrar eder' : ''}
++                </Text>
++                <View style={{ flexDirection: 'row', gap: 7 }}>
++                  {topicCountOptions.map((value) => {
++                    const active = !useTopicManualCount && topicTestCount === value;
++                    return (
++                      <TouchableOpacity
++                        key={value}
++                        accessibilityRole="radio"
++                        accessibilityState={{ checked: active }}
++                        onPress={() => {
++                          setTopicTestCount(value);
++                          setUseTopicManualCount(false);
++                        }}
++                        style={{
++                          flex: 1,
++                          minWidth: 0,
++                          alignItems: 'center',
++                          justifyContent: 'center',
++                          paddingVertical: 9,
++                          borderRadius: 10,
++                          backgroundColor: active ? theme.text : theme.card2,
++                          borderWidth: 1,
++                          borderColor: active ? theme.text : theme.border,
++                        }}
++                      >
++                        <Text style={{ color: active ? theme.card : theme.text, fontSize: 12, fontWeight: '800' }}>
++                          {value}
++                        </Text>
++                        <Text style={{ color: active ? theme.card : theme.muted, fontSize: 9.5, marginTop: 1 }}>soru</Text>
++                      </TouchableOpacity>
++                    );
++                  })}
++                  <View style={{
++                    flex: 1,
++                    minWidth: 0,
++                    alignItems: 'center',
++                    justifyContent: 'center',
++                    paddingHorizontal: 5,
++                    paddingVertical: 4,
++                    borderRadius: 10,
++                    backgroundColor: useTopicManualCount ? theme.text : theme.card2,
++                    borderWidth: 1,
++                    borderColor: useTopicManualCount ? theme.text : theme.border,
++                  }}>
++                    <TextInput
++                      accessibilityLabel="Manuel soru sayısı"
++                      keyboardType="number-pad"
++                      maxLength={3}
++                      value={topicManualCount}
++                      placeholder="Sayı"
++                      placeholderTextColor={useTopicManualCount ? theme.card : theme.muted}
++                      onFocus={() => setUseTopicManualCount(true)}
++                      onChangeText={(value) => {
++                        setTopicManualCount(value.replace(/\D/g, '').slice(0, 3));
++                        setUseTopicManualCount(true);
++                      }}
++                      style={{ width: '100%', padding: 0, textAlign: 'center', color: useTopicManualCount ? theme.card : theme.text, fontSize: 13, lineHeight: 18, fontWeight: '800' }}
++                    />
++                    <Text style={{ color: useTopicManualCount ? theme.card : theme.muted, fontSize: 9.5, marginTop: 1 }}>manuel</Text>
++                  </View>
++                </View>
++                <View style={{ marginTop: 14 }}>
++                  <PrimaryButton
++                    label={topicTestQuestionCount === 0
++                      ? 'Soru bulunamadı'
++                      : !validTopicTestCount
++                        ? 'Manuel soru sayısı gir'
++                        : `Teste Başla (${effectiveTopicTestCount} soru)`}
++                    icon="play"
++                    disabled={topicTestQuestionCount === 0 || !validTopicTestCount}
++                    onPress={startTopicTest}
++                  />
++                </View>
++              </View>
++            </View>
++          )}
++        </View>
++      </Modal>
+     </SafeAreaView>
+   );
+ }
+diff --git a/screens/NewsScreen.tsx b/screens/NewsScreen.tsx
+index 8814654..35940ae 100644
+--- a/screens/NewsScreen.tsx
++++ b/screens/NewsScreen.tsx
+@@ -4,7 +4,7 @@ import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from 'r
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useApp } from '../lib/store';
+-import { Card, Chip, EmptyState } from '../components/ui';
++import { Card, Chip, EmptyState, useResponsiveLayout } from '../components/ui';
+ import { NewsCategory } from '../lib/data';
+ 
+ const FILTERS: ('Tümü' | NewsCategory)[] = ['Tümü', 'Spor', 'Kültür-Sanat', 'Bilim', 'Kurumlar', 'Klasikler'];
+@@ -19,6 +19,7 @@ const CAT_COLORS: Record<string, string> = {
+ 
+ export default function NewsScreen({ navigation }: any) {
+   const { theme } = useApp();
++  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
+   const { news: NEWS } = useContent();
+   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tümü');
+   const [query, setQuery] = useState('');
+@@ -34,7 +35,15 @@ export default function NewsScreen({ navigation }: any) {
+ 
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+-      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
++      <View
++        style={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          paddingHorizontal: pagePadding,
++          paddingTop: isDesktopWeb ? 24 : 8,
++        }}
++      >
+         <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Güncel Bilgiler</Text>
+         <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
+           2024–2026 gündemi ve sınav klasikleri • {NEWS.length} kart
+@@ -76,9 +85,19 @@ export default function NewsScreen({ navigation }: any) {
+         </View>
+       </View>
+       <FlatList
++        key={isDesktopWeb ? 'web-grid' : 'mobile-list'}
+         data={list}
++        numColumns={isDesktopWeb ? 2 : 1}
++        columnWrapperStyle={isDesktopWeb ? { gap: 16 } : undefined}
+         keyExtractor={(i) => i.id}
+-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
++        contentContainerStyle={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          padding: pagePadding,
++          paddingTop: 12,
++          paddingBottom: 36,
++        }}
+         showsVerticalScrollIndicator={false}
+         ListHeaderComponent={
+           <TouchableOpacity
+@@ -107,7 +126,11 @@ export default function NewsScreen({ navigation }: any) {
+           const color = CAT_COLORS[item.category] ?? theme.accent;
+           const open = expandedId === item.id;
+           return (
+-            <TouchableOpacity onPress={() => setExpandedId(open ? null : item.id)} activeOpacity={0.8}>
++            <TouchableOpacity
++              style={{ flex: 1 }}
++              onPress={() => setExpandedId(open ? null : item.id)}
++              activeOpacity={0.8}
++            >
+               <Card style={{ marginBottom: 10 }}>
+                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                   <View style={{ backgroundColor: color + '1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+diff --git a/screens/ProfileScreen.tsx b/screens/ProfileScreen.tsx
+index 2a8d859..4e45c26 100644
+--- a/screens/ProfileScreen.tsx
++++ b/screens/ProfileScreen.tsx
+@@ -7,7 +7,7 @@ import { useApp } from '../lib/store';
+ import { useAdminAuth } from '../lib/admin-auth';
+ import { supabase } from '../lib/supabase';
+ import { usePlan, roleLabels } from '../lib/membership';
+-import { Card, EmptyState, PrimaryButton, ProgressBar, SectionTitle, StatTile } from '../components/ui';
++import { Card, EmptyState, PrimaryButton, ProgressBar, SectionTitle, StatTile, useResponsiveLayout } from '../components/ui';
+ import AuthScreen from '../components/AuthScreen';
+ import { useCategoryList } from '../lib/lesson-catalog';
+ import { radius } from '../lib/theme';
+@@ -18,6 +18,7 @@ export default function ProfileScreen({ navigation }: any) {
+     streak, totalQuestions, totalCorrect, accuracy, totalSeconds, themeChoice, setThemeChoice,
+     completedTopics, resetAll, activityDates,
+   } = useApp();
++  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
+   const { questions: QUESTIONS, lessons: LESSONS, targets: TARGET_EXAMS } = useContent();
+   const CATEGORY_LIST = useCategoryList();
+   const { session, role, signOut } = useAdminAuth();
+@@ -63,7 +64,16 @@ export default function ProfileScreen({ navigation }: any) {
+ 
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
++      <ScrollView
++        contentContainerStyle={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          padding: pagePadding,
++          paddingBottom: isDesktopWeb ? 36 : 28,
++        }}
++        showsVerticalScrollIndicator={false}
++      >
+         {/* Profile header */}
+         <Card>
+           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+diff --git a/screens/QuizResultScreen.tsx b/screens/QuizResultScreen.tsx
+index dede542..2b8a958 100644
+--- a/screens/QuizResultScreen.tsx
++++ b/screens/QuizResultScreen.tsx
+@@ -8,7 +8,7 @@ import { radius } from '../lib/theme';
+ 
+ export default function QuizResultScreen({ navigation, route }: any) {
+   const { theme } = useApp();
+-  const { total, correct, seconds, category, mode, categoryId, wrongIds = [] } = route.params;
++  const { total, correct, seconds, category, mode, categoryId, topicIds, wrongIds = [] } = route.params;
+   const wrong = total - correct;
+   const net = correct - wrong / 4;
+   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+@@ -91,7 +91,7 @@ export default function QuizResultScreen({ navigation, route }: any) {
+               onPress={() =>
+                 mode === 'qod'
+                   ? navigation.replace('Quiz', { mode: 'mixed', count: 10 })
+-                  : navigation.replace('Quiz', { mode, categoryId, count: total })
++                  : navigation.replace('Quiz', { mode, categoryId, topicIds, count: total })
+               }
+             />
+           </View>
+diff --git a/screens/QuizScreen.tsx b/screens/QuizScreen.tsx
+index bb8ed71..896709b 100644
+--- a/screens/QuizScreen.tsx
++++ b/screens/QuizScreen.tsx
+@@ -1,6 +1,6 @@
+ import { useContent } from '../lib/content';
+ import React, { useEffect, useRef, useState } from 'react';
+-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
++import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import * as Haptics from 'expo-haptics';
+@@ -9,15 +9,20 @@ import { Card, ProgressBar } from '../components/ui';
+ import { QuizQuestion, questionOfDay } from '../lib/data';
+ import { useCategoryList } from '../lib/lesson-catalog';
+ import { useAdminAuth } from '../lib/admin-auth';
+-import { planFor, dailyLimit, todayCount, consumeQuiz, quotaUserKey } from '../lib/membership';
++import { planFor, dailyLimit, todayCount, consumeQuiz, quotaUserKey, useQuizQuotaSettings } from '../lib/membership';
+ import { radius } from '../lib/theme';
+ import { ContentEntry } from '../lib/content-schema';
+ import { fetchEntries, readableError, saveEntry, submitReport } from '../lib/content-api';
++import { selectBalancedQuestions, selectQuestionsWithReplacement } from '../lib/quiz-selection';
+ import ContentEditor from '../components/admin/ContentEditor';
+ import { AdminButton } from '../components/admin/AdminUI';
+ 
+ const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+ 
++function quotaLabel(limit: number): string {
++  return Number.isFinite(limit) ? `günde ${limit} test` : 'sınırsız test';
++}
++
+ function shuffle<T>(arr: T[]): T[] {
+   const a = [...arr];
+   for (let i = a.length - 1; i > 0; i--) {
+@@ -33,7 +38,9 @@ export default function QuizScreen({ navigation, route }: any) {
+   const CATEGORY_LIST = useCategoryList();
+   const { session, role, canManageContent } = useAdminAuth();
+   const plan = planFor(role, !!session);
+-  const { mode = 'mixed', categoryId, count = 10, reviewIds } = route?.params ?? {};
++  const { settings: quotaSettings, loading: quotaSettingsLoading } = useQuizQuotaSettings();
++  const quotaLimit = dailyLimit(plan, quotaSettings);
++  const { mode = 'mixed', categoryId, count = 10, reviewIds, topicIds } = route?.params ?? {};
+ 
+   // Freeze the published question set at test start; background refresh must not alter answers.
+   const [questions] = useState<QuizQuestion[]>(() => {
+@@ -45,8 +52,14 @@ export default function QuizScreen({ navigation, route }: any) {
+     if (mode === 'review' && Array.isArray(reviewIds)) {
+       return QUESTIONS.filter((q) => reviewIds.includes(q.id));
+     }
++    if (mode === 'topics' && Array.isArray(topicIds)) {
++      return selectBalancedQuestions(QUESTIONS, topicIds, count);
++    }
+     const pool = mode === 'category' && categoryId ? QUESTIONS.filter((q) => q.category === categoryId) : QUESTIONS;
+-    return shuffle(pool).slice(0, Math.min(count, pool.length));
++    const poolTopicIds = Array.from(new Set(pool.flatMap((question) => question.topicId ? [question.topicId] : [])));
++    return poolTopicIds.length > 0
++      ? selectBalancedQuestions(pool, poolTopicIds, count)
++      : selectQuestionsWithReplacement(pool, count);
+   });
+ 
+   const [index, setIndex] = useState(0);
+@@ -55,7 +68,7 @@ export default function QuizScreen({ navigation, route }: any) {
+   const [seconds, setSeconds] = useState(0);
+   const [showExit, setShowExit] = useState(false);
+   const [quotaBlocked, setQuotaBlocked] = useState(false);
+-  const [quotaUsed, setQuotaUsed] = useState(0);
++  const [quotaCheckLoading, setQuotaCheckLoading] = useState(mode !== 'qod');
+   const timer = useRef<any>(null);
+ 
+   // Admin: soru üzerinde düzenleme (inline editor)
+@@ -71,21 +84,40 @@ export default function QuizScreen({ navigation, route }: any) {
+   const quotaExempt = mode === 'qod';
+ 
+   useEffect(() => {
+-    if (quotaExempt) return;
++    if (quotaExempt) {
++      setQuotaCheckLoading(false);
++      return;
++    }
++    if (quotaSettingsLoading) {
++      setQuotaCheckLoading(true);
++      return;
++    }
++    let active = true;
++    setQuotaCheckLoading(true);
+     (async () => {
+       const userKey = quotaUserKey(session?.user.id, role);
+-      const limit = dailyLimit(plan);
+       const used = await todayCount(userKey);
+-      setQuotaUsed(used);
+-      if (Number.isFinite(limit) && used >= limit) setQuotaBlocked(true);
++      if (!active) return;
++      setQuotaBlocked(Number.isFinite(quotaLimit) && used >= quotaLimit);
++      setQuotaCheckLoading(false);
+     })();
+-  }, [session?.user.id, role, plan, quotaExempt]);
++    return () => { active = false; };
++  }, [session?.user.id, role, plan, quotaExempt, quotaSettingsLoading, quotaLimit]);
+ 
+   useEffect(() => {
+     timer.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+     return () => clearInterval(timer.current);
+   }, []);
+ 
++  if (!quotaExempt && (quotaSettingsLoading || quotaCheckLoading)) {
++    return (
++      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
++        <ActivityIndicator size="large" color={theme.accent} />
++        <Text style={{ color: theme.muted, marginTop: 12 }}>Günlük test hakkın kontrol ediliyor…</Text>
++      </SafeAreaView>
++    );
++  }
++
+   if (quotaBlocked) {
+     return (
+       <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+@@ -107,8 +139,10 @@ export default function QuizScreen({ navigation, route }: any) {
+         </Text>
+         <Text style={{ color: theme.muted, textAlign: 'center', lineHeight: 21, marginTop: 10 }}>
+           {plan === 'guest'
+-            ? 'Misafirler günde 1 test çözebilir. Üye olup günde 3 test çözebilir, VIP ile sınırsız erişim sağlayabilirsin.'
+-            : 'Üye planında günde 3 test çözebilirsin. VIP üyelik sınırsız test imkânı sunar.'}
++            ? `Misafir planındaki ${quotaLabel(quotaLimit)} hakkın doldu. Üye planında ${quotaLabel(dailyLimit('uye', quotaSettings))}, VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
++            : plan === 'uye'
++              ? `Üye planındaki ${quotaLabel(quotaLimit)} hakkın doldu. VIP planında ${quotaLabel(dailyLimit('vip', quotaSettings))} hakkın var.`
++              : `VIP planındaki ${quotaLabel(quotaLimit)} hakkın doldu.`}
+         </Text>
+         <View style={{ marginTop: 22, width: '100%', maxWidth: 320, gap: 10 }}>
+           <TouchableOpacity
+@@ -184,11 +218,19 @@ export default function QuizScreen({ navigation, route }: any) {
+   const finish = () => {
+     clearInterval(timer.current);
+     if (!quotaExempt) {
+-      void consumeQuiz(quotaUserKey(session?.user.id, role), plan).catch(() => {});
++      void consumeQuiz(quotaUserKey(session?.user.id, role), plan, quotaSettings).catch(() => {});
+     }
+     const total = questions.length;
+     const correct = answers.filter((a, i) => a !== null && a === questions[i].answer).length;
+-    const label = mode === 'qod' ? 'Günün Sorusu' : mode === 'favorites' ? 'Favoriler' : mode === 'category' ? cat?.name ?? 'Test' : 'Karışık Test';
++    const label = mode === 'qod'
++      ? 'Günün Sorusu'
++      : mode === 'favorites'
++        ? 'Favoriler'
++        : mode === 'topics'
++          ? 'Seçilen Konular'
++          : mode === 'category'
++            ? cat?.name ?? 'Test'
++            : 'Karışık Test';
+     addQuizResult({
+       category: label,
+       categoryId: (mode === 'category' ? (categoryId as string) : 'mixed') ?? 'mixed',
+@@ -204,15 +246,16 @@ export default function QuizScreen({ navigation, route }: any) {
+       category: label,
+       mode,
+       categoryId,
++      topicIds,
+       wrongIds,
+     });
+   };
+ 
+-  const tryExit = () => {
+-    Alert.alert('Testten çıkılsın mı?', 'İlerlemen kaydedilmeyecek.', [
+-      { text: 'Vazgeç', style: 'cancel' },
+-      { text: 'Çık', style: 'destructive', onPress: () => navigation.goBack() },
+-    ]);
++  const tryExit = () => setShowExit(true);
++  const confirmExit = () => {
++    clearInterval(timer.current);
++    setShowExit(false);
++    navigation.goBack();
+   };
+ 
+   // Admin: soruyu yerinde düzenle (yayındaki kaydı bul veya yeni olarak aç).
+@@ -259,7 +302,12 @@ export default function QuizScreen({ navigation, route }: any) {
+       {/* Header */}
+       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 }}>
+         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+-          <TouchableOpacity onPress={tryExit} style={{ flexDirection: 'row', alignItems: 'center' }}>
++          <TouchableOpacity
++            accessibilityRole="button"
++            accessibilityLabel="Testten çık"
++            onPress={tryExit}
++            style={{ minWidth: 44, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}
++          >
+             <Ionicons name="close" size={24} color={theme.text} />
+           </TouchableOpacity>
+           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.card, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: theme.border }}>
+@@ -516,6 +564,53 @@ export default function QuizScreen({ navigation, route }: any) {
+         </View>
+       </ScrollView>
+ 
++      <Modal transparent animationType="fade" visible={showExit} onRequestClose={() => setShowExit(false)}>
++        <View
++          style={{
++            flex: 1,
++            backgroundColor: '#02061799',
++            justifyContent: 'center',
++            alignItems: 'center',
++            padding: 22,
++          }}
++        >
++          <View
++            role="dialog"
++            accessibilityLabel="Testten çıkış onayı"
++            accessibilityViewIsModal
++            style={{ width: '100%', maxWidth: 420, borderRadius: 20, backgroundColor: theme.card, padding: 24 }}
++          >
++            <View style={{ alignItems: 'center', marginBottom: 12 }}>
++              <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: theme.dangerSoft, alignItems: 'center', justifyContent: 'center' }}>
++                <Ionicons name="exit-outline" size={26} color={theme.danger} />
++              </View>
++            </View>
++            <Text style={{ color: theme.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>
++              Testten çıkılsın mı?
++            </Text>
++            <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 8 }}>
++              Bu testteki ilerlemen kaydedilmeyecek.
++            </Text>
++            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
++              <TouchableOpacity
++                accessibilityRole="button"
++                onPress={() => setShowExit(false)}
++                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 13, backgroundColor: theme.card2, borderWidth: 1, borderColor: theme.border }}
++              >
++                <Text style={{ color: theme.text, fontWeight: '800' }}>Teste devam et</Text>
++              </TouchableOpacity>
++              <TouchableOpacity
++                accessibilityRole="button"
++                onPress={confirmExit}
++                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 13, backgroundColor: theme.danger }}
++              >
++                <Text style={{ color: '#fff', fontWeight: '800' }}>Testten çık</Text>
++              </TouchableOpacity>
++            </View>
++          </View>
++        </View>
++      </Modal>
++
+       {/* Admin: soruyu yerinde düzenle */}
+       {editing && (
+         <ContentEditor
+diff --git a/screens/QuizSetupScreen.tsx b/screens/QuizSetupScreen.tsx
+index 1315133..9172222 100644
+--- a/screens/QuizSetupScreen.tsx
++++ b/screens/QuizSetupScreen.tsx
+@@ -1,194 +1,368 @@
+ import { useContent } from '../lib/content';
+-import React, { useState } from 'react';
+-import { FlatList, Text, TouchableOpacity, View } from 'react-native';
++import React, { useEffect, useState } from 'react';
++import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useApp } from '../lib/store';
+-import { Card, PrimaryButton, SectionTitle } from '../components/ui';
++import { Card, PrimaryButton, SectionTitle, useResponsiveLayout } from '../components/ui';
+ import { useAdminAuth } from '../lib/admin-auth';
+-import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META } from '../lib/membership';
+-import { useCategoryList } from '../lib/lesson-catalog';
++import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META, useQuizQuotaSettings } from '../lib/membership';
+ import { radius } from '../lib/theme';
+ 
+ const COUNTS = [5, 10, 20];
+ 
+-export default function QuizSetupScreen({ navigation, route }: any) {
++export default function QuizSetupScreen({ navigation }: any) {
+   const { theme } = useApp();
+-  const { questions: QUESTIONS } = useContent();
+-  const CATEGORY_LIST = useCategoryList();
++  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
++  const { questions: QUESTIONS, lessons: LESSONS } = useContent();
+   const { session, role } = useAdminAuth();
+   const plan = planFor(role, !!session);
+-  const [selectedCat, setSelectedCat] = useState<string>(route?.params?.categoryId ?? 'mixed');
++  const { settings: quotaSettings } = useQuizQuotaSettings();
++  const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
++  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
++  const [expandedLessons, setExpandedLessons] = useState<string[]>(() => LESSONS.map((lesson) => lesson.id));
+   const [count, setCount] = useState(10);
++  const [manualCount, setManualCount] = useState('');
++  const [useManualCount, setUseManualCount] = useState(false);
+   const [usedToday, setUsedToday] = useState(0);
+-  React.useEffect(() => {
++
++  useEffect(() => {
+     void todayCount(quotaUserKey(session?.user.id, role)).then(setUsedToday);
+   }, [session?.user.id, role]);
+-  const limit = dailyLimit(plan);
++
++  const limit = dailyLimit(plan, quotaSettings);
+   const remaining = Number.isFinite(limit) ? Math.max(0, limit - usedToday) : null;
++  const questionCount = selectionMode === 'all'
++    ? QUESTIONS.length
++    : QUESTIONS.filter((question) => question.topicId && selectedTopics.includes(question.topicId)).length;
++  const requestedCount = useManualCount ? Number(manualCount) : count;
++  const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
++  const effectiveCount = validRequestedCount ? requestedCount : 0;
+ 
+-  const cats = [{ id: 'mixed', name: 'Karışık Test', icon: 'shuffle', color: theme.accent, desc: 'Tüm derslerden karma sorular' } as any, ...CATEGORY_LIST];
++  const toggleLesson = (lessonId: string) => {
++    setExpandedLessons((current) => current.includes(lessonId)
++      ? current.filter((id) => id !== lessonId)
++      : [...current, lessonId]);
++  };
+ 
+-  const questionCount = selectedCat === 'mixed'
+-    ? QUESTIONS.length
+-    : QUESTIONS.filter((q) => q.category === selectedCat).length;
++  const toggleTopic = (topicId: string) => {
++    if (selectionMode === 'all') {
++      setSelectionMode('selected');
++      setSelectedTopics([topicId]);
++      return;
++    }
++    setSelectedTopics((current) => current.includes(topicId)
++      ? current.filter((id) => id !== topicId)
++      : [...current, topicId]);
++  };
++
++  const toggleLessonTopics = (topicIds: string[]) => {
++    const allSelected = selectionMode === 'selected' && topicIds.every((id) => selectedTopics.includes(id));
++    if (selectionMode === 'all') {
++      setSelectionMode('selected');
++      setSelectedTopics(topicIds);
++    } else if (allSelected) {
++      setSelectedTopics((current) => current.filter((id) => !topicIds.includes(id)));
++    } else {
++      setSelectedTopics((current) => Array.from(new Set([...current, ...topicIds])));
++    }
++  };
++
++  const selectAllTopics = () => {
++    setSelectionMode('all');
++    setSelectedTopics([]);
++  };
+ 
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+-      <FlatList
+-        data={[]}
+-        renderItem={null}
+-        ListHeaderComponent={
+-          <View style={{ padding: 16 }}>
+-            <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Test Çöz</Text>
+-            <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
+-              Dersini ve soru sayısını seç, hemen başla
++      <ScrollView
++        contentContainerStyle={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          padding: pagePadding,
++          paddingBottom: 36,
++        }}
++        showsVerticalScrollIndicator={false}
++      >
++        <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Test Çöz</Text>
++        <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
++          Konularını seç veya tüm konulardan karışık test çöz
++        </Text>
++
++        <Card
++          style={{
++            marginTop: 16,
++            flexDirection: 'row',
++            alignItems: 'center',
++            gap: 12,
++            padding: 13,
++          } as any}
++        >
++          <Ionicons name={PLAN_META[plan].icon as any} size={22} color={PLAN_META[plan].color} />
++          <View style={{ flex: 1 }}>
++            <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.text }}>
++              {PLAN_META[plan].label} planı
++            </Text>
++            <Text style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>
++              {remaining === null ? 'Sınırsız test hakkı' : `Bugün kalan test hakkı: ${remaining} / ${limit}`}
+             </Text>
+-            <Card
++          </View>
++          {remaining === 0 && (
++            <TouchableOpacity
++              onPress={() => navigation.navigate('Profil')}
++              style={{ backgroundColor: theme.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}
++            >
++              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Üye Ol</Text>
++            </TouchableOpacity>
++          )}
++        </Card>
++
++        <View style={{ marginTop: 18 }}>
++          <SectionTitle
++            title="Konu Seçimi"
++            subtitle={selectionMode === 'all'
++              ? `${QUESTIONS.length} sorunun tamamı dahil`
++              : `${selectedTopics.length} konu · ${questionCount} soru`}
++          />
++          <TouchableOpacity
++            accessibilityRole="radio"
++            accessibilityState={{ checked: selectionMode === 'all' }}
++            onPress={selectAllTopics}
++            activeOpacity={0.8}
++            style={{
++              flexDirection: 'row',
++              alignItems: 'center',
++              backgroundColor: selectionMode === 'all' ? theme.accentSoft : theme.card,
++              borderColor: selectionMode === 'all' ? theme.accent : theme.border,
++              borderWidth: selectionMode === 'all' ? 2 : 1,
++              borderRadius: radius.md,
++              padding: 14,
++              marginBottom: 12,
++            }}
++          >
++            <View
+               style={{
+-                marginTop: 12,
+-                flexDirection: 'row',
++                width: 38,
++                height: 38,
++                borderRadius: 12,
+                 alignItems: 'center',
+-                gap: 12,
+-                padding: 13,
+-              } as any}
++                justifyContent: 'center',
++                backgroundColor: selectionMode === 'all' ? theme.accent : theme.card2,
++                marginRight: 12,
++              }}
+             >
+-              <Ionicons name={PLAN_META[plan].icon as any} size={22} color={PLAN_META[plan].color} />
+-              <View style={{ flex: 1 }}>
+-                <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.text }}>
+-                  {PLAN_META[plan].label} planı
+-                </Text>
+-                <Text style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>
+-                  {remaining === null
+-                    ? 'Sınırsız test hakkı'
+-                    : `Bugün kalan test hakkı: ${remaining} / ${limit}`}
+-                </Text>
+-              </View>
+-              {remaining === 0 && (
+-                <TouchableOpacity
+-                  onPress={() => navigation.navigate('Profil')}
++              <Ionicons name="layers" size={20} color={selectionMode === 'all' ? '#fff' : theme.muted} />
++            </View>
++            <View style={{ flex: 1 }}>
++              <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>Tüm konular</Text>
++              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>Bütün derslerden karışık test</Text>
++            </View>
++            {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
++          </TouchableOpacity>
++
++          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14 } : undefined}>
++            {LESSONS.map((lesson) => {
++              const expanded = expandedLessons.includes(lesson.id);
++              const topicIds = lesson.topics.map((topic) => topic.id);
++              const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
++              return (
++                <Card
++                  key={lesson.id}
+                   style={{
+-                    backgroundColor: theme.accent,
+-                    borderRadius: 10,
+-                    paddingHorizontal: 12,
+-                    paddingVertical: 8,
++                    padding: 0,
++                    marginBottom: isDesktopWeb ? 0 : 10,
++                    width: isDesktopWeb ? '48.5%' : undefined,
++                    overflow: 'hidden',
+                   }}
+                 >
+-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Üye Ol</Text>
+-                </TouchableOpacity>
+-              )}
+-            </Card>
+-
+-            <View style={{ marginTop: 16 }}>
+-              <SectionTitle title="Ders Seç" subtitle={`${cats.length} seçenek`} />
+-              {cats.map((c: any) => {
+-                const active = selectedCat === c.id;
+-                const n = c.id === 'mixed' ? QUESTIONS.length : QUESTIONS.filter((q) => q.category === c.id).length;
+-                return (
+-                  <TouchableOpacity key={c.id} onPress={() => setSelectedCat(c.id)} activeOpacity={0.8}>
+-                    <Card
+-                      style={{
+-                        marginBottom: 10,
+-                        borderColor: active ? c.color : theme.border,
+-                        borderWidth: active ? 2 : 1,
+-                        padding: 14,
+-                        flexDirection: 'row',
+-                        alignItems: 'center',
+-                      } as any}
++                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
++                    <TouchableOpacity
++                      accessibilityRole="button"
++                      onPress={() => toggleLesson(lesson.id)}
++                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 }}
+                     >
+                       <View
+                         style={{
+-                          width: 46,
+-                          height: 46,
+-                          borderRadius: 14,
+-                          backgroundColor: c.color + '1A',
++                          width: 40,
++                          height: 40,
++                          borderRadius: 12,
++                          backgroundColor: `${lesson.color}1A`,
+                           alignItems: 'center',
+                           justifyContent: 'center',
+-                          marginRight: 12,
++                          marginRight: 10,
+                         }}
+                       >
+-                        <Ionicons name={c.icon as any} size={22} color={c.color} />
++                        <Ionicons name={lesson.icon as any} size={20} color={lesson.color} />
+                       </View>
+-                      <View style={{ flex: 1 }}>
+-                        <Text style={{ fontSize: 15, fontWeight: '800', color: theme.text }}>{c.name}</Text>
+-                        <Text style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>
+-                          {c.desc} • {n} soru
++                      <View style={{ flex: 1, minWidth: 0 }}>
++                        <Text style={{ color: theme.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
++                          {lesson.name}
++                        </Text>
++                        <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 2 }}>
++                          {lesson.topics.length} konu · {QUESTIONS.filter((question) => question.category === lesson.id).length} soru
+                         </Text>
+                       </View>
+-                      <View
+-                        style={{
+-                          width: 24,
+-                          height: 24,
+-                          borderRadius: 12,
+-                          backgroundColor: active ? c.color : 'transparent',
+-                          borderWidth: 2,
+-                          borderColor: active ? c.color : theme.border,
+-                          alignItems: 'center',
+-                          justifyContent: 'center',
+-                        }}
+-                      >
+-                        {active ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+-                      </View>
+-                    </Card>
+-                  </TouchableOpacity>
+-                );
+-              })}
+-            </View>
+-
+-            <View style={{ marginTop: 8 }}>
+-              <SectionTitle title="Soru Sayısı" subtitle={`Bu derste ${questionCount} soru var`} />
+-              <View style={{ flexDirection: 'row' }}>
+-                {COUNTS.map((c) => {
+-                  const active = count === c;
+-                  const disabled = c > questionCount;
+-                  return (
++                      <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.muted} />
++                    </TouchableOpacity>
+                     <TouchableOpacity
+-                      key={c}
+-                      disabled={disabled}
+-                      onPress={() => setCount(c)}
+-                      activeOpacity={0.8}
++                      accessibilityRole="button"
++                      accessibilityLabel={`${lesson.name} dersinin tüm konularını ${allSelected ? 'kaldır' : 'seç'}`}
++                      onPress={() => toggleLessonTopics(topicIds)}
+                       style={{
+-                        flex: 1,
+-                        backgroundColor: active ? theme.text : theme.card,
+-                        borderRadius: radius.md,
+-                        paddingVertical: 14,
+-                        alignItems: 'center',
+-                        marginRight: c === 20 ? 0 : 10,
+-                        borderWidth: 1,
+-                        borderColor: active ? theme.text : theme.border,
+-                        opacity: disabled ? 0.4 : 1,
++                        marginLeft: 8,
++                        paddingHorizontal: 9,
++                        paddingVertical: 8,
++                        borderRadius: 10,
++                        backgroundColor: allSelected ? lesson.color : theme.card2,
+                       }}
+                     >
+-                      <Text style={{ fontSize: 17, fontWeight: '900', color: active ? theme.card : theme.text }}>
+-                        {c}
++                      <Text style={{ color: allSelected ? '#fff' : theme.muted, fontSize: 10.5, fontWeight: '800' }}>
++                        {allSelected ? 'Seçili' : 'Tümünü seç'}
+                       </Text>
+-                      <Text style={{ fontSize: 11, color: active ? theme.card : theme.muted, marginTop: 2 }}>soru</Text>
+                     </TouchableOpacity>
+-                  );
+-                })}
+-              </View>
+-            </View>
++                  </View>
++
++                  {expanded && (
++                    <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
++                      {lesson.topics.map((topic) => {
++                        const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
++                        const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
++                        return (
++                          <TouchableOpacity
++                            key={topic.id}
++                            accessibilityRole="checkbox"
++                            accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
++                            disabled={topicQuestionCount === 0}
++                            onPress={() => toggleTopic(topic.id)}
++                            activeOpacity={0.75}
++                            style={{
++                              flexDirection: 'row',
++                              alignItems: 'center',
++                              backgroundColor: selected ? `${lesson.color}12` : 'transparent',
++                              borderTopWidth: 1,
++                              borderTopColor: theme.border,
++                              paddingVertical: 10,
++                              paddingHorizontal: 2,
++                              opacity: topicQuestionCount === 0 ? 0.45 : 1,
++                            }}
++                          >
++                            <View
++                              style={{
++                                width: 20,
++                                height: 20,
++                                borderRadius: 6,
++                                borderWidth: 1.5,
++                                borderColor: selected ? lesson.color : theme.border,
++                                backgroundColor: selected ? lesson.color : 'transparent',
++                                alignItems: 'center',
++                                justifyContent: 'center',
++                                marginRight: 10,
++                              }}
++                            >
++                              {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
++                            </View>
++                            <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
++                              {topic.name}
++                            </Text>
++                            <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
++                              {topicQuestionCount} soru
++                            </Text>
++                          </TouchableOpacity>
++                        );
++                      })}
++                    </View>
++                  )}
++                </Card>
++              );
++            })}
++          </View>
++        </View>
+ 
+-            <View style={{ marginTop: 18, marginBottom: 12 }}>
+-              <PrimaryButton
+-                label={questionCount ? `Teste Başla (${Math.min(count, questionCount)} soru)` : "Henüz yayında soru yok"}
+-                disabled={questionCount === 0}
+-                icon="play"
+-                onPress={() =>
+-                  navigation.navigate('Quiz', {
+-                    mode: selectedCat === 'mixed' ? 'mixed' : 'category',
+-                    categoryId: selectedCat === 'mixed' ? undefined : selectedCat,
+-                    count: Math.min(count, questionCount),
+-                  })
+-                }
++        <View style={{ marginTop: 14 }}>
++          <SectionTitle title="Soru Sayısı" subtitle={`${questionCount} farklı soru mevcut; gerekirse sorular tekrar eder`} />
++          <View style={{ flexDirection: 'row', gap: 8 }}>
++            {COUNTS.map((value) => {
++              const active = !useManualCount && count === value;
++              return (
++                <TouchableOpacity
++                  key={value}
++                  accessibilityRole="radio"
++                  accessibilityState={{ checked: active }}
++                  onPress={() => {
++                    setCount(value);
++                    setUseManualCount(false);
++                  }}
++                  activeOpacity={0.8}
++                  style={{
++                    flex: 1,
++                    minWidth: 0,
++                    backgroundColor: active ? theme.text : theme.card,
++                    borderRadius: radius.md,
++                    paddingVertical: 13,
++                    alignItems: 'center',
++                    borderWidth: 1,
++                    borderColor: active ? theme.text : theme.border,
++                  }}
++                >
++                  <Text style={{ fontSize: 16, fontWeight: '900', color: active ? theme.card : theme.text }}>{value}</Text>
++                  <Text style={{ fontSize: 10.5, color: active ? theme.card : theme.muted, marginTop: 2 }}>soru</Text>
++                </TouchableOpacity>
++              );
++            })}
++            <View
++              style={{
++                flex: 1,
++                minWidth: 0,
++                backgroundColor: useManualCount ? theme.text : theme.card,
++                borderRadius: radius.md,
++                borderWidth: 1,
++                borderColor: useManualCount ? theme.text : theme.border,
++                paddingHorizontal: 6,
++                paddingVertical: 5,
++                alignItems: 'center',
++                justifyContent: 'center',
++              }}
++            >
++              <TextInput
++                accessibilityLabel="Manuel soru sayısı"
++                keyboardType="number-pad"
++                maxLength={3}
++                value={manualCount}
++                placeholder="Sayı"
++                placeholderTextColor={useManualCount ? theme.card : theme.muted}
++                onFocus={() => setUseManualCount(true)}
++                onChangeText={(value) => {
++                  setManualCount(value.replace(/\D/g, '').slice(0, 3));
++                  setUseManualCount(true);
++                }}
++                style={{ width: '100%', padding: 0, textAlign: 'center', color: useManualCount ? theme.card : theme.text, fontSize: 15, lineHeight: 20, fontWeight: '900' }}
+               />
+-              <Text style={{ fontSize: 12, color: theme.muted, textAlign: 'center', marginTop: 10 }}>
+-                4 yanlış 1 doğruyu götürür • Süre tutulur • Sonuçlar istatistiklere işlenir
+-              </Text>
++              <Text style={{ fontSize: 10.5, color: useManualCount ? theme.card : theme.muted, marginTop: 2 }}>manuel</Text>
+             </View>
+           </View>
+-        }
+-      />
++        </View>
++
++        <View style={{ marginTop: 18, marginBottom: 12 }}>
++          <PrimaryButton
++            label={questionCount === 0
++              ? 'Önce soru bulunan bir konu seç'
++              : !validRequestedCount
++                ? 'Manuel soru sayısı gir'
++                : `Teste Başla (${effectiveCount} soru)`}
++            disabled={questionCount === 0 || !validRequestedCount}
++            icon="play"
++            onPress={() => navigation.navigate('Quiz', {
++              mode: selectionMode === 'all' ? 'mixed' : 'topics',
++              topicIds: selectionMode === 'selected' ? selectedTopics : undefined,
++              count: effectiveCount,
++            })}
++          />
++          <Text style={{ fontSize: 12, color: theme.muted, textAlign: 'center', marginTop: 10 }}>
++            4 yanlış 1 doğruyu götürür • Süre tutulur • Sonuçlar istatistiklere işlenir
++          </Text>
++        </View>
++      </ScrollView>
+     </SafeAreaView>
+   );
+ }
+diff --git a/screens/ToolsScreen.tsx b/screens/ToolsScreen.tsx
+index d2d6aa7..fab6d9e 100644
+--- a/screens/ToolsScreen.tsx
++++ b/screens/ToolsScreen.tsx
+@@ -4,7 +4,7 @@ import { Linking, ScrollView, Text, TextInput, TouchableOpacity, View } from 're
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useApp } from '../lib/store';
+-import { Card, Chip, ProgressBar, SectionTitle } from '../components/ui';
++import { Card, Chip, ProgressBar, SectionTitle, useResponsiveLayout } from '../components/ui';
+ import { daysUntil, formatDateTR } from '../lib/data';
+ import { radius } from '../lib/theme';
+ 
+@@ -186,13 +186,23 @@ function TabanPuanlar() {
+ export default function ToolsScreen() {
+   const { events: EXAM_EVENTS } = useContent();
+   const { theme } = useApp();
++  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
+   const [tab, setTab] = useState<'takvim' | 'puan' | 'taban'>('takvim');
+ 
+   const sorted = [...EXAM_EVENTS].sort((a, b) => a.date.localeCompare(b.date));
+ 
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
++      <ScrollView
++        contentContainerStyle={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          padding: pagePadding,
++          paddingBottom: isDesktopWeb ? 36 : 28,
++        }}
++        showsVerticalScrollIndicator={false}
++      >
+         <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Araçlar</Text>
+         <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
+           Sınav takvimi, puan hesaplama ve taban puanlar
+diff --git a/screens/TopicsScreen.tsx b/screens/TopicsScreen.tsx
+index 1fd1474..ecd312f 100644
+--- a/screens/TopicsScreen.tsx
++++ b/screens/TopicsScreen.tsx
+@@ -4,11 +4,12 @@ import { FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native'
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useApp } from '../lib/store';
+-import { Card, Chip, EmptyState, SectionTitle } from '../components/ui';
++import { Card, Chip, EmptyState, SectionTitle, useResponsiveLayout } from '../components/ui';
+ 
+ 
+ export default function TopicsScreen({ navigation }: any) {
+   const { theme, completedTopics, toggleTopic } = useApp();
++  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
+   const { lessons: LESSONS } = useContent();
+   const [query, setQuery] = useState('');
+   const [expanded, setExpanded] = useState<string | null>('turkce');
+@@ -25,9 +26,18 @@ export default function TopicsScreen({ navigation }: any) {
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+       <FlatList
++        key={isDesktopWeb ? 'web-grid' : 'mobile-list'}
+         data={filtered}
++        numColumns={isDesktopWeb ? 2 : 1}
++        columnWrapperStyle={isDesktopWeb ? { gap: 16 } : undefined}
+         keyExtractor={(i) => i.id}
+-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
++        contentContainerStyle={{
++          width: '100%',
++          maxWidth: pageMaxWidth,
++          alignSelf: 'center',
++          padding: pagePadding,
++          paddingBottom: 36,
++        }}
+         showsVerticalScrollIndicator={false}
+         ListHeaderComponent={
+           <View>
+@@ -86,7 +96,7 @@ export default function TopicsScreen({ navigation }: any) {
+           const lessonDone = item.topics.filter((t) => completedTopics.includes(t.id)).length;
+           const isOpen = expanded === item.id;
+           return (
+-            <Card style={{ marginBottom: 10, padding: 0, overflow: 'hidden' }}>
++            <Card style={{ flex: 1, marginBottom: 10, padding: 0, overflow: 'hidden' }}>
+               <TouchableOpacity
+                 onPress={() => setExpanded(isOpen ? null : item.id)}
+                 style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}
+diff --git a/scripts/generate-seed-sql.ts b/scripts/generate-seed-sql.ts
+new file mode 100644
+index 0000000..719f647
+--- /dev/null
++++ b/scripts/generate-seed-sql.ts
+@@ -0,0 +1,107 @@
++/**
++ * Supabase icin icerik aktarim dosyasi uretir.
++ * Cikti: supabase/icerik-aktar.sql
++ * Calistir: npx tsx scripts/generate-seed-sql.ts
++ *
++ * Uretimden once seed verileri, DB trigger'larinin (validate_content_entry)
++ * ve tablo kisitlarinin birebir kuraliyla yerelde dogrulanir.
++ */
++import { writeFileSync, mkdirSync } from 'node:fs';
++import { dirname, join } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { seedEntries } from '../lib/content-schema';
++
++type Kind = 'questions' | 'lessons' | 'news' | 'events' | 'targets' | 'scores' | 'quotes';
++
++// supabase/migrations/202609220001_admin_content.sql -> validate_content_entry()
++const REQUIRED_FIELDS: Record<Kind, string[]> = {
++  questions: ['question', 'category', 'difficulty', 'explanation'],
++  lessons: ['name', 'icon', 'color', 'questions'],
++  news: ['title', 'category', 'detail', 'date'],
++  events: ['title', 'date', 'type', 'desc'],
++  targets: ['name', 'short', 'scoreType', 'eventId'],
++  scores: ['level', 'kadro', 'kurum'],
++  quotes: ['text', 'author'],
++};
++const QUESTION_CATEGORIES = ['turkce', 'matematik', 'tarih', 'cografya', 'vatandaslik', 'guncel'];
++const DIFFICULTIES = ['Kolay', 'Orta', 'Zor'];
++const ID_RE = /^[a-zA-Z0-9_-]{1,120}$/;
++
++const errors: string[] = [];
++const entries = seedEntries();
++
++for (const entry of entries) {
++  const p = entry.payload as Record<string, unknown>;
++  const tag = `${entry.kind}/${entry.id}`;
++
++  // Tablo DDL: id formati + payload.id = id + boyut
++  if (!ID_RE.test(entry.id)) errors.push(`${tag}: id formati gecersiz`);
++  if (p.id !== entry.id) errors.push(`${tag}: payload.id satir id'si ile ayni degil`);
++  const payloadSize = Buffer.byteLength(JSON.stringify(p), 'utf8');
++  if (payloadSize > 200000) errors.push(`${tag}: payload cok buyuk (${payloadSize} bayt)`);
++
++  // Trigger: zorunlu alanlar string ve 1..20000 karakter olmali
++  for (const field of REQUIRED_FIELDS[entry.kind as Kind] ?? []) {
++    const v = p[field];
++    if (typeof v !== 'string' || v.trim().length < 1 || v.trim().length > 20000) {
++      errors.push(`${tag}: '${field}' alani gecersiz (string 1..20000 bekleniyor)`);
++    }
++  }
++
++  // Trigger: soru kurallari
++  if (entry.kind === 'questions') {
++    if (!QUESTION_CATEGORIES.includes(String(p.category))) errors.push(`${tag}: gecersiz kategori`);
++    if (!DIFFICULTIES.includes(String(p.difficulty))) errors.push(`${tag}: gecersiz zorluk`);
++    if (!Array.isArray(p.options) || p.options.length !== 5) errors.push(`${tag}: tam 5 secenek gerekli`);
++    if (!Array.isArray(p.options)) continue;
++    p.options.forEach((o, i) => {
++      if (typeof o !== 'string' || o.trim().length < 1 || o.trim().length > 20000) {
++        errors.push(`${tag}: secenek ${i} gecersiz`);
++      }
++    });
++    if (typeof p.answer !== 'number' || !Number.isInteger(p.answer) || p.answer < 0 || p.answer > 4) {
++      errors.push(`${tag}: answer 0-4 araliginda tam sayi olmali`);
++    } else if (p.answer >= p.options.length) {
++      errors.push(`${tag}: answer secenek sinirini asiyor`);
++    }
++  }
++}
++
++if (errors.length) {
++  console.error(`DOGRLAMA HATASI (${errors.length}):`);
++  for (const e of errors.slice(0, 30)) console.error(' -', e);
++  process.exit(1);
++}
++
++const sqlEscape = (s: string) => s.replace(/'/g, "''");
++const values = entries
++  .map((e) => `  ('${e.kind}', '${e.id}', '${sqlEscape(JSON.stringify(e.payload))}'::jsonb, 'published')`)
++  .join(',\n');
++
++const counts: Record<string, number> = {};
++for (const e of entries) counts[e.kind] = (counts[e.kind] ?? 0) + 1;
++const summary = Object.entries(counts)
++  .map(([k, n]) => `${k}=${n}`)
++  .join(', ');
++
++const sql = `-- KPSS Asistanim - icerik aktarimi (GitHub'daki paketlenmis test ve veriler)
++-- Olusturucu: npx tsx scripts/generate-seed-sql.ts
++-- Kullanim: Supabase Dashboard -> SQL Editor -> bu dosyayi yapistir -> Run.
++-- Guvenli: varolan icerik uzerine yazmaz (on conflict do nothing), tekrar calistirilabilir.
++-- Kayit sayisi: ${entries.length} (${summary})
++begin;
++
++insert into public.content_entries (kind, id, payload, status)
++values
++${values}
++on conflict (kind, id) do nothing;
++
++commit;
++`;
++
++const here = dirname(fileURLToPath(import.meta.url));
++const out = join(here, '..', 'supabase', 'icerik-aktar.sql');
++mkdirSync(dirname(out), { recursive: true });
++writeFileSync(out, sql);
++console.log(`OK -> ${out}`);
++console.log(`Kayit: ${entries.length} (${summary})`);
+diff --git a/supabase/icerik-aktar.sql b/supabase/icerik-aktar.sql
+new file mode 100644
+index 0000000..ab6254e
+--- /dev/null
++++ b/supabase/icerik-aktar.sql
+@@ -0,0 +1,129 @@
++-- KPSS Asistanim - icerik aktarimi (GitHub'daki paketlenmis test ve veriler)
++-- Olusturucu: npx tsx scripts/generate-seed-sql.ts
++-- Kullanim: Supabase Dashboard -> SQL Editor -> bu dosyayi yapistir -> Run.
++-- Guvenli: varolan icerik uzerine yazmaz (on conflict do nothing), tekrar calistirilabilir.
++-- Kayit sayisi: 117 (questions=48, lessons=6, news=24, events=8, targets=4, scores=19, quotes=8)
++begin;
++
++insert into public.content_entries (kind, id, payload, status)
++values
++  ('questions', 'tr1', '{"id":"tr1","category":"turkce","difficulty":"Kolay","question":"Aşağıdaki sözcüklerden hangisinin yazımı doğrudur?","options":["Herşey","Hiç birşey","Her şey","Herşeyi","Hiçbirşey"],"answer":2,"explanation":"\"şey\" sözcüğü her zaman ayrı yazılır: her şey, bir şey, hiçbir şey."}'::jsonb, 'published'),
++  ('questions', 'tr2', '{"id":"tr2","category":"turkce","difficulty":"Kolay","question":"\"Çiçek\" sözcüğünün \"çiçeği\" biçiminde yazılmasının nedeni nedir?","options":["Ünsüz yumuşaması","Ünsüz benzeşmesi","Ünlü daralması","Kaynaştırma ünsüzü","Ünlü türemesi"],"answer":0,"explanation":"Sert ünsüzle (p, ç, t, k) biten sözcüklere ünlüyle başlayan ek gelince yumuşama olur: çiçek → çiçeği."}'::jsonb, 'published'),
++  ('questions', 'tr3', '{"id":"tr3","category":"turkce","difficulty":"Orta","question":"Aşağıdaki cümlelerin hangisinde virgülün kullanım amacı diğerlerinden farklıdır?","options":["Genç, yaşlı demeden herkes katıldı.","Ankara, İstanbul, İzmir büyükşehirlerdendir.","Öğrenciler, sınavda çok heyecanlıydı.","Elma, armut, kiraz aldık.","Sınıfta, herkes çalışıyordu."],"answer":2,"explanation":"Diğerlerinde eş görevli sözcükleri ayırmak için kullanılırken C seçeneğinde özneyi vurgulamak için kullanılmıştır."}'::jsonb, 'published'),
++  ('questions', 'tr4', '{"id":"tr4","category":"turkce","difficulty":"Kolay","question":"\"Geliyorum\" fiilinin kipi ve zamanı nedir?","options":["Şimdiki zaman – haber kipi","Gelecek zaman – dilek kipi","Geniş zaman – haber kipi","Geçmiş zaman – dilek kipi","Duyulan geçmiş zaman – haber kipi"],"answer":0,"explanation":"\"-yor\" eki şimdiki zaman ekidir ve haber (bildirme) kiplerindendir."}'::jsonb, 'published'),
++  ('questions', 'tr5', '{"id":"tr5","category":"turkce","difficulty":"Kolay","question":"\"Öğrenciler sınavda çok heyecanlandı.\" cümlesinin öznesi hangisidir?","options":["Öğrenciler","sınavda","çok","heyecanlandı","sınav"],"answer":0,"explanation":"Yükleme sorulan \"kim?\" sorusunun yanıtı öznedir: Kim heyecanlandı? → Öğrenciler."}'::jsonb, 'published'),
++  ('questions', 'tr6', '{"id":"tr6","category":"turkce","difficulty":"Orta","question":"\"Güzel\" sözcüğü hangi cümlede isim olarak kullanılmıştır?","options":["Güzel günler göreceğiz.","Çok güzel şarkı söylüyor.","Güzeli herkes sever.","Güzel güzel konuştu.","Bu güzel bir haber."],"answer":2,"explanation":"\"Güzeli\" sözcüğü adlaşmış sıfattır; cümlede isim göreviyle kullanılmıştır."}'::jsonb, 'published'),
++  ('questions', 'tr7', '{"id":"tr7","category":"turkce","difficulty":"Orta","question":"\"Bu konuyu mutlaka ve mutlaka öğrenmelisin.\" cümlesindeki anlatım bozukluğunun nedeni nedir?","options":["Gereksiz sözcük kullanımı","Özne – yüklem uyumsuzluğu","Ek yanlışlığı","Tamlama yanlışlığı","Dolaylı tümleç eksikliği"],"answer":0,"explanation":"Aynı anlama gelen sözcüklerin birlikte kullanılması gereksiz sözcük kullanımından kaynaklanır."}'::jsonb, 'published'),
++  ('questions', 'tr8', '{"id":"tr8","category":"turkce","difficulty":"Zor","question":"\"Sınava düzenli çalışan öğrenciler başarılı oldu.\" cümlesinde \"düzenli çalışan\" grubunun türü nedir?","options":["Sıfat tamlaması","İsim tamlaması","Sıfat-fiil grubu","Zarf-fiil grubu","İsim-fiil grubu"],"answer":2,"explanation":"\"-an\" eki sıfat-fiil ekidir; ifade sıfat-fiil grubudur."}'::jsonb, 'published'),
++  ('questions', 'mt1', '{"id":"mt1","category":"matematik","difficulty":"Kolay","question":"2³ + 3² işleminin sonucu kaçtır?","options":["14","17","13","19","21"],"answer":1,"explanation":"2³ = 8 ve 3² = 9 olduğundan 8 + 9 = 17 bulunur."}'::jsonb, 'published'),
++  ('questions', 'mt2', '{"id":"mt2","category":"matematik","difficulty":"Kolay","question":"Bir sayının %25''i 60 ise bu sayı kaçtır?","options":["180","200","240","220","300"],"answer":2,"explanation":"Sayının dörtte biri 60 ise sayı 60 × 4 = 240 olur."}'::jsonb, 'published'),
++  ('questions', 'mt3', '{"id":"mt3","category":"matematik","difficulty":"Kolay","question":"EBOB(12, 18) kaçtır?","options":["2","3","6","36","72"],"answer":2,"explanation":"12 = 2²×3, 18 = 2×3² olduğundan ortak bölenlerin en büyüğü 2×3 = 6''dır."}'::jsonb, 'published'),
++  ('questions', 'mt4', '{"id":"mt4","category":"matematik","difficulty":"Orta","question":"x + 7 = 3x − 9 denklemini sağlayan x değeri kaçtır?","options":["8","6","4","2","10"],"answer":0,"explanation":"7 + 9 = 3x − x → 16 = 2x → x = 8 bulunur."}'::jsonb, 'published'),
++  ('questions', 'mt5', '{"id":"mt5","category":"matematik","difficulty":"Orta","question":"Ardışık üç çift sayının toplamı 48 ise en büyüğü kaçtır?","options":["14","16","18","20","22"],"answer":2,"explanation":"Ortanca sayı 48 ÷ 3 = 16''dır. Sayılar 14, 16, 18 olur; en büyüğü 18''dir."}'::jsonb, 'published'),
++  ('questions', 'mt6', '{"id":"mt6","category":"matematik","difficulty":"Orta","question":"Bir işçi bir işi 12 günde, diğeri 6 günde bitiriyor. İkisi birlikte kaç günde bitirir?","options":["2","3","4","8","6"],"answer":2,"explanation":"1/12 + 1/6 = 3/12 = 1/4 olduğundan iş birlikte 4 günde biter."}'::jsonb, 'published'),
++  ('questions', 'mt7', '{"id":"mt7","category":"matematik","difficulty":"Orta","question":"5! / 3! işleminin sonucu kaçtır?","options":["2","10","20","120","24"],"answer":2,"explanation":"5!/3! = 5×4 = 20''dir (3!''ler sadeleşir)."}'::jsonb, 'published'),
++  ('questions', 'mt8', '{"id":"mt8","category":"matematik","difficulty":"Zor","question":"Alanı 49 cm² olan karenin çevresi kaç cm''dir?","options":["14","21","28","35","32"],"answer":2,"explanation":"Karenin bir kenarı √49 = 7 cm''dir. Çevre = 4 × 7 = 28 cm olur."}'::jsonb, 'published'),
++  ('questions', 'ta1', '{"id":"ta1","category":"tarih","difficulty":"Kolay","question":"Malazgirt Meydan Muharebesi hangi yılda yapılmıştır?","options":["1040","1071","1176","1243","1171"],"answer":1,"explanation":"Sultan Alparslan komutasındaki Selçuklu ordusu 1071''de Bizans''ı yenerek Anadolu''nun kapılarını Türklere açtı."}'::jsonb, 'published'),
++  ('questions', 'ta2', '{"id":"ta2","category":"tarih","difficulty":"Kolay","question":"İstanbul hangi Osmanlı padişahı döneminde fethedilmiştir?","options":["Orhan Bey","I. Murat","Fatih Sultan Mehmet","Yavuz Sultan Selim","Kanuni Sultan Süleyman"],"answer":2,"explanation":"İstanbul, 29 Mayıs 1453''te II. Mehmet (Fatih Sultan Mehmet) tarafından fethedildi."}'::jsonb, 'published'),
++  ('questions', 'ta3', '{"id":"ta3","category":"tarih","difficulty":"Kolay","question":"TBMM hangi tarihte açılmıştır?","options":["19 Mayıs 1919","23 Nisan 1920","29 Ekim 1923","30 Ağustos 1922","30 Ağustos 1920"],"answer":1,"explanation":"Türkiye Büyük Millet Meclisi 23 Nisan 1920''de Ankara''da açılmıştır."}'::jsonb, 'published'),
++  ('questions', 'ta4', '{"id":"ta4","category":"tarih","difficulty":"Orta","question":"Miryakefalon Savaşı''nın (1176) en önemli sonucu nedir?","options":["Anadolu''nun kesin Türk yurdu olması","İstanbul''un fethedilmesi","Haçlıların Anadolu''dan atılması","Moğol baskısının sona ermesi","Bizansın güçlenmesi"],"answer":0,"explanation":"II. Kılıçarslan''ın Bizans''ı yenmesiyle Anadolu''nun Türk yurdu olduğu kesinleşti."}'::jsonb, 'published'),
++  ('questions', 'ta5', '{"id":"ta5","category":"tarih","difficulty":"Kolay","question":"Lozan Barış Antlaşması hangi yılda imzalanmıştır?","options":["1920","1921","1922","1923","1924"],"answer":3,"explanation":"Lozan Antlaşması 24 Temmuz 1923''te imzalanmış, yeni Türk devletinin bağımsızlığı tanınmıştır."}'::jsonb, 'published'),
++  ('questions', 'ta6', '{"id":"ta6","category":"tarih","difficulty":"Kolay","question":"Cumhuriyet hangi tarihte ilan edilmiştir?","options":["23 Nisan 1920","29 Ekim 1923","3 Mart 1924","1 Kasım 1922","23 Nisan 1923"],"answer":1,"explanation":"Cumhuriyet 29 Ekim 1923''te ilan edilmiş, Mustafa Kemal Atatürk ilk cumhurbaşkanı seçilmiştir."}'::jsonb, 'published'),
++  ('questions', 'ta7', '{"id":"ta7","category":"tarih","difficulty":"Kolay","question":"Osmanlı Devleti''nin kurucusu kimdir?","options":["Ertuğrul Gazi","Osman Bey","Orhan Bey","I. Murat","Süleyman Şah"],"answer":1,"explanation":"Osmanlı Devleti 1299''da Osman Bey tarafından Söğüt-Domaniç çevresinde kurulmuştur."}'::jsonb, 'published'),
++  ('questions', 'ta8', '{"id":"ta8","category":"tarih","difficulty":"Orta","question":"Sakarya Meydan Muharebesi''nde Türk ordusunun başkomutanı kimdir?","options":["İsmet İnönü","Fevzi Çakmak","Mustafa Kemal Atatürk","Kazım Karabekir","Refet Bele"],"answer":2,"explanation":"TBMM''nin verdiği Başkomutanlık yetkisiyle Sakarya''da ordunun başında Mustafa Kemal Atatürk vardı."}'::jsonb, 'published'),
++  ('questions', 'co1', '{"id":"co1","category":"cografya","difficulty":"Kolay","question":"Türkiye''nin nüfusu en kalabalık ili hangisidir?","options":["Ankara","İzmir","İstanbul","Bursa","Antalya"],"answer":2,"explanation":"İstanbul, 15 milyonu aşan nüfusuyla Türkiye''nin en kalabalık ilidir."}'::jsonb, 'published'),
++  ('questions', 'co2', '{"id":"co2","category":"cografya","difficulty":"Kolay","question":"Türkiye''de en fazla yağış alan bölge hangisidir?","options":["Akdeniz","Karadeniz","Ege","İç Anadolu","Marmara"],"answer":1,"explanation":"Karadeniz Bölgesi, özellikle Doğu Karadeniz kıyıları her mevsim yağış alır."}'::jsonb, 'published'),
++  ('questions', 'co3', '{"id":"co3","category":"cografya","difficulty":"Kolay","question":"Van Gölü hangi coğrafi bölgemizde yer alır?","options":["İç Anadolu","Doğu Anadolu","Güneydoğu Anadolu","Akdeniz","Marmara"],"answer":1,"explanation":"Türkiye''nin en büyük gölü olan Van Gölü, Doğu Anadolu Bölgesi''ndedir."}'::jsonb, 'published'),
++  ('questions', 'co4', '{"id":"co4","category":"cografya","difficulty":"Orta","question":"Tamamı ülke sınırları içinde kalan en uzun akarsuyumuz hangisidir?","options":["Fırat","Kızılırmak","Yeşilırmak","Sakarya","Dicle"],"answer":1,"explanation":"Kızılırmak (1355 km) doğduğu gibi denize de Türkiye''de dökülen en uzun akarsudur."}'::jsonb, 'published'),
++  ('questions', 'co5', '{"id":"co5","category":"cografya","difficulty":"Orta","question":"Soma linyit yatakları hangi ilimizdedir?","options":["Kütahya","Manisa","Muğla","Balıkesir","Denizli"],"answer":1,"explanation":"Soma, Manisa iline bağlıdır ve önemli linyit havzalarındandır."}'::jsonb, 'published'),
++  ('questions', 'co6', '{"id":"co6","category":"cografya","difficulty":"Kolay","question":"Fındık üretiminin en yoğun olduğu bölgemiz hangisidir?","options":["Marmara","Karadeniz","Ege","Akdeniz","Doğu Anadolu"],"answer":1,"explanation":"Türkiye dünya fındık üretiminde ilk sıradadır; üretim Karadeniz''de yoğunlaşmıştır."}'::jsonb, 'published'),
++  ('questions', 'co7', '{"id":"co7","category":"cografya","difficulty":"Zor","question":"Türkiye''nin matematik (mutlak) konumu nedir?","options":["26°–45° doğu boylamları, 36°–42° kuzey enlemleri","26°–45° batı boylamları, 36°–42° güney enlemleri","36°–42° doğu boylamları, 26°–45° kuzey enlemleri","20°–40° doğu boylamları, 30°–40° kuzey enlemleri","30°–45° doğu boylamları, 42°–46° kuzey enlemleri"],"answer":0,"explanation":"Türkiye 26°–45° doğu meridyenleri ile 36°–42° kuzey paralelleri arasındadır."}'::jsonb, 'published'),
++  ('questions', 'co8', '{"id":"co8","category":"cografya","difficulty":"Kolay","question":"Pamukkale travertenleri hangi ilimizdedir?","options":["Muğla","Denizli","Antalya","Burdur","Aydın"],"answer":1,"explanation":"Pamukkale travertenleri Denizli''dedir ve UNESCO Dünya Mirası Listesi''ndedir."}'::jsonb, 'published'),
++  ('questions', 'va1', '{"id":"va1","category":"vatandaslik","difficulty":"Kolay","question":"1982 Anayasası''na göre yasama yetkisi kime aittir?","options":["Cumhurbaşkanına","TBMM''ye","Anayasa Mahkemesine","Danıştaya","Yüksek Seçim Kuruluna"],"answer":1,"explanation":"Yasama yetkisi Türk Milleti adına TBMM tarafından kullanılır; devredilemez."}'::jsonb, 'published'),
++  ('questions', 'va2', '{"id":"va2","category":"vatandaslik","difficulty":"Kolay","question":"Milletvekili seçilebilmek için en az kaç yaşını doldurmak gerekir?","options":["18","21","25","30","35"],"answer":0,"explanation":"2017 Anayasa değişikliğiyle seçilme yaşı 25''ten 18''e indirilmiştir."}'::jsonb, 'published'),
++  ('questions', 'va3', '{"id":"va3","category":"vatandaslik","difficulty":"Kolay","question":"Cumhurbaşkanı kaç yılda bir seçilir?","options":["4","5","6","7","8"],"answer":1,"explanation":"Cumhurbaşkanı ve TBMM seçimleri beş yılda bir, aynı gün yapılır."}'::jsonb, 'published'),
++  ('questions', 'va4', '{"id":"va4","category":"vatandaslik","difficulty":"Kolay","question":"TBMM kaç milletvekilinden oluşur?","options":["550","600","650","500","700"],"answer":1,"explanation":"2017 değişikliğiyle milletvekili sayısı 550''den 600''e çıkarılmıştır."}'::jsonb, 'published'),
++  ('questions', 'va5', '{"id":"va5","category":"vatandaslik","difficulty":"Orta","question":"Anayasa''ya göre \"Egemenlik kayıtsız şartsız\" kimindir?","options":["Cumhurbaşkanının","TBMM''nin","Milletin","Hükümetin","Millet Meclisinin"],"answer":2,"explanation":"Anayasa m.6: \"Egemenlik, kayıtsız şartsız Milletindir.\""}'::jsonb, 'published'),
++  ('questions', 'va6', '{"id":"va6","category":"vatandaslik","difficulty":"Kolay","question":"İl genel yönetiminin başı kimdir?","options":["Belediye başkanı","Vali","Kaymakam","Muhtar","İl müdürü"],"answer":1,"explanation":"Vali, ilde devletin ve hükümetin temsilcisidir."}'::jsonb, 'published'),
++  ('questions', 'va7', '{"id":"va7","category":"vatandaslik","difficulty":"Kolay","question":"Belediye başkanı ve muhtar kaç yılda bir seçilir?","options":["4","5","6","7","8"],"answer":1,"explanation":"Mahalli idareler seçimleri beş yılda bir yapılır."}'::jsonb, 'published'),
++  ('questions', 'va8', '{"id":"va8","category":"vatandaslik","difficulty":"Zor","question":"Siyasi parti kurmak için en az kaç Türk vatandaşının bir araya gelmesi gerekir?","options":["20","25","30","50","40"],"answer":2,"explanation":"En az 30 Türk vatandaşı bir araya gelerek siyasi parti kurabilir."}'::jsonb, 'published'),
++  ('questions', 'gu1', '{"id":"gu1","category":"guncel","difficulty":"Orta","question":"2026 FIFA Dünya Kupası hangi ülkelerde düzenlenecektir?","options":["Brezilya – Arjantin","ABD – Kanada – Meksika","İspanya – Portekiz","Almanya – Fransa","Rusya – Katar"],"answer":1,"explanation":"2026 Dünya Kupası ABD, Kanada ve Meksika''nın ortak ev sahipliğinde düzenlenecektir."}'::jsonb, 'published'),
++  ('questions', 'gu2', '{"id":"gu2","category":"guncel","difficulty":"Orta","question":"2026 Kış Olimpiyatları nerede düzenlenecektir?","options":["Pekin","Milano – Cortina (İtalya)","Vancouver","Seul","Salt Lake City"],"answer":1,"explanation":"2026 Kış Olimpiyatları İtalya''nın Milano-Cortina bölgesinde yapılacaktır."}'::jsonb, 'published'),
++  ('questions', 'gu3', '{"id":"gu3","category":"guncel","difficulty":"Orta","question":"EURO 2024 Avrupa Futbol Şampiyonası''nı hangi ülke kazanmıştır?","options":["İngiltere","Fransa","İspanya","Almanya","İtalya"],"answer":2,"explanation":"İspanya, finalde İngiltere''yi yenerek EURO 2024 şampiyonu olmuştur."}'::jsonb, 'published'),
++  ('questions', 'gu4', '{"id":"gu4","category":"guncel","difficulty":"Zor","question":"2024 Nobel Ekonomi Ödülü''nü kazanan Türk bilim insanı kimdir?","options":["Aziz Sancar","Daron Acemoğlu","Canan Dağdeviren","Gazi Yaşargil","Celal Şengör"],"answer":1,"explanation":"Daron Acemoğlu; Simon Johnson ve James Robinson ile birlikte 2024 Nobel Ekonomi Ödülü''nü kazanmıştır."}'::jsonb, 'published'),
++  ('questions', 'gu5', '{"id":"gu5","category":"guncel","difficulty":"Kolay","question":"Türkiye''nin ilk astronotu kimdir?","options":["Alper Gezeravcı","Cengiz Topel","Sabiha Gökçen","Vecihi Hürkuş","Tuva Cihangir Atasever"],"answer":0,"explanation":"Alper Gezeravcı, 2024 yılında Uluslararası Uzay İstasyonu''na giden ilk Türk astronot olmuştur."}'::jsonb, 'published'),
++  ('questions', 'gu6', '{"id":"gu6","category":"guncel","difficulty":"Orta","question":"98. Akademi Ödülleri''nde (2026) En İyi Film ödülünü hangi yapım kazanmıştır?","options":["Oppenheimer","One Battle After Another","Barbie","Dune: Part Two","The Brutalist"],"answer":1,"explanation":"\"One Battle After Another\" filmi 98. Akademi Ödülleri''nde En İyi Film seçilmiştir."}'::jsonb, 'published'),
++  ('questions', 'gu7', '{"id":"gu7","category":"guncel","difficulty":"Orta","question":"2025''te Sardes''in UNESCO listesine alınmasıyla Türkiye''nin listedeki varlık sayısı kaça yükselmiştir?","options":["19","20","21","22","23"],"answer":3,"explanation":"Sardes ve Bin Tepeler''in eklenmesiyle sayı 22''ye yükselmiştir."}'::jsonb, 'published'),
++  ('questions', 'gu8', '{"id":"gu8","category":"guncel","difficulty":"Zor","question":"2026 Avrupa Şampiyonası''nda 13. Avrupa şampiyonluğuna ulaşan güreşçimiz kimdir?","options":["Taha Akgül","Rıza Kayaalp","Yasemin Adar","Süleyman Karadeniz","Celal Atik"],"answer":1,"explanation":"Rıza Kayaalp, 2026 Avrupa Şampiyonası''nda altın madalya kazanarak 13. şampiyonluğuna ulaşmıştır."}'::jsonb, 'published'),
++  ('lessons', 'turkce', '{"id":"turkce","name":"Türkçe","icon":"language","color":"#2563EB","questions":"GY: ~30 soru","topics":[{"id":"tr-s1","name":"Sözcükte Anlam"},{"id":"tr-s2","name":"Cümlede Anlam"},{"id":"tr-s3","name":"Paragraf Bilgisi"},{"id":"tr-s4","name":"Ses Bilgisi"},{"id":"tr-s5","name":"Yazım Kuralları"},{"id":"tr-s6","name":"Noktalama İşaretleri"},{"id":"tr-s7","name":"Sözcük Türleri"},{"id":"tr-s8","name":"Fiiller ve Ek Fiil"},{"id":"tr-s9","name":"Cümlenin Ögeleri"},{"id":"tr-s10","name":"Cümle Türleri"},{"id":"tr-s11","name":"Anlatım Bozuklukları"}]}'::jsonb, 'published'),
++  ('lessons', 'matematik', '{"id":"matematik","name":"Matematik","icon":"calculator","color":"#7C3AED","questions":"GY: ~30 soru","topics":[{"id":"mt-s1","name":"Temel Kavramlar"},{"id":"mt-s2","name":"Sayı Basamakları"},{"id":"mt-s3","name":"EBOB – EKOK"},{"id":"mt-s4","name":"Rasyonel Sayılar"},{"id":"mt-s5","name":"Üslü ve Köklü Sayılar"},{"id":"mt-s6","name":"Çarpanlara Ayırma"},{"id":"mt-s7","name":"Oran – Orantı"},{"id":"mt-s8","name":"Sayı ve Kesir Problemleri"},{"id":"mt-s9","name":"Yaş, İşçi ve Hareket Problemleri"},{"id":"mt-s10","name":"Yüzde, Kar-Zarar, Karışım"},{"id":"mt-s11","name":"Kümeler ve Fonksiyonlar"},{"id":"mt-s12","name":"Permütasyon – Kombinasyon – Olasılık"},{"id":"mt-s13","name":"Geometri"}]}'::jsonb, 'published'),
++  ('lessons', 'tarih', '{"id":"tarih","name":"Tarih","icon":"library","color":"#B45309","questions":"GK: ~27 soru","topics":[{"id":"ta-s1","name":"İslamiyet Öncesi Türk Tarihi"},{"id":"ta-s2","name":"İlk Müslüman Türk Devletleri"},{"id":"ta-s3","name":"Osmanlı Kuruluş ve Yükselme"},{"id":"ta-s4","name":"Osmanlı Duraklama ve Gerileme"},{"id":"ta-s5","name":"Osmanlı Dağılma ve Islahatlar"},{"id":"ta-s6","name":"Kurtuluş Savaşı Hazırlık Dönemi"},{"id":"ta-s7","name":"Muharebeler Dönemi"},{"id":"ta-s8","name":"Atatürk İlkeleri ve İnkılaplar"},{"id":"ta-s9","name":"Atatürk Dönemi Dış Politika"},{"id":"ta-s10","name":"Çağdaş Türk ve Dünya Tarihi"}]}'::jsonb, 'published'),
++  ('lessons', 'cografya', '{"id":"cografya","name":"Coğrafya","icon":"earth","color":"#059669","questions":"GK: ~18 soru","topics":[{"id":"co-s1","name":"Türkiye''nin Yeri ve Harita Bilgisi"},{"id":"co-s2","name":"İklim"},{"id":"co-s3","name":"Yer Şekilleri ve Jeoloji"},{"id":"co-s4","name":"Su Kaynakları"},{"id":"co-s5","name":"Nüfus ve Yerleşme"},{"id":"co-s6","name":"Tarım ve Hayvancılık"},{"id":"co-s7","name":"Madenler ve Enerji"},{"id":"co-s8","name":"Sanayi, Ulaşım ve Turizm"},{"id":"co-s9","name":"Bölgeler Coğrafyası"}]}'::jsonb, 'published'),
++  ('lessons', 'vatandaslik', '{"id":"vatandaslik","name":"Vatandaşlık","icon":"shield-checkmark","color":"#D7263D","questions":"GK: ~9 soru","topics":[{"id":"va-s1","name":"Temel Hukuk Kavramları"},{"id":"va-s2","name":"Anayasa ve Temel Haklar"},{"id":"va-s3","name":"Yasama"},{"id":"va-s4","name":"Yürütme"},{"id":"va-s5","name":"Yargı"},{"id":"va-s6","name":"İdare Hukuku ve Mahalli İdareler"}]}'::jsonb, 'published'),
++  ('lessons', 'guncel', '{"id":"guncel","name":"Güncel Bilgiler","icon":"newspaper","color":"#EA580C","questions":"GK: ~6 soru","topics":[{"id":"gu-s1","name":"2025–2026 Spor Gündemi"},{"id":"gu-s2","name":"Kültür – Sanat ve Ödüller"},{"id":"gu-s3","name":"Bilim ve Teknoloji"},{"id":"gu-s4","name":"Uluslararası Kuruluşlar"},{"id":"gu-s5","name":"UNESCO ve Kültürel Miras"},{"id":"gu-s6","name":"Klasik Genel Kültür"}]}'::jsonb, 'published'),
++  ('news', 'n1', '{"id":"n1","category":"Spor","title":"2026 Dünya Kupası üç ülkede düzenlenecek","detail":"2026 FIFA Dünya Kupası, ABD, Kanada ve Meksika''nın ortak ev sahipliğinde düzenlenecek. Tarihte ilk kez 48 takımın katılacağı turnuva, KPSS güncel bilgiler için önemli bir başlıktır.","date":"2026"}'::jsonb, 'published'),
++  ('news', 'n2', '{"id":"n2","category":"Spor","title":"2026 Kış Olimpiyatları: Milano – Cortina","detail":"2026 Kış Olimpiyat Oyunları İtalya''nın Milano-Cortina bölgesinde düzenlenecek. 2028 Yaz Olimpiyatları ise ABD''nin Los Angeles kentinde yapılacak.","date":"2026"}'::jsonb, 'published'),
++  ('news', 'n3', '{"id":"n3","category":"Spor","title":"Rıza Kayaalp''ten 13. Avrupa şampiyonluğu","detail":"Milli güreşçi Rıza Kayaalp, 2026 Avrupa Güreş Şampiyonası''nda altın madalya kazanarak Avrupa şampiyonluğu sayısını 13''e çıkardı ve Türk güreş tarihine geçti.","date":"2026"}'::jsonb, 'published'),
++  ('news', 'n4', '{"id":"n4","category":"Spor","title":"EURO 2024 şampiyonu İspanya","detail":"Almanya''da düzenlenen EURO 2024''te İspanya, finalde İngiltere''yi mağlup ederek Avrupa şampiyonu oldu. A Milli Takımımız ise çeyrek finale yükselme başarısı gösterdi.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n5', '{"id":"n5","category":"Spor","title":"Filenin Sultanları''ndan dünya ikinciliği","detail":"A Milli Kadın Voleybol Takımı, 2025 Dünya Voleybol Şampiyonası''nda finale yükselerek gümüş madalya kazandı. Filenin Sultanları 2023''te Avrupa şampiyonu olmuştu.","date":"2025"}'::jsonb, 'published'),
++  ('news', 'n6', '{"id":"n6","category":"Spor","title":"2024 Paris Olimpiyatları düzenlendi","detail":"2024 Yaz Olimpiyat Oyunları Fransa''nın başkenti Paris''te düzenlendi. Okçulukta Mete Gazoz, boksta Busenaz Sürmeneli ve Buse Naz Çakıroğlu madalya mücadelesi verdi.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n7', '{"id":"n7","category":"Kültür-Sanat","title":"En İyi Film: One Battle After Another","detail":"98. Akademi Ödülleri''nde (Oscar 2026) \"One Battle After Another\" filmi En İyi Film ödülünü kazandı. Akademi Ödülleri her yıl ABD''nin Los Angeles kentinde dağıtılmaktadır.","date":"2026"}'::jsonb, 'published'),
++  ('news', 'n8', '{"id":"n8","category":"Kültür-Sanat","title":"Osman Hamdi Bey eserine rekor fiyat","detail":"Ünlü Türk ressam Osman Hamdi Bey''in \"Cami Kapısında\" adlı eseri, 2026 yılında Londra''da düzenlenen müzayedede milyonlarca dolara satılarak Türk resim tarihinde rekor kırdı.","date":"2026"}'::jsonb, 'published'),
++  ('news', 'n9', '{"id":"n9","category":"Kültür-Sanat","title":"2024 Nobel Edebiyat: Han Kang","detail":"2024 Nobel Edebiyat Ödülü, Güney Koreli yazar Han Kang''a verildi. Nobel Edebiyat Ödülü''nü kazanan ilk Türk yazar ise 2006 yılında Orhan Pamuk olmuştur.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n10', '{"id":"n10","category":"Kültür-Sanat","title":"2024 Nobel Barış: Nihon Hidankyo","detail":"2024 Nobel Barış Ödülü, nükleer silahsızlanma için mücadele eden Japon kuruluş Nihon Hidankyo''ya verildi. Nobel Barış Ödülü Oslo''da, diğer Nobel ödülleri Stockholm''de açıklanır.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n11', '{"id":"n11","category":"Bilim","title":"Nobel Ekonomi''de Türk imzası: Daron Acemoğlu","detail":"Prof. Dr. Daron Acemoğlu; Simon Johnson ve James A. Robinson ile birlikte \"kurumların oluşumu ve refaha etkisi\" çalışmalarıyla 2024 Nobel Ekonomi Ödülü''nü kazandı. Aziz Sancar ise 2015''te Nobel Kimya Ödülü''nü almıştı.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n12', '{"id":"n12","category":"Bilim","title":"Sardes UNESCO listesinde; sayı 22 oldu","detail":"Manisa''daki Sardes Antik Kenti ve Bin Tepeler Lidya Tümülüsleri 2025''te UNESCO Dünya Mirası Listesi''ne alındı. Böylece Türkiye''nin listedeki varlık sayısı 22''ye yükseldi.","date":"2025"}'::jsonb, 'published'),
++  ('news', 'n13', '{"id":"n13","category":"Bilim","title":"İlk Türk astronot: Alper Gezeravcı","detail":"Alper Gezeravcı, Ocak 2024''te Uluslararası Uzay İstasyonu''na giderek uzaya çıkan ilk Türk astronot oldu. Türkiye''nin ikinci astronotu ise Tuva Cihangir Atasever''dir.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n14', '{"id":"n14","category":"Bilim","title":"TÜRKSAT 6A uzayda","detail":"Türkiye''nin ilk yerli ve milli haberleşme uydusu TÜRKSAT 6A, 2024 yılında uzaya fırlatıldı. Türkiye böylece haberleşme uydusu üretebilen sayılı ülkeler arasına girdi.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n15', '{"id":"n15","category":"Bilim","title":"2024 Nobel Fizik: yapay zeka öncüleri","detail":"2024 Nobel Fizik Ödülü, yapay sinir ağları ve makine öğrenmesi alanındaki temel çalışmalarıyla John Hopfield ve Geoffrey Hinton''a verildi.","date":"2024"}'::jsonb, 'published'),
++  ('news', 'n16', '{"id":"n16","category":"Kurumlar","title":"NATO''nun merkezi: Brüksel","detail":"Kuzey Atlantik Antlaşması Örgütü (NATO) 1949''da kuruldu; merkezi Belçika''nın başkenti Brüksel''dedir. Türkiye, 1952 yılından beri NATO üyesidir.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n17', '{"id":"n17","category":"Kurumlar","title":"BM, UNESCO ve WHO merkezleri","detail":"Birleşmiş Milletler''in (BM) merkezi New York, UNESCO''nun merkezi Paris, Dünya Sağlık Örgütü''nün (WHO) merkezi Cenevre''dedir. Bu merkezler KPSS''de sık sorulur.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n18', '{"id":"n18","category":"Kurumlar","title":"Türk Devletleri Teşkilatı: İstanbul","detail":"Türk Devletleri Teşkilatı''nın sekretaryası İstanbul''dadır. Türkiye, Azerbaycan, Kazakistan, Kırgızistan ve Özbekistan örgütün üyeleridir.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n19', '{"id":"n19","category":"Kurumlar","title":"TOGG: Türkiye''nin yerli otomobili","detail":"TOGG, Türkiye''nin ilk yerli ve milli otomobilidir; üretimi Bursa Gemlik''te yapılmaktadır. KPSS güncel bilgilerde yerli-milli projeler sıkça sorulur.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n20', '{"id":"n20","category":"Klasikler","title":"İstiklal Marşı: Akif Ersoy – Üngör","detail":"İstiklal Marşı''nın şairi Mehmet Akif Ersoy, bestekarı Osman Zeki Üngör''dür. Marş, 12 Mart 1921''de TBMM tarafından milli marş olarak kabul edildi.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n21', '{"id":"n21","category":"Klasikler","title":"İlk kadın savaş pilotu: Sabiha Gökçen","detail":"Sabiha Gökçen, dünyanın ilk kadın savaş pilotudur ve Atatürk''ün manevi kızıdır. İstanbul''daki havalimanlarından biri onun adını taşır.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n22', '{"id":"n22","category":"Klasikler","title":"Türkiye''nin ilk UNESCO mirasları (1985)","detail":"Türkiye''den listeye ilk giren varlıklar 1985 yılında: Divriği Ulu Camii, İstanbul''un Tarihi Alanları ve Göreme Milli Parkı''dır.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n23', '{"id":"n23","category":"Klasikler","title":"Mehmet Akif Ersoy''un eseri: Safahat","detail":"İstiklal Marşı şairimiz Mehmet Akif Ersoy''un ünlü eserinin adı Safahat''tır.","date":"Klasik"}'::jsonb, 'published'),
++  ('news', 'n24', '{"id":"n24","category":"Klasikler","title":"İlk Türk matbaası: İbrahim Müteferrika","detail":"İlk Türk matbaası 1727 yılında İbrahim Müteferrika ve Sait Efendi tarafından kurulmuştur. Basılan ilk eser Vankulu Lügati''dir.","date":"Klasik"}'::jsonb, 'published'),
++  ('events', 'e1', '{"id":"e1","title":"KPSS Lisans (GY-GK)","date":"2026-09-06","type":"sinav","desc":"Genel Yetenek – Genel Kültür oturumu uygulandı."}'::jsonb, 'published'),
++  ('events', 'e2', '{"id":"e2","title":"KPSS Alan Bilgisi 1. Gün","date":"2026-09-12","type":"sinav","desc":"A Grubu alan bilgisi oturumları 1. gün."}'::jsonb, 'published'),
++  ('events', 'e3', '{"id":"e3","title":"KPSS Alan Bilgisi 2. Gün","date":"2026-09-13","type":"sinav","desc":"A Grubu alan bilgisi oturumları 2. gün."}'::jsonb, 'published'),
++  ('events', 'e4', '{"id":"e4","title":"DHBT Başvuruları","date":"2026-09-22","endDate":"2026-09-30","type":"basvuru","desc":"DHBT başvuruları ÖSYM AİS üzerinden alınacak."}'::jsonb, 'published'),
++  ('events', 'e5', '{"id":"e5","title":"KPSS Ön Lisans","date":"2026-10-04","type":"sinav","desc":"İki yılda bir yapılan ön lisans oturumu. 120 soru, 130 dakika."}'::jsonb, 'published'),
++  ('events', 'e6', '{"id":"e6","title":"KPSS Ortaöğretim","date":"2026-10-25","type":"sinav","desc":"Lise mezunları için KPSS oturumu. 120 soru, 130 dakika."}'::jsonb, 'published'),
++  ('events', 'e7', '{"id":"e7","title":"DHBT","date":"2026-11-01","type":"sinav","desc":"Diyanet''te görev almak isteyenlerin girdiği alan bilgisi testi."}'::jsonb, 'published'),
++  ('events', 'e8', '{"id":"e8","title":"KPSS-2026/2 Merkezi Yerleştirme","date":"2026-12-15","type":"tercih","desc":"Tahmini: Aralık ayında tercihlerin alınması bekleniyor. ÖSYM duyurusunu takip edin."}'::jsonb, 'published'),
++  ('targets', 'onlisans', '{"id":"onlisans","name":"KPSS Ön Lisans","short":"Ön Lisans","scoreType":"P93","eventId":"e5"}'::jsonb, 'published'),
++  ('targets', 'ortaogretim', '{"id":"ortaogretim","name":"KPSS Ortaöğretim","short":"Ortaöğretim","scoreType":"P94","eventId":"e6"}'::jsonb, 'published'),
++  ('targets', 'dhbt', '{"id":"dhbt","name":"DHBT","short":"DHBT","scoreType":"DHBT","eventId":"e7"}'::jsonb, 'published'),
++  ('targets', 'lisans', '{"id":"lisans","name":"KPSS Lisans","short":"Lisans","scoreType":"P3","eventId":"e1"}'::jsonb, 'published'),
++  ('scores', 't1', '{"id":"t1","level":"lisans","kadro":"Memur (4001)","kurum":"Çeşitli Kurumlar","min":78.5,"max":88.2}'::jsonb, 'published'),
++  ('scores', 't2', '{"id":"t2","level":"lisans","kadro":"Mühendis","kurum":"Çeşitli Kurumlar","min":82.1,"max":91.4}'::jsonb, 'published'),
++  ('scores', 't3', '{"id":"t3","level":"lisans","kadro":"Hemşire","kurum":"Sağlık Bakanlığı","min":66.3,"max":78.9}'::jsonb, 'published'),
++  ('scores', 't4', '{"id":"t4","level":"lisans","kadro":"Öğretmenlik (Sözleşmeli)","kurum":"MEB","min":65,"max":85.6}'::jsonb, 'published'),
++  ('scores', 't5', '{"id":"t5","level":"lisans","kadro":"Polis Memuru (POMEM)","kurum":"Emniyet","min":70,"max":80.3}'::jsonb, 'published'),
++  ('scores', 't6', '{"id":"t6","level":"lisans","kadro":"Uzman Yardımcısı","kurum":"Çeşitli Kurumlar","min":80.4,"max":90.1}'::jsonb, 'published'),
++  ('scores', 't7', '{"id":"t7","level":"lisans","kadro":"Sosyolog / Psikolog","kurum":"Çeşitli Kurumlar","min":76.8,"max":86.5}'::jsonb, 'published'),
++  ('scores', 't8', '{"id":"t8","level":"lisans","kadro":"Avukat","kurum":"Çeşitli Kurumlar","min":74.2,"max":84.7}'::jsonb, 'published'),
++  ('scores', 't9', '{"id":"t9","level":"onlisans","kadro":"Memur (3001)","kurum":"Çeşitli Kurumlar","min":72.4,"max":84.6}'::jsonb, 'published'),
++  ('scores', 't10', '{"id":"t10","level":"onlisans","kadro":"Sağlık Teknikeri","kurum":"Sağlık Bakanlığı","min":68.5,"max":80.2}'::jsonb, 'published'),
++  ('scores', 't11', '{"id":"t11","level":"onlisans","kadro":"Hemşire","kurum":"Sağlık Bakanlığı","min":69.1,"max":81.5}'::jsonb, 'published'),
++  ('scores', 't12', '{"id":"t12","level":"onlisans","kadro":"Bilgisayar Teknikeri","kurum":"Çeşitli Kurumlar","min":75.6,"max":86.3}'::jsonb, 'published'),
++  ('scores', 't13', '{"id":"t13","level":"onlisans","kadro":"Zabıt Katibi","kurum":"Adalet Bakanlığı","min":73.8,"max":85.1}'::jsonb, 'published'),
++  ('scores', 't14', '{"id":"t14","level":"onlisans","kadro":"Muhasebeci","kurum":"Çeşitli Kurumlar","min":71.2,"max":82.8}'::jsonb, 'published'),
++  ('scores', 't15', '{"id":"t15","level":"ortaogretim","kadro":"Memur (2001)","kurum":"Çeşitli Kurumlar","min":76.5,"max":87.9}'::jsonb, 'published'),
++  ('scores', 't16', '{"id":"t16","level":"ortaogretim","kadro":"Hizmetli","kurum":"Çeşitli Kurumlar","min":74.3,"max":85.4}'::jsonb, 'published'),
++  ('scores', 't17', '{"id":"t17","level":"ortaogretim","kadro":"Şoför","kurum":"Çeşitli Kurumlar","min":75.1,"max":86}'::jsonb, 'published'),
++  ('scores', 't18', '{"id":"t18","level":"ortaogretim","kadro":"Sağlık Memuru","kurum":"Sağlık Bakanlığı","min":78.2,"max":88.5}'::jsonb, 'published'),
++  ('scores', 't19', '{"id":"t19","level":"ortaogretim","kadro":"Teknisyen","kurum":"Çeşitli Kurumlar","min":77,"max":87.1}'::jsonb, 'published'),
++  ('quotes', 'quote-1', '{"text":"Hiçbir şeye ihtiyacımız yok, yalnız bir şeye ihtiyacımız vardır: çalışkan olmak!","author":"Mustafa Kemal Atatürk","id":"quote-1"}'::jsonb, 'published'),
++  ('quotes', 'quote-2', '{"text":"Başarı, hazırlık ile fırsatın buluştuğu yerdir.","author":"Bobby Unser","id":"quote-2"}'::jsonb, 'published'),
++  ('quotes', 'quote-3', '{"text":"Damlaya damlaya göl olur; her gün çözülen 20 soru, sınav günü özgüvendir.","author":"KPSS Asistanı","id":"quote-3"}'::jsonb, 'published'),
++  ('quotes', 'quote-4', '{"text":"Zorluklar, başarının değerini artıran süslerdir.","author":"Molière","id":"quote-4"}'::jsonb, 'published'),
++  ('quotes', 'quote-5', '{"text":"Düzenli tekrar, bilgiyi kalıcı hafızaya taşır. Bugün dünden bir soru fazla çöz.","author":"KPSS Asistanı","id":"quote-5"}'::jsonb, 'published'),
++  ('quotes', 'quote-6', '{"text":"Hayallerine giden yol, masanın başından geçer.","author":"KPSS Asistanı","id":"quote-6"}'::jsonb, 'published'),
++  ('quotes', 'quote-7', '{"text":"Azim, başarının anahtarıdır; vazgeçenler asla kazanamaz.","author":"Anonim","id":"quote-7"}'::jsonb, 'published'),
++  ('quotes', 'quote-8', '{"text":"Yarın yorulmak istemiyorsan, bugün terlemelisin.","author":"Anonim","id":"quote-8"}'::jsonb, 'published')
++on conflict (kind, id) do nothing;
++
++commit;
+diff --git a/supabase/migrations/202609260001_quiz_quotas.sql b/supabase/migrations/202609260001_quiz_quotas.sql
+new file mode 100644
+index 0000000..c89bc7a
+--- /dev/null
++++ b/supabase/migrations/202609260001_quiz_quotas.sql
+@@ -0,0 +1,66 @@
++-- Configurable daily quiz limits for guest, member, and VIP plans.
++begin;
++
++create table if not exists public.quiz_quota_settings (
++  id smallint primary key check (id = 1),
++  guest_limit integer not null check (guest_limit between 0 and 9999),
++  member_limit integer not null check (member_limit between 0 and 9999),
++  vip_limit integer check (vip_limit between 0 and 9999),
++  updated_at timestamptz not null default clock_timestamp()
++);
++alter table public.quiz_quota_settings enable row level security;
++revoke all on public.quiz_quota_settings from anon, authenticated;
++
++insert into public.quiz_quota_settings(id, guest_limit, member_limit, vip_limit)
++values (1, 1, 3, null)
++on conflict (id) do nothing;
++
++create or replace function public.get_quiz_quota_settings() returns jsonb
++language sql stable security definer set search_path = '' as $$
++  select jsonb_build_object(
++    'guest', guest_limit,
++    'uye', member_limit,
++    'vip', vip_limit
++  )
++  from public.quiz_quota_settings where id = 1;
++$$;
++revoke all on function public.get_quiz_quota_settings() from public;
++grant execute on function public.get_quiz_quota_settings() to anon, authenticated;
++
++create or replace function public.set_quiz_quota_settings(
++  p_guest_limit integer,
++  p_member_limit integer,
++  p_vip_limit integer
++) returns void
++language plpgsql security definer set search_path = '' as $$
++begin
++  if not public.is_admin() then
++    raise exception 'Yönetici yetkisi gerekiyor.' using errcode = '42501';
++  end if;
++  if p_guest_limit is null or p_guest_limit not between 0 and 9999
++    or p_member_limit is null or p_member_limit not between 0 and 9999
++    or (p_vip_limit is not null and p_vip_limit not between 0 and 9999) then
++    raise exception 'Test kotaları 0 ile 9999 arasında olmalıdır.';
++  end if;
++
++  insert into public.quiz_quota_settings(id, guest_limit, member_limit, vip_limit, updated_at)
++  values (1, p_guest_limit, p_member_limit, p_vip_limit, clock_timestamp())
++  on conflict (id) do update set
++    guest_limit = excluded.guest_limit,
++    member_limit = excluded.member_limit,
++    vip_limit = excluded.vip_limit,
++    updated_at = excluded.updated_at;
++
++  insert into public.admin_audit_log(actor_id, action, kind, entry_id)
++  values (
++    auth.uid(),
++    'SET_QUIZ_QUOTAS',
++    'settings',
++    format('guest=%s,uye=%s,vip=%s', p_guest_limit, p_member_limit, coalesce(p_vip_limit::text, 'unlimited'))
++  );
++end;
++$$;
++revoke all on function public.set_quiz_quota_settings(integer, integer, integer) from public;
++grant execute on function public.set_quiz_quota_settings(integer, integer, integer) to authenticated;
++
++commit;
+diff --git a/supabase/tek-seferde-kurulum.sql b/supabase/tek-seferde-kurulum.sql
+index 7938d39..feaef05 100644
+--- a/supabase/tek-seferde-kurulum.sql
++++ b/supabase/tek-seferde-kurulum.sql
+@@ -1,9 +1,9 @@
+ -- !!! TEK DOSYA KURULUM !!!
+ -- KPSS Asistanım supabase projesi icin tum migrationlar sirasiyla birlestirildi.
+ -- SQL Editor'de bu dosyanin TAMAMINI secip Calistir (Run) — tek seferde kurulum.
+--- Olusturulma: 2026-09-25 — kaynak: supabase/migrations/ (4 dosya, sirayla)
++-- Olusturulma: 2026-09-26 — kaynak: supabase/migrations/ (5 dosya, sirayla)
+ 
+--- ============ 1/4 admin_content ============
++-- ============ 1/5 admin_content ============
+ -- Run once in the Supabase SQL Editor (or with `supabase db push`).
+ begin;
+ 
+@@ -161,7 +161,7 @@ grant execute on function public.set_admin(text, boolean) to authenticated;
+ 
+ commit;
+ 
+--- ============ 2/4 accounts_roles ============
++-- ============ 2/5 accounts_roles ============
+ -- KPSS Asistanım — hesap, rol ve esnek ders güncellemesi
+ -- Bu dosya 202609220001_admin_content.sql üzerine uygulanır (idempotent parçalar ekleme).
+ begin;
+@@ -428,7 +428,7 @@ create trigger on_auth_user_created after insert on auth.users
+ 
+ commit;
+ 
+--- ============ 3/4 user_moderation ============
++-- ============ 3/5 user_moderation ============
+ -- KPSS Asistanım — kullanıcı denetimi: engelleme (ban) ve hesap silme desteği
+ -- 202609250001_accounts_roles.sql üzerine uygulanır.
+ begin;
+@@ -545,7 +545,7 @@ grant execute on function public.resolve_user_id(text) to authenticated;
+ 
+ commit;
+ 
+--- ============ 4/4 question_reports ============
++-- ============ 4/5 question_reports ============
+ -- KPSS Asistanım — hatalı soru bildirimleri + kullanıcı etkinlik istatistikleri
+ -- 202609250001_accounts_roles.sql ve 202609250002_user_moderation.sql üzerine uygulanır.
+ begin;
+@@ -626,3 +626,71 @@ revoke all on function public.get_user_stats() from public;
+ grant execute on function public.get_user_stats() to authenticated;
+ 
+ commit;
++
++-- ============ 5/5 quiz_quotas ============
++-- Configurable daily quiz limits for guest, member, and VIP plans.
++begin;
++
++create table if not exists public.quiz_quota_settings (
++  id smallint primary key check (id = 1),
++  guest_limit integer not null check (guest_limit between 0 and 9999),
++  member_limit integer not null check (member_limit between 0 and 9999),
++  vip_limit integer check (vip_limit between 0 and 9999),
++  updated_at timestamptz not null default clock_timestamp()
++);
++alter table public.quiz_quota_settings enable row level security;
++revoke all on public.quiz_quota_settings from anon, authenticated;
++
++insert into public.quiz_quota_settings(id, guest_limit, member_limit, vip_limit)
++values (1, 1, 3, null)
++on conflict (id) do nothing;
++
++create or replace function public.get_quiz_quota_settings() returns jsonb
++language sql stable security definer set search_path = '' as $$
++  select jsonb_build_object(
++    'guest', guest_limit,
++    'uye', member_limit,
++    'vip', vip_limit
++  )
++  from public.quiz_quota_settings where id = 1;
++$$;
++revoke all on function public.get_quiz_quota_settings() from public;
++grant execute on function public.get_quiz_quota_settings() to anon, authenticated;
++
++create or replace function public.set_quiz_quota_settings(
++  p_guest_limit integer,
++  p_member_limit integer,
++  p_vip_limit integer
++) returns void
++language plpgsql security definer set search_path = '' as $$
++begin
++  if not public.is_admin() then
++    raise exception 'Yönetici yetkisi gerekiyor.' using errcode = '42501';
++  end if;
++  if p_guest_limit is null or p_guest_limit not between 0 and 9999
++    or p_member_limit is null or p_member_limit not between 0 and 9999
++    or (p_vip_limit is not null and p_vip_limit not between 0 and 9999) then
++    raise exception 'Test kotaları 0 ile 9999 arasında olmalıdır.';
++  end if;
++
++  insert into public.quiz_quota_settings(id, guest_limit, member_limit, vip_limit, updated_at)
++  values (1, p_guest_limit, p_member_limit, p_vip_limit, clock_timestamp())
++  on conflict (id) do update set
++    guest_limit = excluded.guest_limit,
++    member_limit = excluded.member_limit,
++    vip_limit = excluded.vip_limit,
++    updated_at = excluded.updated_at;
++
++  insert into public.admin_audit_log(actor_id, action, kind, entry_id)
++  values (
++    auth.uid(),
++    'SET_QUIZ_QUOTAS',
++    'settings',
++    format('guest=%s,uye=%s,vip=%s', p_guest_limit, p_member_limit, coalesce(p_vip_limit::text, 'unlimited'))
++  );
++end;
++$$;
++revoke all on function public.set_quiz_quota_settings(integer, integer, integer) from public;
++grant execute on function public.set_quiz_quota_settings(integer, integer, integer) to authenticated;
++
++commit;
+diff --git a/tests/authorization.test.ts b/tests/authorization.test.ts
+index 65d8fdc..2ac3312 100644
+--- a/tests/authorization.test.ts
++++ b/tests/authorization.test.ts
+@@ -47,6 +47,9 @@ before(async () => {
+   await db.exec(
+     readFileSync(new URL('../supabase/migrations/202609250003_question_reports.sql', import.meta.url), 'utf8'),
+   );
++  await db.exec(
++    readFileSync(new URL('../supabase/migrations/202609260001_quiz_quotas.sql', import.meta.url), 'utf8'),
++  );
+   await db.query('insert into public.members(user_id, role) values ($1, $2)', [admin, 'admin']);
+   await asUser('authenticated', admin);
+   await insert('published', 'published');
+@@ -269,3 +272,42 @@ test('bundled import is complete and cannot overwrite existing edits', async ()
+     'draft',
+   );
+ });
++
++test('plan quota settings are readable by users but writable only by admins', async () => {
++  await asUser('anon');
++  assert.deepEqual(
++    (await db.query<{ settings: { guest: number; uye: number; vip: number | null } }>(
++      'select public.get_quiz_quota_settings() as settings',
++    )).rows[0].settings,
++    { guest: 1, uye: 3, vip: null },
++  );
++  await assert.rejects(db.query('select * from public.quiz_quota_settings'), /permission denied/i);
++  await assert.rejects(
++    db.query('select public.set_quiz_quota_settings(2, 5, 10)'),
++    /permission denied/i,
++  );
++
++  await asUser('authenticated', student);
++  await assert.rejects(db.query('select public.set_quiz_quota_settings(2, 5, 10)'), /Yönetici yetkisi/);
++  await assert.rejects(db.query('select * from public.quiz_quota_settings'), /permission denied/i);
++
++  await asUser('authenticated', admin);
++  await db.query('select public.set_quiz_quota_settings(2, 5, 10)');
++  assert.deepEqual(
++    (await db.query<{ settings: { guest: number; uye: number; vip: number | null } }>(
++      'select public.get_quiz_quota_settings() as settings',
++    )).rows[0].settings,
++    { guest: 2, uye: 5, vip: 10 },
++  );
++  await db.query('select public.set_quiz_quota_settings(0, 0, null)');
++  assert.deepEqual(
++    (await db.query<{ settings: { guest: number; uye: number; vip: number | null } }>(
++      'select public.get_quiz_quota_settings() as settings',
++    )).rows[0].settings,
++    { guest: 0, uye: 0, vip: null },
++  );
++  await assert.rejects(db.query('select public.set_quiz_quota_settings(10000, 5, null)'), /0 ile 9999/);
++  assert.ok(
++    (await db.query("select id from public.admin_audit_log where action='SET_QUIZ_QUOTAS'")).rows.length >= 2,
++  );
++});
+diff --git a/tests/content.test.ts b/tests/content.test.ts
+index d8f456e..bed9baa 100644
+--- a/tests/content.test.ts
++++ b/tests/content.test.ts
+@@ -1,7 +1,7 @@
+ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+ import { newPayload, parseEntry, publishedContent, schemas, seedEntries } from '../lib/content-schema';
+-import { questionOfDay } from '../lib/data';
++import { LESSONS, QUESTIONS, QUESTION_TOPIC_IDS, questionOfDay } from '../lib/data';
+ 
+ const q = {
+   id: 'q1',
+@@ -72,6 +72,25 @@ test('date ranges and score bounds are validated', () => {
+     false,
+   );
+ });
++test('every bundled question is assigned to a topic in its lesson', () => {
++  const topicIdsByLesson = new Map(LESSONS.map((lesson) => [lesson.id, new Set(lesson.topics.map((topic) => topic.id))]));
++  for (const question of QUESTIONS) {
++    assert.equal(question.topicId, QUESTION_TOPIC_IDS[question.id], `${question.id} topic mapping`);
++    assert.ok(topicIdsByLesson.get(question.category)?.has(question.topicId ?? ''), `${question.id} belongs to its lesson`);
++  }
++});
++test('legacy server questions inherit their bundled topic mapping', () => {
++  const question = QUESTIONS.find((item) => item.topicId)!;
++  const { topicId: _topicId, ...legacyQuestion } = question;
++  const content = publishedContent([{
++    kind: 'questions',
++    id: question.id,
++    payload: legacyQuestion,
++    status: 'published',
++  } as any]);
++  assert.equal(content.questions[0].topicId, question.topicId);
++});
++
+ test('topic names can change while stable identifiers preserve progress', () => {
+   const lesson = seedEntries().find((e) => e.kind === 'lessons')!;
+   const parsed = schemas.lessons.parse(lesson.payload);
+diff --git a/tests/quiz-selection.test.ts b/tests/quiz-selection.test.ts
+new file mode 100644
+index 0000000..026900c
+--- /dev/null
++++ b/tests/quiz-selection.test.ts
+@@ -0,0 +1,66 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { selectBalancedQuestions, selectQuestionsWithReplacement } from '../lib/quiz-selection';
++
++type Question = { id: string; topicId: string };
++
++function countsByTopic(questions: Question[]): number[] {
++  return Object.values(
++    questions.reduce<Record<string, number>>((counts, question) => {
++      counts[question.topicId] = (counts[question.topicId] ?? 0) + 1;
++      return counts;
++    }, {}),
++  ).sort((a, b) => a - b);
++}
++
++test('selected-topic tests split questions evenly, with only the remainder distributed extra', () => {
++  const questions: Question[] = ['a', 'b', 'c'].flatMap((topicId) =>
++    Array.from({ length: 8 }, (_, index) => ({ id: `${topicId}-${index}`, topicId })),
++  );
++  const selected = selectBalancedQuestions(questions, ['a', 'b', 'c'], 10, () => 0.5);
++  assert.equal(selected.length, 10);
++  assert.deepEqual(countsByTopic(selected), [3, 3, 4]);
++  assert.equal(new Set(selected.map((question) => question.id)).size, selected.length);
++});
++
++test('a small topic pool is repeated so selected topics remain balanced', () => {
++  const questions: Question[] = [
++    { id: 'a-1', topicId: 'a' },
++    ...Array.from({ length: 8 }, (_, index) => ({ id: `b-${index}`, topicId: 'b' })),
++    ...Array.from({ length: 8 }, (_, index) => ({ id: `c-${index}`, topicId: 'c' })),
++  ];
++  const selected = selectBalancedQuestions(questions, ['a', 'b', 'c'], 9, () => 0.5);
++  assert.equal(selected.length, 9);
++  assert.deepEqual(countsByTopic(selected), [3, 3, 3]);
++});
++
++test('when a topic pool is too small, return the exact requested count and balance replacements', () => {
++  const questions: Question[] = [
++    { id: 'a-1', topicId: 'a' },
++    { id: 'b-1', topicId: 'b' },
++    { id: 'b-2', topicId: 'b' },
++  ];
++  const selected = selectBalancedQuestions(questions, ['a', 'a', 'b'], 20, () => 0.5);
++  assert.equal(selected.length, 20);
++  assert.deepEqual(countsByTopic(selected), [10, 10]);
++  assert.deepEqual(
++    selected.filter((question) => question.topicId === 'b').reduce<Record<string, number>>((counts, question) => {
++      counts[question.id] = (counts[question.id] ?? 0) + 1;
++      return counts;
++    }, {}),
++    { 'b-1': 5, 'b-2': 5 },
++  );
++});
++
++test('an untagged pool still returns the exact requested count with replacements', () => {
++  const questions = [{ id: 'one' }, { id: 'two' }];
++  const selected = selectQuestionsWithReplacement(questions, 7, () => 0.5);
++  assert.equal(selected.length, 7);
++  assert.deepEqual(
++    selected.reduce<Record<string, number>>((counts, question) => {
++      counts[question.id] = (counts[question.id] ?? 0) + 1;
++      return counts;
++    }, {}),
++    { one: 4, two: 3 },
++  );
++});
