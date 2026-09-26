@@ -73,9 +73,7 @@ async function setup(page: Page, admin = true, empty = false) {
     }
     return json({ message: `Unhandled test route: ${method} ${url.pathname}` }, 500);
   });
-  await page.goto('/');
-  await page.getByRole('tab', { name: /Profil/ }).click();
-  await page.getByText('Yönetici Paneli', { exact: true }).click();
+  await page.goto('/Admin');
   return { getRows: () => rows };
 }
 async function login(page: Page, password = 'test-password') {
@@ -159,8 +157,7 @@ test('empty configured database does not resurrect bundled content or crash', as
   await page.getByRole('tab', { name: /Testler/ }).click();
   await expect(page.getByText('Tüm derslerden karma sorular • 0 soru', { exact: true })).toBeVisible();
   await expect(page.getByText('Henüz yayında soru yok', { exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: /Profil/ }).click();
-  await page.getByText('Yönetici Paneli', { exact: true }).click();
+  await page.goto('/Admin');
   await login(page);
   await expect(page.getByRole('button', { name: 'Hazır içerikleri aktar' })).toBeEnabled();
   expect(errors).toEqual([]);

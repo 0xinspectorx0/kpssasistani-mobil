@@ -300,9 +300,17 @@ export function dayKey(d: Date = new Date()): string {
   return d.getFullYear() + '-' + m + '-' + day;
 }
 
-export function questionOfDay(pool: QuizQuestion[] = QUESTIONS): QuizQuestion | undefined {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
-  return pool.length ? pool[dayOfYear % pool.length] : undefined;
+export function pickRandomQuestion(
+  pool: QuizQuestion[],
+  exceptId?: string,
+): QuizQuestion | undefined {
+  if (!pool.length) return undefined;
+  const candidates = exceptId && pool.length > 1 ? pool.filter((q) => q.id !== exceptId) : pool;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+export function questionOfDay(pool: QuizQuestion[] = QUESTIONS, now: Date = new Date()): QuizQuestion | undefined {
+  if (!pool.length) return undefined;
+  const minuteIndex = Math.floor(now.getTime() / 60000);
+  return pool[minuteIndex % pool.length];
 }

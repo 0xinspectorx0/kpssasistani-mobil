@@ -1,12 +1,12 @@
 import { useContent } from '../lib/content';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../lib/store';
 import { Card, PrimaryButton, SectionTitle, StatTile, useResponsiveLayout } from '../components/ui';
-import { daysUntil, formatDateTR, questionOfDay } from '../lib/data';
+import { daysUntil, formatDateTR, pickRandomQuestion, QuizQuestion } from '../lib/data';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { Notice } from '../components/admin/AdminUI';
 import { radius } from '../lib/theme';
@@ -33,6 +33,21 @@ export default function HomeScreen({ navigation }: any) {
   const [useTopicManualCount, setUseTopicManualCount] = React.useState(false);
   const [qodModalVisible, setQodModalVisible] = React.useState(false);
   const [qodAnswered, setQodAnswered] = React.useState<number | null>(null);
+  const [qod, setQod] = useState<QuizQuestion | undefined>(() => pickRandomQuestion(QUESTIONS));
+  const qodModalOpenRef = useRef(false);
+  const questionsRef = useRef(QUESTIONS);
+  questionsRef.current = QUESTIONS;
+  qodModalOpenRef.current = qodModalVisible;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (qodModalOpenRef.current) return;
+      setQod((current) => pickRandomQuestion(questionsRef.current, current?.id));
+      setQodAnswered(null);
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const selectedLesson = LESSONS.find((lesson) => lesson.id === selectedLessonId);
   const topicTestQuestionCount = selectedLesson
     ? topicSelectionMode === 'all'
@@ -87,7 +102,6 @@ export default function HomeScreen({ navigation }: any) {
   const targetEvent = EXAM_EVENTS.find((e) => e.id === target?.eventId);
   const remain = targetEvent ? daysUntil(targetEvent.date) : 0;
 
-  const qod = questionOfDay(QUESTIONS);
   const qodCat = CATEGORY_LIST.find((c) => c.id === qod?.category);
   const answerDailyQuestion = (answerIndex: number) => {
     if (!qod || qodAnswered !== null) return;
@@ -253,7 +267,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={isDesktopWeb ? { flexDirection: 'row', alignItems: 'flex-start', gap: 24 } : undefined}>
         {/* Question of the day */}
         {qod && <View style={{ marginTop: 16, flex: isDesktopWeb ? 1 : undefined }}>
-          <SectionTitle title="Günün Sorusu" subtitle="Her gün yeni bir KPSS sorusu" />
+          <SectionTitle title="Günün Sorusu" subtitle="Her dakika yeni bir KPSS sorusu" />
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <View

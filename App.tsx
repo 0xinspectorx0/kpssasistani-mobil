@@ -190,7 +190,33 @@ function Root() {
   return (
     <>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer
+        theme={navTheme}
+        linking={{
+          prefixes: [
+            'https://kpssasistani-mobil.vercel.app',
+            ...(typeof window !== 'undefined' && window.location?.origin ? [window.location.origin] : []),
+          ],
+          config: {
+            screens: {
+              Main: {
+                path: '',
+                screens: {
+                  'Ana Sayfa': '',
+                  Testler: 'Testler',
+                  Konular: 'Konular',
+                  Güncel: 'Güncel',
+                  Araçlar: 'Araçlar',
+                  Profil: 'Profil',
+                },
+              },
+              Admin: 'Admin',
+              Quiz: 'Quiz',
+              QuizResult: 'QuizResult',
+            },
+          } as any,
+        }}
+      >
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Main" component={Tabs} />
           <Stack.Screen name="Admin" component={AdminScreen} />

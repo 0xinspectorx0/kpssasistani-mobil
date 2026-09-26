@@ -21,7 +21,7 @@ export default function ProfileScreen({ navigation }: any) {
   const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { questions: QUESTIONS, lessons: LESSONS, targets: TARGET_EXAMS } = useContent();
   const CATEGORY_LIST = useCategoryList();
-  const { session, role, signOut } = useAdminAuth();
+  const { session, role, signOut, isAdmin } = useAdminAuth();
   const { plan, meta: planMeta } = usePlan();
   const [authVisible, setAuthVisible] = useState(false);
 
@@ -74,6 +74,28 @@ export default function ProfileScreen({ navigation }: any) {
         }}
         showsVerticalScrollIndicator={false}
       >
+        {isAdmin && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('Admin')}
+            activeOpacity={0.8}
+            style={{ marginBottom: 14 }}
+          >
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="shield-checkmark-outline" size={23} color={theme.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>Yönetici Paneli</Text>
+                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
+                  {roleLabels[role] ?? 'Üye'} • Soru ve içerik yönetimi
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.muted} />
+            </Card>
+          </TouchableOpacity>
+        )}
+
         {/* Profile header */}
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -377,20 +399,6 @@ export default function ProfileScreen({ navigation }: any) {
         {/* Settings */}
         <View style={{ marginTop: 14 }}>
           <SectionTitle title="Ayarlar" />
-          <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate('Admin')} activeOpacity={0.8} style={{ marginBottom: 12 }}>
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="shield-checkmark-outline" size={23} color={theme.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>Yönetici Paneli</Text>
-                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 3 }}>
-                  {session ? `${roleLabels[role] ?? 'Üye'} • Soru ve içerik yönetimi` : 'Hesabınla giriş yap • Soru ve içerik yönetimi'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={theme.muted} />
-            </Card>
-          </TouchableOpacity>
           <Card>
             <Text style={{ fontSize: 13.5, fontWeight: '800', color: theme.text, marginBottom: 10 }}>Tema</Text>
             <View style={{ flexDirection: 'row' }}>

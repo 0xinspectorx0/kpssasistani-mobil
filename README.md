@@ -11,7 +11,7 @@ npm run web
 
 - **Hesap sistemi**: Profil → Hesabım ile üye ol / giriş yap. Misafir günde 1, üye günde 3,
   VIP sınırsız test çözer.
-- **Yönetici paneli** (Profil → Yönetici Paneli): soru bankası, dersler/kategoriler, konular,
+- **Yönetici paneli** (yalnızca admin, Profil'in en üstü): soru bankası, dersler/kategoriler, konular,
   güncel bilgiler, sınav takvimi, hedef sınavlar, taban puanlar ve motivasyon sözleri tek yerden yönetilir.
 - **Toplu soru ekleme**: JSON veya satır bazlı metin/CSV ile tek seferde çok soru yüklenir.
 - **Kademeli roller**: Yönetici / Editör / Görüntüleyici.
