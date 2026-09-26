@@ -6,8 +6,8 @@
 - GitHub: https://github.com/0xinspectorx0/kpssasistani-mobil
 
 ## Git durumu (2026-09-26 itibarıyla)
-- Local HEAD = GitHub `main` (her zaman eşit; en son hash: `git log -1`)
-- Bu dosya repoda da mevcut: repo kökünde `HANDOFF.md`
+- Uygulama geliştirme tabanı `4282d93`; sonrasında HANDOFF dosyası eklenmiş ve ana dala içerik aktarımı fallback'i eklenmiştir.
+- Yeni oturumda başlangıç dalının `origin/main` ile eşit olduğunu `git log -1` ve `git status` ile kontrol et.
 - Dallar: `main`, `ilk-surdum` (PR baz dalı, ilk commit `0ee804d`)
 - PR açmak için tek tıklık link: https://github.com/0xinspectorx0/kpssasistani-mobil/compare/ilk-surdum...main
 - **PAT hiçbir yerde saklanmaz**; remote URL token'sız: `https://github.com/0xinspectorx0/kpssasistani-mobil.git`
@@ -21,6 +21,8 @@
 
 ## Kullanıcı düzeltmeleri / kurallar (BU OTURUMDAN, ihmal edilmesin)
 - **Alt sekme etiketleri asla yarım/kesik görünmemeli** — kullanıcı 3 kez bu geri bildirimi verdi; son çözüm onaylandı ("çok iyi oldu").
+- Alt bar etiketleri her ekran boyutu/yönünde simgelerin hemen altında ve aynı sabit dikey düzende kalmalı (`tabBarLabelPosition: 'below-icon'`, sabit bar yüksekliği).
+- Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
 - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
 - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
 - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); misafir 1, ücretsiz 3, VIP sınırsız test.

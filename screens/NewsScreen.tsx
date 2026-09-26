@@ -4,7 +4,7 @@ import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
-import { Card, Chip, EmptyState } from '../components/ui';
+import { Card, Chip, EmptyState, useResponsiveLayout } from '../components/ui';
 import { NewsCategory } from '../lib/data';
 
 const FILTERS: ('Tümü' | NewsCategory)[] = ['Tümü', 'Spor', 'Kültür-Sanat', 'Bilim', 'Kurumlar', 'Klasikler'];
@@ -19,6 +19,7 @@ const CAT_COLORS: Record<string, string> = {
 
 export default function NewsScreen({ navigation }: any) {
   const { theme } = useApp();
+  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { news: NEWS } = useContent();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Tümü');
   const [query, setQuery] = useState('');
@@ -34,7 +35,15 @@ export default function NewsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+      <View
+        style={{
+          width: '100%',
+          maxWidth: pageMaxWidth,
+          alignSelf: 'center',
+          paddingHorizontal: pagePadding,
+          paddingTop: isDesktopWeb ? 24 : 8,
+        }}
+      >
         <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Güncel Bilgiler</Text>
         <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
           2024–2026 gündemi ve sınav klasikleri • {NEWS.length} kart
@@ -76,9 +85,19 @@ export default function NewsScreen({ navigation }: any) {
         </View>
       </View>
       <FlatList
+        key={isDesktopWeb ? 'web-grid' : 'mobile-list'}
         data={list}
+        numColumns={isDesktopWeb ? 2 : 1}
+        columnWrapperStyle={isDesktopWeb ? { gap: 16 } : undefined}
         keyExtractor={(i) => i.id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: pageMaxWidth,
+          alignSelf: 'center',
+          padding: pagePadding,
+          paddingTop: 12,
+          paddingBottom: 36,
+        }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <TouchableOpacity
@@ -107,7 +126,11 @@ export default function NewsScreen({ navigation }: any) {
           const color = CAT_COLORS[item.category] ?? theme.accent;
           const open = expandedId === item.id;
           return (
-            <TouchableOpacity onPress={() => setExpandedId(open ? null : item.id)} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              onPress={() => setExpandedId(open ? null : item.id)}
+              activeOpacity={0.8}
+            >
               <Card style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <View style={{ backgroundColor: color + '1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
