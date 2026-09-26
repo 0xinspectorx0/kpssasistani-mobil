@@ -1,9 +1,8 @@
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
-import { Card, PrimaryButton, ProgressBar, StatTile } from '../components/ui';
+import { Card, PrimaryButton, ProgressBar, QuizSheet, StatTile } from '../components/ui';
 import { radius } from '../lib/theme';
 
 export default function QuizResultScreen({ navigation, route }: any) {
@@ -21,8 +20,8 @@ export default function QuizResultScreen({ navigation, route }: any) {
     : { icon: 'book', color: theme.accent, text: 'Pes etme! Konu çalışıp tekrar dene.' };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+    <QuizSheet fill accessibilityLabel="Test sonucu">
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
           <View
             style={{
@@ -43,7 +42,7 @@ export default function QuizResultScreen({ navigation, route }: any) {
           </Text>
         </View>
 
-        <Card>
+        <Card style={{ backgroundColor: theme.card2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <Text style={{ fontSize: 14, fontWeight: '800', color: theme.text }}>Başarı Oranı</Text>
             <Text style={{ fontSize: 20, fontWeight: '900', color: theme.accent }}>%{pct}</Text>
@@ -98,7 +97,7 @@ export default function QuizResultScreen({ navigation, route }: any) {
           <TouchableOpacity
             onPress={() => navigation.navigate('Main', { screen: 'Ana Sayfa' })}
             style={{
-              backgroundColor: theme.card,
+              backgroundColor: theme.card2,
               borderRadius: radius.md,
               paddingVertical: 14,
               alignItems: 'center',
@@ -110,6 +109,6 @@ export default function QuizResultScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </QuizSheet>
   );
 }
