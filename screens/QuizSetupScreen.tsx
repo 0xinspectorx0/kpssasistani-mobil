@@ -4,7 +4,7 @@ import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
-import { Card, PrimaryButton, SectionTitle } from '../components/ui';
+import { Card, PrimaryButton, SectionTitle, useResponsiveLayout } from '../components/ui';
 import { useAdminAuth } from '../lib/admin-auth';
 import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META } from '../lib/membership';
 import { useCategoryList } from '../lib/lesson-catalog';
@@ -14,6 +14,7 @@ const COUNTS = [5, 10, 20];
 
 export default function QuizSetupScreen({ navigation, route }: any) {
   const { theme } = useApp();
+  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { questions: QUESTIONS } = useContent();
   const CATEGORY_LIST = useCategoryList();
   const { session, role } = useAdminAuth();
@@ -38,8 +39,9 @@ export default function QuizSetupScreen({ navigation, route }: any) {
       <FlatList
         data={[]}
         renderItem={null}
+        contentContainerStyle={{ width: '100%', maxWidth: pageMaxWidth, alignSelf: 'center', paddingBottom: 36 }}
         ListHeaderComponent={
-          <View style={{ padding: 16 }}>
+          <View style={{ padding: pagePadding }}>
             <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Test Çöz</Text>
             <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
               Dersini ve soru sayısını seç, hemen başla
@@ -81,11 +83,17 @@ export default function QuizSetupScreen({ navigation, route }: any) {
 
             <View style={{ marginTop: 16 }}>
               <SectionTitle title="Ders Seç" subtitle={`${cats.length} seçenek`} />
+              <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 12 } : undefined}>
               {cats.map((c: any) => {
                 const active = selectedCat === c.id;
                 const n = c.id === 'mixed' ? QUESTIONS.length : QUESTIONS.filter((q) => q.category === c.id).length;
                 return (
-                  <TouchableOpacity key={c.id} onPress={() => setSelectedCat(c.id)} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    key={c.id}
+                    style={isDesktopWeb ? { width: '32%' } : undefined}
+                    onPress={() => setSelectedCat(c.id)}
+                    activeOpacity={0.8}
+                  >
                     <Card
                       style={{
                         marginBottom: 10,
@@ -133,6 +141,7 @@ export default function QuizSetupScreen({ navigation, route }: any) {
                   </TouchableOpacity>
                 );
               })}
+              </View>
             </View>
 
             <View style={{ marginTop: 8 }}>

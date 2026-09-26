@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../lib/store';
-import { Card, PrimaryButton, SectionTitle, StatTile } from '../components/ui';
+import { Card, PrimaryButton, SectionTitle, StatTile, useResponsiveLayout } from '../components/ui';
 import { daysUntil, formatDateTR, questionOfDay } from '../lib/data';
 import { useCategoryList } from '../lib/lesson-catalog';
 import { Notice } from '../components/admin/AdminUI';
@@ -21,6 +21,7 @@ function greeting(): string {
 
 export default function HomeScreen({ navigation }: any) {
   const { theme, name, targetExamId, streak, totalQuestions, accuracy, completedTopics, history } = useApp();
+  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const { lessons: LESSONS, events: EXAM_EVENTS, targets: TARGET_EXAMS, quotes: QUOTES, questions: QUESTIONS, refreshContent, syncError, source } = useContent();
   const CATEGORY_LIST = useCategoryList();
   const [refreshing, setRefreshing] = React.useState(false);
@@ -58,7 +59,13 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: pageMaxWidth,
+          alignSelf: 'center',
+          padding: pagePadding,
+          paddingBottom: isDesktopWeb ? 36 : 28,
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
@@ -184,8 +191,10 @@ export default function HomeScreen({ navigation }: any) {
           <StatTile icon="star" iconColor={theme.accent} value={target?.scoreType ?? '—'} label="Hedef puan türü" />
         </View>
 
+        {/* Web geniş ekranda soru ve ders seçimini iki sütuna ayır; mobil sıralama aynen korunur. */}
+        <View style={isDesktopWeb ? { flexDirection: 'row', alignItems: 'flex-start', gap: 24 } : undefined}>
         {/* Question of the day */}
-        {qod && <View style={{ marginTop: 16 }}>
+        {qod && <View style={{ marginTop: 16, flex: isDesktopWeb ? 1 : undefined }}>
           <SectionTitle title="Günün Sorusu" subtitle="Her gün yeni bir KPSS sorusu" />
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -219,7 +228,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>}
 
         {/* Quick categories */}
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: 16, flex: isDesktopWeb ? 1 : undefined, minWidth: 0 }}>
           <SectionTitle
             title="Dersler"
             subtitle="Test çözmek için bir ders seç"
@@ -269,6 +278,7 @@ export default function HomeScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
           />
+        </View>
         </View>
 
         {/* Quote */}

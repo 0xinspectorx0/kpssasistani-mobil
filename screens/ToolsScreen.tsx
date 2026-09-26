@@ -4,7 +4,7 @@ import { Linking, ScrollView, Text, TextInput, TouchableOpacity, View } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../lib/store';
-import { Card, Chip, ProgressBar, SectionTitle } from '../components/ui';
+import { Card, Chip, ProgressBar, SectionTitle, useResponsiveLayout } from '../components/ui';
 import { daysUntil, formatDateTR } from '../lib/data';
 import { radius } from '../lib/theme';
 
@@ -186,13 +186,23 @@ function TabanPuanlar() {
 export default function ToolsScreen() {
   const { events: EXAM_EVENTS } = useContent();
   const { theme } = useApp();
+  const { isDesktopWeb, pageMaxWidth, pagePadding } = useResponsiveLayout();
   const [tab, setTab] = useState<'takvim' | 'puan' | 'taban'>('takvim');
 
   const sorted = [...EXAM_EVENTS].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: pageMaxWidth,
+          alignSelf: 'center',
+          padding: pagePadding,
+          paddingBottom: isDesktopWeb ? 36 : 28,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={{ fontSize: 22, fontWeight: '900', color: theme.text }}>Araçlar</Text>
         <Text style={{ fontSize: 13, color: theme.muted, marginTop: 4 }}>
           Sınav takvimi, puan hesaplama ve taban puanlar
