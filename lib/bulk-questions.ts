@@ -20,8 +20,8 @@
  *   Açıklama: Açıklama metni burada.
  *
  * Numarasız, tek cevaplı klasik biçim de desteklenir. Her soru kendi satırında
- * başlar; numaradan sonra "Ders: tarih" / "Zorluk: Orta" satırları verilirse
- * varsayılan değerlerin yerine geçer.
+ * başlar; numaradan sonra "Ders: tarih" / "Konu: ta-s3" / "Zorluk: Orta" satırları
+ * verilirse varsayılan değerlerin yerine geçer.
  */
 
 export const BULK_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
@@ -30,11 +30,14 @@ export type BulkDifficulty = (typeof BULK_DIFFICULTIES)[number];
 
 export interface BulkQuestionDefaults {
   category: string;
+  /** Soruların yükleneceği konu kimliği; kalıpta "Konu: <id>" satırıyla tek soruda ezilebilir. */
+  topicId?: string;
   difficulty: BulkDifficulty;
 }
 
 export interface BulkQuestion {
   category: string;
+  topicId?: string;
   difficulty: BulkDifficulty;
   question: string;
   options: string[];
@@ -50,7 +53,7 @@ const OPTION = /(?:^|\s)\(?([A-Ea-e])\)\s*/g;
 const OPTION_START = /^\s*\(?([A-Ea-e])\)\s*/;
 const ANSWER = /^\s*Cevap\s*:\s*(\S.*)$/i;
 const EXPLANATION = /^\s*Açıklama\s*:\s*(.*)$/i;
-const META = /^\s*(Ders|Kategori|Zorluk)\s*:\s*(.+)$/i;
+const META = /^\s*(Ders|Kategori|Konu|Zorluk)\s*:\s*(.+)$/i;
 const SEPARATOR = /^\s*([-*_=]{3,}|#|\/\/)\s*$/;
 
 const cleanLine = (line: string) => line.replace(/\*\*/g, '').replace(/\s+$/, '').trim();
@@ -121,7 +124,7 @@ export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefault
     const label = `Soru ${index + 1}`;
     const stem: string[] = [];
     const options: { letter: string; text: string }[] = [];
-    const meta: { category?: string; difficulty?: BulkDifficulty } = {};
+    const meta: { category?: string; topicId?: string; difficulty?: BulkDifficulty } = {};
     let answerLetter: string | null = null;
     const explanation: string[] = [];
     let section: 'stem' | 'options' | 'explanation' = 'stem';
@@ -143,6 +146,9 @@ export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefault
           );
           if (!difficulty) fail(label, `geçersiz zorluk "${value}". Kolay, Orta veya Zor olmalı.`);
           meta.difficulty = difficulty;
+        } else if (key === 'konu') {
+          if (!LESSON_ID.test(value)) fail(label, `geçersiz konu kimliği "${value}". Örnek: ta-s3`);
+          meta.topicId = value;
         } else {
           if (!LESSON_ID.test(value)) fail(label, `geçersiz ders kimliği "${value}". Örnek: tarih`);
           meta.category = value;
@@ -213,6 +219,7 @@ export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefault
 
     out.push({
       category: meta.category ?? defaults.category,
+      topicId: meta.topicId ?? defaults.topicId,
       difficulty: meta.difficulty ?? defaults.difficulty,
       question,
       options: cleanedOptions,

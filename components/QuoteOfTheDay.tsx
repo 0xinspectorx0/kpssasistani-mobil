@@ -17,6 +17,14 @@ export const SIDEBAR_QUOTE_TOP = 544;
 /** Balonun altında menü dibine kalması gereken en az boşluk; bundan az yer varsa balon ana sayfada kalır. */
 export const SIDEBAR_QUOTE_GAP = 16;
 
+/**
+ * Yönetici paneli girişi sol menüde söz balonunun üstünde yer alır (yalnızca admin
+ * oturumunda). Yüksekliği sabit olduğundan balonun konumu bu kadar aşağı kayar.
+ */
+export const SIDEBAR_ADMIN_HEIGHT = 44;
+/** Yönetici girişi ile söz balonu arasındaki boşluk. */
+export const SIDEBAR_ADMIN_GAP = 12;
+
 const QuoteInSidebarContext = createContext(false);
 
 /** Balonun sol menüde gösterildiği bilgisi; ana sayfa yalnızca menüde yer yoksa balonu gösterir. */

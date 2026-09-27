@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Platform, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,7 +13,7 @@ import 'react-native-gesture-handler';
 import { AppProvider, useApp } from './lib/store';
 import OnboardingModal from './components/Onboarding';
 import PasswordRecoveryModal from './components/PasswordRecoveryModal';
-import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
+import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_ADMIN_GAP, SIDEBAR_ADMIN_HEIGHT, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
 import HomeScreen from './screens/HomeScreen';
 import QuizSetupScreen from './screens/QuizSetupScreen';
 import QuizScreen from './screens/QuizScreen';
@@ -23,19 +23,23 @@ import NewsScreen from './screens/NewsScreen';
 import ToolsScreen from './screens/ToolsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AdminScreen from './screens/AdminScreen';
-import { AdminAuthProvider } from './lib/admin-auth';
+import { AdminAuthProvider, useAdminAuth } from './lib/admin-auth';
 import { ContentProvider, useContent } from './lib/content';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function Tabs() {
+function Tabs({ navigation }: any) {
   const { theme, mode } = useApp();
   const { width, height } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
+  const { isAdmin } = useAdminAuth();
+  // Yönetici paneli girişi yalnızca admin oturumunda sol menüde, söz balonunun üstünde görünür.
+  const showSidebarAdmin = isDesktopWeb && isAdmin;
+  const quoteTop = SIDEBAR_QUOTE_TOP + (showSidebarAdmin ? SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP : 0);
   // Günün sözü balonu ölçülür; Profil'in altında sığacak yer varsa sol menüye, yoksa ana sayfaya konur.
   const [quoteHeight, setQuoteHeight] = useState(0);
-  const quoteInSidebar = isDesktopWeb && height >= SIDEBAR_QUOTE_TOP + quoteHeight + SIDEBAR_QUOTE_GAP;
+  const quoteInSidebar = isDesktopWeb && height >= quoteTop + quoteHeight + SIDEBAR_QUOTE_GAP;
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       {isDesktopWeb && (
@@ -72,6 +76,44 @@ function Tabs() {
           </View>
         </View>
       )}
+      {showSidebarAdmin && (
+        <View
+          style={{
+            position: 'absolute',
+            zIndex: 20,
+            // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
+            left: 27,
+            top: SIDEBAR_QUOTE_TOP,
+            width: 306,
+          }}
+        >
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Yönetici Paneli"
+            onPress={() => navigation.navigate('Admin')}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: theme.accentSoft,
+              borderColor: theme.accent + '33',
+              borderWidth: 1,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 12,
+            }}
+          >
+            <Icons name="shield-checkmark-outline" size={20} color={theme.accent} />
+            <Text
+              numberOfLines={1}
+              style={{ flex: 1, marginLeft: 10, color: theme.text, fontSize: 14, fontWeight: '800' }}
+            >
+              Yönetici Paneli
+            </Text>
+            <Icons name="chevron-forward" size={16} color={theme.muted} />
+          </TouchableOpacity>
+        </View>
+      )}
       {quoteInSidebar && (
         <View
           pointerEvents="none"
@@ -81,7 +123,7 @@ function Tabs() {
             zIndex: 20,
             // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
             left: 27,
-            top: SIDEBAR_QUOTE_TOP,
+            top: quoteTop,
             width: 306,
           }}
         >

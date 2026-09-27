@@ -20,7 +20,8 @@ export default function QuizSetupScreen({ navigation }: any) {
   const { settings: quotaSettings } = useQuizQuotaSettings();
   const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [expandedLessons, setExpandedLessons] = useState<string[]>(() => LESSONS.map((lesson) => lesson.id));
+  // Dersler kapalı başlar; akordiyon gibi yalnızca tıklanan dersin konuları açılır.
+  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
   const [count, setCount] = useState(10);
   const [manualCount, setManualCount] = useState('');
   const [useManualCount, setUseManualCount] = useState(false);
@@ -39,10 +40,9 @@ export default function QuizSetupScreen({ navigation }: any) {
   const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
   const effectiveCount = validRequestedCount ? requestedCount : 0;
 
+  // Akordiyon: aynı anda tek ders açık kalır, tıklanan ders kapanır/açılır.
   const toggleLesson = (lessonId: string) => {
-    setExpandedLessons((current) => current.includes(lessonId)
-      ? current.filter((id) => id !== lessonId)
-      : [...current, lessonId]);
+    setExpandedLesson((current) => (current === lessonId ? null : lessonId));
   };
 
   const toggleTopic = (topicId: string) => {
@@ -163,7 +163,7 @@ export default function QuizSetupScreen({ navigation }: any) {
 
           <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14 } : undefined}>
             {LESSONS.map((lesson) => {
-              const expanded = expandedLessons.includes(lesson.id);
+              const expanded = expandedLesson === lesson.id;
               const topicIds = lesson.topics.map((topic) => topic.id);
               const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
               return (
