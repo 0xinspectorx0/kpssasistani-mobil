@@ -178,3 +178,65 @@ Açıklama: Açıklama.
   assert.deepEqual(question.options, ['Yalnız I', 'Yalnız II', 'I ve II', 'II ve III', 'I, II ve III']);
   assert.equal(question.answer, 2);
 });
+
+test('varsayılan konu kimliği tüm sorulara uygulanır', () => {
+  const [first, second] = parseQuestionTemplate(SAMPLE, { ...DEFAULTS, topicId: 'ta-s3' });
+  assert.equal(first.topicId, 'ta-s3');
+  assert.equal(second.topicId, 'ta-s3');
+});
+
+test('konu satırı varsayılan konuyu tek soruda ezerek değiştirir', () => {
+  const raw = `
+ 1. **Soru metni?
+
+A) Bir
+B) İki
+C) Üç
+D) Dört
+E) Beş
+
+Konu: ta-s7
+
+Cevap: A
+
+Açıklama: Açıklama.
+
+---
+
+2. **İkinci soru metni?
+
+A) Bir
+B) İki
+C) Üç
+D) Dört
+E) Beş
+
+Cevap: B
+
+Açıklama: Açıklama.
+`;
+  const [first, second] = parseQuestionTemplate(raw, { ...DEFAULTS, topicId: 'ta-s3' });
+  // İlk soru kendi konusuna, ikinci soru varsayılana yüklenir.
+  assert.equal(first.topicId, 'ta-s7');
+  assert.equal(second.topicId, 'ta-s3');
+  assert.equal(first.question, 'Soru metni?');
+});
+
+test('geçersiz konu kimliği anlaşılır hata verir', () => {
+  const raw = `
+ 1. **Soru metni?
+
+A) Bir
+B) İki
+C) Üç
+D) Dört
+E) Beş
+
+Konu: Osmanlı Kuruluş
+
+Cevap: A
+
+Açıklama: Açıklama.
+`;
+  assert.throws(() => parseQuestionTemplate(raw, DEFAULTS), /geçersiz konu kimliği "Osmanlı Kuruluş"/);
+});
