@@ -10,6 +10,7 @@ import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META, useQuizQuotaS
 import { radius } from '../lib/theme';
 
 const COUNTS = [5, 10, 20];
+const TOPIC_ROW_HEIGHT = 38;
 
 export default function QuizSetupScreen({ navigation }: any) {
   const { theme } = useApp();
@@ -89,8 +90,8 @@ export default function QuizSetupScreen({ navigation }: any) {
           flexShrink: 0,
           position: 'relative',
           overflow: 'visible',
-          zIndex: expanded ? 20 : 1,
-          elevation: expanded ? 10 : 2,
+          zIndex: expanded ? 1000 : 1,
+          elevation: expanded ? 1000 : 2,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
@@ -155,8 +156,8 @@ export default function QuizSetupScreen({ navigation }: any) {
               borderWidth: 1,
               borderColor: theme.border,
               borderRadius: radius.lg,
-              zIndex: 30,
-              elevation: 12,
+              zIndex: 1001,
+              elevation: 1000,
               shadowColor: theme.shadow,
               shadowOpacity: 0.18,
               shadowRadius: 16,
@@ -178,52 +179,60 @@ export default function QuizSetupScreen({ navigation }: any) {
                 transform: [{ rotate: '45deg' }],
               }}
             />
-            {lesson.topics.map((topic) => {
-              const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
-              const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
-              return (
-                <TouchableOpacity
-                  key={topic.id}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
-                  disabled={topicQuestionCount === 0}
-                  onPress={() => toggleTopic(topic.id)}
-                  activeOpacity={0.75}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: selected ? `${lesson.color}12` : 'transparent',
-                    borderTopWidth: 1,
-                    borderTopColor: theme.border,
-                    paddingVertical: 10,
-                    paddingHorizontal: 2,
-                    opacity: topicQuestionCount === 0 ? 0.45 : 1,
-                  }}
-                >
-                  <View
+            <ScrollView
+              style={{ height: TOPIC_ROW_HEIGHT * 5 }}
+              contentContainerStyle={{ paddingBottom: 0 }}
+              showsVerticalScrollIndicator={lesson.topics.length > 5}
+              nestedScrollEnabled
+              scrollEnabled={lesson.topics.length > 5}
+            >
+              {lesson.topics.map((topic) => {
+                const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
+                const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
+                return (
+                  <TouchableOpacity
+                    key={topic.id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
+                    disabled={topicQuestionCount === 0}
+                    onPress={() => toggleTopic(topic.id)}
+                    activeOpacity={0.75}
                     style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 6,
-                      borderWidth: 1.5,
-                      borderColor: selected ? lesson.color : theme.border,
-                      backgroundColor: selected ? lesson.color : 'transparent',
+                      height: TOPIC_ROW_HEIGHT,
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
+                      backgroundColor: selected ? `${lesson.color}12` : 'transparent',
+                      borderTopWidth: 1,
+                      borderTopColor: theme.border,
+                      paddingHorizontal: 2,
+                      opacity: topicQuestionCount === 0 ? 0.45 : 1,
                     }}
                   >
-                    {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </View>
-                  <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
-                    {topic.name}
-                  </Text>
-                  <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
-                    {topicQuestionCount} soru
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        borderWidth: 1.5,
+                        borderColor: selected ? lesson.color : theme.border,
+                        backgroundColor: selected ? lesson.color : 'transparent',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 10,
+                      }}
+                    >
+                      {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                    <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
+                      {topic.name}
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
+                      {topicQuestionCount} soru
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
       </Card>
@@ -318,7 +327,7 @@ export default function QuizSetupScreen({ navigation }: any) {
             {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
           </TouchableOpacity>
 
-          <View style={{ overflow: 'visible' }}>
+          <View style={{ overflow: 'visible', position: 'relative', zIndex: expandedLesson ? 1000 : 1 }}>
             {isDesktopWeb
               ? Array.from({ length: Math.ceil(LESSONS.length / 2) }, (_, rowIndex) => {
                   const rowLessons = LESSONS.slice(rowIndex * 2, rowIndex * 2 + 2);
@@ -333,7 +342,7 @@ export default function QuizSetupScreen({ navigation }: any) {
                         marginBottom: 14,
                         overflow: 'visible',
                         position: 'relative',
-                        zIndex: rowExpanded ? 20 : 1,
+                        zIndex: rowExpanded ? 1000 : 1,
                       }}
                     >
                       {rowLessons.map((lesson) => (
