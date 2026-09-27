@@ -160,7 +160,7 @@ export default function QuizSetupScreen({ navigation }: any) {
             {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
           </TouchableOpacity>
 
-          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' } : undefined}>
+          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start', alignContent: 'flex-start', overflow: 'visible' } : undefined}>
             {LESSONS.map((lesson) => {
               const expanded = expandedLesson === lesson.id;
               const topicIds = lesson.topics.map((topic) => topic.id);
@@ -174,6 +174,7 @@ export default function QuizSetupScreen({ navigation }: any) {
                     width: isDesktopWeb ? '48.5%' : undefined,
                     alignSelf: isDesktopWeb ? 'flex-start' : undefined,
                     position: 'relative',
+                    overflow: 'visible',
                     zIndex: expanded ? 20 : 1,
                     elevation: expanded ? 10 : 2,
                   }}
