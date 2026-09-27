@@ -1,0 +1,3121 @@
+diff --git a/App.tsx b/App.tsx
+index d4f5bbf..4b1e710 100644
+--- a/App.tsx
++++ b/App.tsx
+@@ -1,6 +1,6 @@
+ import React, { useEffect, useState } from 'react';
+ import { StatusBar } from 'expo-status-bar';
+-import { ActivityIndicator, Platform, Text, useWindowDimensions, View } from 'react-native';
++import { ActivityIndicator, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+ import { useFonts } from 'expo-font';
+ import Ionicons from '@expo/vector-icons/Ionicons';
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+@@ -13,7 +13,7 @@ import 'react-native-gesture-handler';
+ import { AppProvider, useApp } from './lib/store';
+ import OnboardingModal from './components/Onboarding';
+ import PasswordRecoveryModal from './components/PasswordRecoveryModal';
+-import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
++import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_ADMIN_GAP, SIDEBAR_ADMIN_HEIGHT, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
+ import HomeScreen from './screens/HomeScreen';
+ import QuizSetupScreen from './screens/QuizSetupScreen';
+ import QuizScreen from './screens/QuizScreen';
+@@ -23,19 +23,23 @@ import NewsScreen from './screens/NewsScreen';
+ import ToolsScreen from './screens/ToolsScreen';
+ import ProfileScreen from './screens/ProfileScreen';
+ import AdminScreen from './screens/AdminScreen';
+-import { AdminAuthProvider } from './lib/admin-auth';
++import { AdminAuthProvider, useAdminAuth } from './lib/admin-auth';
+ import { ContentProvider, useContent } from './lib/content';
+ 
+ const Tab = createBottomTabNavigator();
+ const Stack = createNativeStackNavigator();
+ 
+-function Tabs() {
++function Tabs({ navigation }: any) {
+   const { theme, mode } = useApp();
+   const { width, height } = useWindowDimensions();
+   const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
++  const { isAdmin } = useAdminAuth();
++  // Yönetici paneli girişi yalnızca admin oturumunda sol menüde, söz balonunun üstünde görünür.
++  const showSidebarAdmin = isDesktopWeb && isAdmin;
++  const quoteTop = SIDEBAR_QUOTE_TOP + (showSidebarAdmin ? SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP : 0);
+   // Günün sözü balonu ölçülür; Profil'in altında sığacak yer varsa sol menüye, yoksa ana sayfaya konur.
+   const [quoteHeight, setQuoteHeight] = useState(0);
+-  const quoteInSidebar = isDesktopWeb && height >= SIDEBAR_QUOTE_TOP + quoteHeight + SIDEBAR_QUOTE_GAP;
++  const quoteInSidebar = isDesktopWeb && height >= quoteTop + quoteHeight + SIDEBAR_QUOTE_GAP;
+   return (
+     <View style={{ flex: 1, backgroundColor: theme.bg }}>
+       {isDesktopWeb && (
+@@ -72,6 +76,44 @@ function Tabs() {
+           </View>
+         </View>
+       )}
++      {showSidebarAdmin && (
++        <View
++          style={{
++            position: 'absolute',
++            zIndex: 20,
++            // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
++            left: 27,
++            top: SIDEBAR_QUOTE_TOP,
++            width: 306,
++          }}
++        >
++          <TouchableOpacity
++            accessibilityRole="button"
++            accessibilityLabel="Yönetici Paneli"
++            onPress={() => navigation.navigate('Admin')}
++            activeOpacity={0.8}
++            style={{
++              flexDirection: 'row',
++              alignItems: 'center',
++              backgroundColor: theme.accentSoft,
++              borderColor: theme.accent + '33',
++              borderWidth: 1,
++              borderRadius: 12,
++              paddingHorizontal: 12,
++              paddingVertical: 12,
++            }}
++          >
++            <Icons name="shield-checkmark-outline" size={20} color={theme.accent} />
++            <Text
++              numberOfLines={1}
++              style={{ flex: 1, marginLeft: 10, color: theme.text, fontSize: 14, fontWeight: '800' }}
++            >
++              Yönetici Paneli
++            </Text>
++            <Icons name="chevron-forward" size={16} color={theme.muted} />
++          </TouchableOpacity>
++        </View>
++      )}
+       {quoteInSidebar && (
+         <View
+           pointerEvents="none"
+@@ -81,7 +123,7 @@ function Tabs() {
+             zIndex: 20,
+             // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
+             left: 27,
+-            top: SIDEBAR_QUOTE_TOP,
++            top: quoteTop,
+             width: 306,
+           }}
+         >
+diff --git a/HANDOFF.md b/HANDOFF.md
+index 2d7ac12..e59af99 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -25,7 +25,10 @@
+ - Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
+ - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
+ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
++- **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir. **Ders ve konu ayrı ayrı seçilir:** önce ders çipleri, sonra o dersin konularını listediği açılır kutu (`Konu: ta-s3` kimliği `topicId` olarak kaydedilir); kullanıcı hangi konuya yüklediğini görmeli, önizleme satırı "Ders · Konu" bilgisini yazar. Tek soru için `Ders: matematik` / `Konu: mt-s3` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
+ - **Günün sözü balonu masaüstü web'de sol menüde, Profil'in hemen altında** (menü öğeleriyle aynı 27px/306px ritmi, 24px boşluk). Pencere kısaldığında ya da mobilde balon otomatik olarak ana sayfa gövdesine döner (`components/QuoteOfTheDay.tsx`, konumu `SIDEBAR_QUOTE_TOP` sabiti belirler; yan menü gerçek genişliği 360px — kütüphane `minWidth` değeri).
++- **Test kurulumunda dersler kapalı (akordiyon) başlar:** `screens/QuizSetupScreen.tsx` içinde aynı anda yalnızca bir ders açık kalır (`expandedLesson`); tıklanan dersin konuları aşağıya iner, başka derse tıklanınca önceki kapanır. Ders başlığındaki "Tümünü seç" dersi açmadan tüm konularını seçmeye yarar. Seçili konular ders kapanınca korunur.
++- **Yönetici Paneli masaüstü web'de sol menüde, Günün Sözü'nün üstünde** ayrı bir menü girişi olarak görünür (`App.tsx` → `Tabs`, konum `SIDEBAR_QUOTE_TOP`; balon `SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP` kadar aşağı kayar). Yalnızca admin oturumunda görünür (`useAdminAuth().isAdmin`); mobilde sol menü olmadığı için giriş `ProfileScreen.tsx` içinde kalır — mobil erişimi kırılmamalı.
+ - Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
+ - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
+ - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
+diff --git a/components/QuoteOfTheDay.tsx b/components/QuoteOfTheDay.tsx
+index db14411..761046a 100644
+--- a/components/QuoteOfTheDay.tsx
++++ b/components/QuoteOfTheDay.tsx
+@@ -17,6 +17,14 @@ export const SIDEBAR_QUOTE_TOP = 544;
+ /** Balonun altında menü dibine kalması gereken en az boşluk; bundan az yer varsa balon ana sayfada kalır. */
+ export const SIDEBAR_QUOTE_GAP = 16;
+ 
++/**
++ * Yönetici paneli girişi sol menüde söz balonunun üstünde yer alır (yalnızca admin
++ * oturumunda). Yüksekliği sabit olduğundan balonun konumu bu kadar aşağı kayar.
++ */
++export const SIDEBAR_ADMIN_HEIGHT = 44;
++/** Yönetici girişi ile söz balonu arasındaki boşluk. */
++export const SIDEBAR_ADMIN_GAP = 12;
++
+ const QuoteInSidebarContext = createContext(false);
+ 
+ /** Balonun sol menüde gösterildiği bilgisi; ana sayfa yalnızca menüde yer yoksa balonu gösterir. */
+diff --git a/components/admin/BulkAdd.tsx b/components/admin/BulkAdd.tsx
+index 1d5710d..db2a96f 100644
+--- a/components/admin/BulkAdd.tsx
++++ b/components/admin/BulkAdd.tsx
+@@ -12,14 +12,46 @@ import {
+ import { SafeAreaView } from 'react-native-safe-area-context';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useApp } from '../../lib/store';
+-import { ContentEntry, schemas } from '../../lib/content-schema';
++import { ContentEntry, categoryIds, schemas } from '../../lib/content-schema';
++import { BULK_DIFFICULTIES, BulkDifficulty, parseQuestionTemplate } from '../../lib/bulk-questions';
++import { useContent } from '../../lib/content';
+ import { AdminButton, Notice } from './AdminUI';
+ 
+-type Format = 'json' | 'text';
++type Format = 'template' | 'json' | 'text';
++
++const TEMPLATE_EXAMPLE = `1. **Soru kök cümlesi.
++
++   I. Birinci öncül
++   II. İkinci öncül
++
++ Yukarıdaki öncüllerden hangileri doğrudur?**
++
++A) Yalnız I
++B) Yalnız II
++C) I ve II
++D) II ve III
++E) I, II ve III
++
++Cevap: C
++
++Açıklama: Açıklama metni.
++
++2. **Klasik biçimde bir soru?
++
++A) Birinci
++B) İkinci
++C) Üçüncü
++D) Dördüncü
++E) Beşinci
++
++Cevap: B
++
++Açıklama: Açıklama metni.`;
+ 
+ const JSON_EXAMPLE = `[
+   {
+     "category": "tarih",
++    "topicId": "ta-s3",
+     "difficulty": "Orta",
+     "question": "Malazgirt Savaşı hangi yılda yapılmıştır?",
+     "options": ["1040", "1071", "1176", "1243", "1177"],
+@@ -32,9 +64,32 @@ const TEXT_EXAMPLE = `# Her satır: Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama
+ tarih|Orta|Osmanlı Devleti'nin kurucusu kimdir?|Ertuğrul Gazi|Osman Bey|Orhan Bey|I. Murat|Süleyman Şah|B|Osmanlı Devleti 1299'da Osman Bey tarafından kurulmuştur.
+ matematik|Kolay|2+2 kaçtır?|2|3|4|5|7|C|Temel toplama.`;
+ 
+-const DIFFICULTIES = ['Kolay', 'Orta', 'Zor'];
++const DIFFICULTIES = BULK_DIFFICULTIES;
+ const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+ 
++/** Önizleme satırı: kalıptan gelen ilk sorunun metni (tek satır hâlinde). */
++function firstQuestionText(parsed: { kind: string; payload: unknown }[]): string {
++  const first = parsed[0];
++  if (!first || first.kind !== 'questions') return '';
++  const question = (first.payload as { question?: string }).question ?? '';
++  return question.replace(/\n/g, ' ');
++}
++
++/** Önizleme satırı: ilk sorunun yükleneceği "Ders · Konu" etiketi. */
++function firstQuestionTarget(
++  parsed: { kind: string; payload: unknown }[],
++  lessons: { id: string; name: string; topics: { id: string; name: string }[] }[],
++): string {
++  const first = parsed[0];
++  if (!first || first.kind !== 'questions') return '';
++  const payload = first.payload as { category?: string; topicId?: string };
++  const lesson = lessons.find((item) => item.id === payload.category);
++  const topic = lesson?.topics.find((item) => item.id === payload.topicId);
++  const parts = [lesson?.name ?? payload.category ?? '—'];
++  if (topic) parts.push(topic.name);
++  return parts.join(' · ');
++}
++
+ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
+   const lines = raw
+     .split(/\r?\n/)
+@@ -68,7 +123,7 @@ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
+         `Doğru cevap A–E arası bir harf olmalı. Sorunlu satır: ${line.slice(0, 60)}…`,
+       );
+     }
+-    if (!DIFFICULTIES.includes(difficulty)) {
++    if (!DIFFICULTIES.some((value) => value === difficulty)) {
+       throw new Error(`Zorluk "Kolay", "Orta" veya "Zor" olmalı. Sorunlu satır: ${line.slice(0, 60)}…`);
+     }
+     const id = `bulk-${Date.now()}-${out.length}-${Math.random().toString(36).slice(2, 7)}`;
+@@ -89,18 +144,38 @@ export default function BulkAdd({
+   onInsert: (entries: ContentEntry[]) => Promise<void>;
+ }) {
+   const { theme } = useApp();
+-  const [format, setFormat] = useState<Format>('json');
++  const { lessons } = useContent();
++  const [format, setFormat] = useState<Format>('template');
+   const [raw, setRaw] = useState('');
+   const [status, setStatus] = useState<'draft' | 'published'>('published');
++  const [category, setCategory] = useState<string>('tarih');
++  const [topicId, setTopicId] = useState<string>('');
++  const [topicPickerOpen, setTopicPickerOpen] = useState(false);
++  const [difficulty, setDifficulty] = useState<BulkDifficulty>('Orta');
+   const [busy, setBusy] = useState(false);
+   const [error, setError] = useState('');
+   const [message, setMessage] = useState('');
+ 
++  // Seçili dersin konuları; ders değişince konu geçersizleşir ve ilk konuya düşer.
++  const activeLesson = lessons.find((lesson) => lesson.id === category);
++  const activeTopics = activeLesson?.topics ?? [];
++  const activeTopicId = activeTopics.some((topic) => topic.id === topicId)
++    ? topicId
++    : (activeTopics[0]?.id ?? '');
++
+   const parsed = useMemo(() => {
+     setError('');
+     setMessage('');
+     if (!raw.trim()) return [];
+     try {
++      if (format === 'template') {
++        // Konu boşsa (dersin konusu yok) alan hiç gönderilmez; şema boş kimliği reddeder.
++        return parseQuestionTemplate(raw, { category, topicId: activeTopicId || undefined, difficulty }).map((item, i) => {
++          const id = `bulk-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
++          const payload = schemas.questions.parse({ id, ...item });
++          return { kind: 'questions' as const, id, payload };
++        });
++      }
+       const base =
+         format === 'json'
+           ? (JSON.parse(raw) as any[])
+@@ -119,7 +194,7 @@ export default function BulkAdd({
+       setError(e instanceof Error ? e.message : 'Biçim ayrıştırılamadı.');
+       return [];
+     }
+-  }, [raw, format]);
++  }, [raw, format, category, activeTopicId, difficulty]);
+ 
+   async function submit() {
+     if (!parsed.length) return;
+@@ -151,6 +226,7 @@ export default function BulkAdd({
+               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                 {(
+                   [
++                    { id: 'template', label: 'Hazır soru kalıbı' },
+                     { id: 'json', label: 'JSON' },
+                     { id: 'text', label: 'Metin (satır bazlı)' },
+                   ] as const
+@@ -180,12 +256,163 @@ export default function BulkAdd({
+               </View>
+ 
+               <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>
+-                Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.
++                {format === 'template'
++                  ? 'Soruları numaralı yazın: kalın başlıklı soru metni, I/II/III önülleri, A–E şıkları, "Cevap:" ve "Açıklama:" satırları. --- ile ayırabilirsiniz.'
++                  : 'Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.'}
+               </Text>
++
++              {format === 'template' && (
++                <View style={{ marginBottom: 12 }}>
++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginBottom: 6 }}>
++                    Tüm soruların dersi:
++                  </Text>
++                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
++                    {categoryIds.map((id) => (
++                      <TouchableOpacity
++                        key={id}
++                        accessibilityRole="radio"
++                        accessibilityState={{ checked: category === id }}
++                        onPress={() => {
++                          setCategory(id);
++                          setTopicId('');
++                          setTopicPickerOpen(false);
++                        }}
++                        style={{
++                          paddingHorizontal: 12,
++                          paddingVertical: 7,
++                          borderRadius: 9,
++                          borderWidth: 1,
++                          borderColor: category === id ? theme.accent : theme.border,
++                          backgroundColor: category === id ? theme.accentSoft : theme.card2,
++                        }}
++                      >
++                        <Text style={{ fontWeight: '800', fontSize: 12, color: category === id ? theme.accent : theme.muted }}>
++                          {lessons.find((lesson) => lesson.id === id)?.name ?? id}
++                        </Text>
++                      </TouchableOpacity>
++                    ))}
++                  </View>
++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
++                    Tüm soruların konusu:
++                  </Text>
++                  <TouchableOpacity
++                    accessibilityRole="combobox"
++                    accessibilityState={{ expanded: topicPickerOpen, disabled: activeTopics.length === 0 }}
++                    disabled={activeTopics.length === 0}
++                    onPress={() => setTopicPickerOpen((open) => !open)}
++                    activeOpacity={0.8}
++                    style={{
++                      flexDirection: 'row',
++                      alignItems: 'center',
++                      borderWidth: 1,
++                      borderColor: topicPickerOpen ? theme.accent : theme.border,
++                      backgroundColor: theme.card2,
++                      borderRadius: 10,
++                      paddingHorizontal: 12,
++                      paddingVertical: 11,
++                      opacity: activeTopics.length === 0 ? 0.5 : 1,
++                    }}
++                  >
++                    <Ionicons name="albums-outline" size={16} color={theme.accent} />
++                    <Text
++                      numberOfLines={1}
++                      style={{ flex: 1, marginLeft: 9, color: theme.text, fontSize: 12.5, fontWeight: '700' }}
++                    >
++                      {activeTopics.length
++                        ? (activeTopics.find((topic) => topic.id === activeTopicId)?.name ?? 'Konu seçilmedi')
++                        : 'Bu dersin konusu yok'}
++                    </Text>
++                    <Ionicons
++                      name={topicPickerOpen ? 'chevron-up' : 'chevron-down'}
++                      size={16}
++                      color={theme.muted}
++                    />
++                  </TouchableOpacity>
++                  {topicPickerOpen && activeTopics.length > 0 && (
++                    <View
++                      style={{
++                        marginTop: 6,
++                        borderWidth: 1,
++                        borderColor: theme.border,
++                        borderRadius: 10,
++                        backgroundColor: theme.card2,
++                        overflow: 'hidden',
++                      }}
++                    >
++                      <ScrollView style={{ maxHeight: 216 }} nestedScrollEnabled>
++                        {activeTopics.map((topic) => {
++                          const selected = topic.id === activeTopicId;
++                          return (
++                            <TouchableOpacity
++                              key={topic.id}
++                              accessibilityRole="radio"
++                              accessibilityState={{ checked: selected }}
++                              onPress={() => {
++                                setTopicId(topic.id);
++                                setTopicPickerOpen(false);
++                              }}
++                              activeOpacity={0.75}
++                              style={{
++                                flexDirection: 'row',
++                                alignItems: 'center',
++                                paddingHorizontal: 12,
++                                paddingVertical: 9,
++                                backgroundColor: selected ? theme.accentSoft : 'transparent',
++                              }}
++                            >
++                              <Text
++                                style={{
++                                  flex: 1,
++                                  fontSize: 12.5,
++                                  fontWeight: selected ? '800' : '500',
++                                  color: selected ? theme.accent : theme.text,
++                                }}
++                              >
++                                {topic.name}
++                              </Text>
++                              {selected && <Ionicons name="checkmark" size={15} color={theme.accent} />}
++                            </TouchableOpacity>
++                          );
++                        })}
++                      </ScrollView>
++                    </View>
++                  )}
++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
++                    Tüm soruların zorluğu:
++                  </Text>
++                  <View style={{ flexDirection: 'row', gap: 7 }}>
++                    {DIFFICULTIES.map((value) => (
++                      <TouchableOpacity
++                        key={value}
++                        accessibilityRole="radio"
++                        accessibilityState={{ checked: difficulty === value }}
++                        onPress={() => setDifficulty(value)}
++                        style={{
++                          paddingHorizontal: 14,
++                          paddingVertical: 7,
++                          borderRadius: 9,
++                          borderWidth: 1,
++                          borderColor: difficulty === value ? theme.accent : theme.border,
++                          backgroundColor: difficulty === value ? theme.accentSoft : theme.card2,
++                        }}
++                      >
++                        <Text style={{ fontWeight: '800', fontSize: 12, color: difficulty === value ? theme.accent : theme.muted }}>
++                          {value}
++                        </Text>
++                      </TouchableOpacity>
++                    ))}
++                  </View>
++                  <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 8 }}>
++                    Tek bir soruyu değiştirmek için o sorunun yanına “Ders: matematik”, “Konu: mt-s3” veya
++                    “Zorluk: Zor” satırı ekleyin.
++                  </Text>
++                </View>
++              )}
++
+               <TextInput
+                 value={raw}
+                 onChangeText={setRaw}
+-                placeholder={format === 'json' ? JSON_EXAMPLE : TEXT_EXAMPLE}
++                placeholder={format === 'json' ? JSON_EXAMPLE : format === 'text' ? TEXT_EXAMPLE : TEMPLATE_EXAMPLE}
+                 placeholderTextColor={theme.muted}
+                 multiline
+                 autoCapitalize="none"
+@@ -234,9 +461,16 @@ export default function BulkAdd({
+               {!!error && <View style={{ marginTop: 12 }}><Notice text={error} error /></View>}
+               {!!message && <View style={{ marginTop: 12 }}><Notice text={message} /></View>}
+               {!error && raw.trim() !== '' && (
+-                <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12, marginTop: 10 }}>
+-                  ✓ {parsed.length} soru ayrıştırıldı
+-                </Text>
++                <View style={{ marginTop: 10 }}>
++                  <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12 }}>
++                    ✓ {parsed.length} soru ayrıştırıldı
++                  </Text>
++                  {format === 'template' && (
++                    <Text numberOfLines={2} style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
++                      {firstQuestionTarget(parsed, lessons)} — İlk soru: {firstQuestionText(parsed)}
++                    </Text>
++                  )}
++                </View>
+               )}
+             </ScrollView>
+             <View style={{ padding: 16, borderTopWidth: 1, borderColor: theme.border, flexDirection: 'row', gap: 10 }}>
+diff --git a/lib/bulk-questions.ts b/lib/bulk-questions.ts
+new file mode 100644
+index 0000000..8d42503
+--- /dev/null
++++ b/lib/bulk-questions.ts
+@@ -0,0 +1,240 @@
++/**
++ * "Hazır soru kalıbı" ayrıştırıcısı.
++ *
++ * Kullanıcının elle hazırladığı tipik toplu soru biçimi:
++ *
++ *   1. **Soru kök cümlesi.
++ *
++ *      I. Birinci öncül
++ *      II. İkinci öncül
++ *
++ *   Yukarıdaki öncüllerden hangileri doğrudur?**
++ *
++ *   A) Yalnız I
++ *   B) Yalnız II
++ *   ...
++ *   E) I, II ve III
++ *
++ *   Cevap: C
++ *
++ *   Açıklama: Açıklama metni burada.
++ *
++ * Numarasız, tek cevaplı klasik biçim de desteklenir. Her soru kendi satırında
++ * başlar; numaradan sonra "Ders: tarih" / "Konu: ta-s3" / "Zorluk: Orta" satırları
++ * verilirse varsayılan değerlerin yerine geçer.
++ */
++
++export const BULK_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
++export const BULK_DIFFICULTIES = ['Kolay', 'Orta', 'Zor'] as const;
++export type BulkDifficulty = (typeof BULK_DIFFICULTIES)[number];
++
++export interface BulkQuestionDefaults {
++  category: string;
++  /** Soruların yükleneceği konu kimliği; kalıpta "Konu: <id>" satırıyla tek soruda ezilebilir. */
++  topicId?: string;
++  difficulty: BulkDifficulty;
++}
++
++export interface BulkQuestion {
++  category: string;
++  topicId?: string;
++  difficulty: BulkDifficulty;
++  question: string;
++  options: string[];
++  answer: number;
++  explanation: string;
++}
++
++const MAX_QUESTIONS = 500;
++const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
++const NUMBER_START = /^\s*\d{1,3}\s*[.)]\s+\S/;
++const NUMBER_PREFIX = /^\s*\d{1,3}\s*[.)]\s+/;
++const OPTION = /(?:^|\s)\(?([A-Ea-e])\)\s*/g;
++const OPTION_START = /^\s*\(?([A-Ea-e])\)\s*/;
++const ANSWER = /^\s*Cevap\s*:\s*(\S.*)$/i;
++const EXPLANATION = /^\s*Açıklama\s*:\s*(.*)$/i;
++const META = /^\s*(Ders|Kategori|Konu|Zorluk)\s*:\s*(.+)$/i;
++const SEPARATOR = /^\s*([-*_=]{3,}|#|\/\/)\s*$/;
++
++const cleanLine = (line: string) => line.replace(/\*\*/g, '').replace(/\s+$/, '').trim();
++
++/** Soru bloklarını numaralı başlıklara göre böler; numara yoksa kalın başlıklara göre. */
++function splitBlocks(lines: string[]): string[][] {
++  const blocks: string[][] = [];
++  let current: string[] = [];
++  const numbered = lines.some((line) => NUMBER_START.test(line));
++  for (const line of lines) {
++    if (!line.trim()) continue; // boş satırlar soru bloklarını bölmez
++    const starts = numbered ? NUMBER_START.test(line) : line.trim().startsWith('**');
++    // Numaralı biçimde yeni soru, ancak önceki sorunun cevabı görülmüşse başlar.
++    const confident = !numbered || blocks.length === 0 || currentHasAnswer(current);
++    if (starts && confident) {
++      if (current.length) blocks.push(current);
++      current = [];
++    }
++    current.push(line);
++  }
++  if (current.length) blocks.push(current);
++  return blocks;
++}
++
++const currentHasAnswer = (lines: string[]) => lines.some((line) => ANSWER.test(cleanLine(line)));
++
++function splitOptions(line: string): { letter: string; text: string }[] {
++  const found: { letter: string; text: string }[] = [];
++  const source = cleanLine(line);
++  OPTION.lastIndex = 0;
++  let match: RegExpExecArray | null;
++  let cursor = 0;
++  while ((match = OPTION.exec(source))) {
++    if (match.index > cursor) found.push({ letter: '', text: source.slice(cursor, match.index).trim() });
++    found.push({ letter: match[1].toUpperCase(), text: '' });
++    cursor = match.index + match[0].length;
++  }
++  const tail = source.slice(cursor).trim();
++  if (tail || found.length === 0) found.push({ letter: '', text: tail });
++  // Boş harfli kayıtlar bir öncekinin devamıdır (satır sonu sarması).
++  return found.reduce<{ letter: string; text: string }[]>((acc, item) => {
++    if (item.letter) acc.push(item);
++    else if (acc.length) acc[acc.length - 1].text = `${acc[acc.length - 1].text} ${item.text}`.trim();
++    else acc.push(item);
++    return acc;
++  }, []);
++}
++
++function fail(label: string, message: string): never {
++  throw new Error(`${label}: ${message}`);
++}
++
++/** Kalıptan soru listesi çıkarır; hatalar soru numarasıyla birlikte fırlatılır. */
++export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefaults): BulkQuestion[] {
++  const lines = raw
++    .replace(/\r\n?/g, '\n')
++    .split('\n')
++    .filter((line) => !SEPARATOR.test(line));
++
++  const blocks = splitBlocks(lines);
++  if (!blocks.length) throw new Error('Kalıbı okunamadı; en az bir soru bulunamadı.');
++
++  const out: BulkQuestion[] = [];
++  const missingAnswer: string[] = [];
++  const missingExplanation: string[] = [];
++
++  blocks.forEach((block, index) => {
++    const label = `Soru ${index + 1}`;
++    const stem: string[] = [];
++    const options: { letter: string; text: string }[] = [];
++    const meta: { category?: string; topicId?: string; difficulty?: BulkDifficulty } = {};
++    let answerLetter: string | null = null;
++    const explanation: string[] = [];
++    let section: 'stem' | 'options' | 'explanation' = 'stem';
++    let started = false;
++
++    block.forEach((rawLine) => {
++      const line = cleanLine(rawLine);
++      if (!line) return;
++      const text = started ? line : line.replace(NUMBER_PREFIX, '').trim();
++      started = true;
++
++      const metaMatch = text.match(META);
++      if (metaMatch) {
++        const key = metaMatch[1].toLocaleLowerCase('tr');
++        const value = metaMatch[2].trim();
++        if (key === 'zorluk') {
++          const difficulty = BULK_DIFFICULTIES.find(
++            (d) => d.toLocaleLowerCase('tr') === value.toLocaleLowerCase('tr'),
++          );
++          if (!difficulty) fail(label, `geçersiz zorluk "${value}". Kolay, Orta veya Zor olmalı.`);
++          meta.difficulty = difficulty;
++        } else if (key === 'konu') {
++          if (!LESSON_ID.test(value)) fail(label, `geçersiz konu kimliği "${value}". Örnek: ta-s3`);
++          meta.topicId = value;
++        } else {
++          if (!LESSON_ID.test(value)) fail(label, `geçersiz ders kimliği "${value}". Örnek: tarih`);
++          meta.category = value;
++        }
++        return;
++      }
++
++      const answerMatch = text.match(ANSWER);
++      if (answerMatch) {
++        const raw = answerMatch[1].trim();
++        if (!/^[A-Ea-e]$/.test(raw)) fail(label, `geçersiz cevap harfi "${raw}". A–E olmalı.`);
++        answerLetter = raw.toUpperCase();
++        // Cevaptan sonra gelen satırlar şıkkın devamı değil, açıklama metnidir.
++        section = 'explanation';
++        return;
++      }
++
++      const explanationMatch = text.match(EXPLANATION);
++      if (explanationMatch) {
++        section = 'explanation';
++        if (explanationMatch[1].trim()) explanation.push(explanationMatch[1].trim());
++        return;
++      }
++
++      if (section === 'explanation') {
++        explanation.push(text);
++        return;
++      }
++
++      if (OPTION_START.test(text)) {
++        section = 'options';
++        options.push(...splitOptions(text));
++        return;
++      }
++
++      if (section === 'options' && options.length) {
++        // Seçenek listesi taşmışsa son seçeneğe eklenir.
++        options[options.length - 1].text = `${options[options.length - 1].text} ${text}`.trim();
++        return;
++      }
++
++      stem.push(text);
++    });
++
++    const question = stem.join('\n').trim();
++    if (!question) fail(label, 'soru metni boş.');
++    if (options.length !== BULK_LETTERS.length) {
++      fail(label, `tam 5 seçenek (A–E) olmalı; ${options.length} seçenek bulundu.`);
++    }
++    const letters = options.map((option) => option.letter);
++    const ordered = BULK_LETTERS.every((letter, i) => letters[i] === letter);
++    if (!ordered) fail(label, `seçenekler A, B, C, D, E sırasında olmalı; sıra: ${letters.join(' ')}`);
++    const cleanedOptions = options.map((option) => option.text.trim());
++    if (cleanedOptions.some((option) => !option)) fail(label, 'seçenekler boş bırakılamaz.');
++
++    if (!answerLetter) {
++      missingAnswer.push(label);
++      return;
++    }
++    const answer = BULK_LETTERS.indexOf(answerLetter as (typeof BULK_LETTERS)[number]);
++    if (answer < 0) fail(label, `geçersiz cevap harfi "${answerLetter}". A–E olmalı.`);
++
++    const explanationText = explanation.join(' ').replace(/\s+/g, ' ').trim();
++    if (!explanationText) {
++      missingExplanation.push(label);
++      return;
++    }
++
++    out.push({
++      category: meta.category ?? defaults.category,
++      topicId: meta.topicId ?? defaults.topicId,
++      difficulty: meta.difficulty ?? defaults.difficulty,
++      question,
++      options: cleanedOptions,
++      answer,
++      explanation: explanationText,
++    });
++  });
++
++  if (missingAnswer.length || missingExplanation.length) {
++    const parts: string[] = [];
++    if (missingAnswer.length) parts.push(`${missingAnswer.join(', ')} — "Cevap:" satırı yok.`);
++    if (missingExplanation.length) parts.push(`${missingExplanation.join(', ')} — "Açıklama:" satırı yok.`);
++    throw new Error(`Eksik bilgi: ${parts.join(' ')}`);
++  }
++  if (!out.length) throw new Error('Kalıbı okunamadı; en az bir soru bulunamadı.');
++  if (out.length > MAX_QUESTIONS) throw new Error(`Tek seferde en fazla ${MAX_QUESTIONS} soru yüklenebilir.`);
++  return out;
++}
+diff --git a/screens/QuizSetupScreen.tsx b/screens/QuizSetupScreen.tsx
+index 9172222..3fd7a70 100644
+--- a/screens/QuizSetupScreen.tsx
++++ b/screens/QuizSetupScreen.tsx
+@@ -20,7 +20,8 @@ export default function QuizSetupScreen({ navigation }: any) {
+   const { settings: quotaSettings } = useQuizQuotaSettings();
+   const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
+   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+-  const [expandedLessons, setExpandedLessons] = useState<string[]>(() => LESSONS.map((lesson) => lesson.id));
++  // Dersler kapalı başlar; akordiyon gibi yalnızca tıklanan dersin konuları açılır.
++  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
+   const [count, setCount] = useState(10);
+   const [manualCount, setManualCount] = useState('');
+   const [useManualCount, setUseManualCount] = useState(false);
+@@ -39,10 +40,9 @@ export default function QuizSetupScreen({ navigation }: any) {
+   const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
+   const effectiveCount = validRequestedCount ? requestedCount : 0;
+ 
++  // Akordiyon: aynı anda tek ders açık kalır, tıklanan ders kapanır/açılır.
+   const toggleLesson = (lessonId: string) => {
+-    setExpandedLessons((current) => current.includes(lessonId)
+-      ? current.filter((id) => id !== lessonId)
+-      : [...current, lessonId]);
++    setExpandedLesson((current) => (current === lessonId ? null : lessonId));
+   };
+ 
+   const toggleTopic = (topicId: string) => {
+@@ -163,7 +163,7 @@ export default function QuizSetupScreen({ navigation }: any) {
+ 
+           <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14 } : undefined}>
+             {LESSONS.map((lesson) => {
+-              const expanded = expandedLessons.includes(lesson.id);
++              const expanded = expandedLesson === lesson.id;
+               const topicIds = lesson.topics.map((topic) => topic.id);
+               const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
+               return (
+diff --git a/scripts/preview-server.cjs b/scripts/preview-server.cjs
+new file mode 100644
+index 0000000..0a7a617
+--- /dev/null
++++ b/scripts/preview-server.cjs
+@@ -0,0 +1,52 @@
++// Statik önizleme sunucusu: Expo web çıktısını (dist/) sunar.
++// SPA yönlendirmesi: bilinmeyen yollar index.html'e düşer.
++const http = require('http');
++const fs = require('fs');
++const path = require('path');
++
++const ROOT = path.join(__dirname, '..', 'dist');
++const PORT = Number(process.env.PORT || 8080);
++
++const TYPES = {
++  '.html': 'text/html; charset=utf-8',
++  '.js': 'text/javascript; charset=utf-8',
++  '.css': 'text/css; charset=utf-8',
++  '.json': 'application/json; charset=utf-8',
++  '.map': 'application/json; charset=utf-8',
++  '.png': 'image/png',
++  '.jpg': 'image/jpeg',
++  '.jpeg': 'image/jpeg',
++  '.svg': 'image/svg+xml',
++  '.ico': 'image/x-icon',
++  '.ttf': 'font/ttf',
++  '.otf': 'font/otf',
++  '.woff': 'font/woff',
++  '.woff2': 'font/woff2',
++  '.txt': 'text/plain; charset=utf-8',
++};
++
++const server = http.createServer((req, res) => {
++  try {
++    const url = decodeURIComponent((req.url || '/').split('?')[0].split('#')[0]);
++    let filePath = path.join(ROOT, url);
++    if (!filePath.startsWith(ROOT)) {
++      res.writeHead(403).end('Forbidden');
++      return;
++    }
++    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
++      filePath = path.join(ROOT, 'index.html');
++    }
++    const ext = path.extname(filePath).toLowerCase();
++    res.writeHead(200, {
++      'Content-Type': TYPES[ext] || 'application/octet-stream',
++      'Cache-Control': 'no-cache, no-store, must-revalidate',
++    });
++    fs.createReadStream(filePath).pipe(res);
++  } catch (error) {
++    res.writeHead(500).end('Server error');
++  }
++});
++
++server.listen(PORT, '0.0.0.0', () => {
++  console.log(`Önizleme sunucusu hazır: http://0.0.0.0:${PORT}`);
++});
+diff --git a/tests/bulk-questions.test.ts b/tests/bulk-questions.test.ts
+new file mode 100644
+index 0000000..1e95566
+--- /dev/null
++++ b/tests/bulk-questions.test.ts
+@@ -0,0 +1,242 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { parseQuestionTemplate } from '../lib/bulk-questions';
++
++const DEFAULTS = { category: 'tarih', difficulty: 'Orta' as const };
++
++/** Kullanıcının hazırladığı tipik kalıp: öncüllü çoktan seçmeli + klasik soru. */
++const SAMPLE = `
++1. **Osmanlı-Lehistan saraşlarının çıkmasında çeşitli bölgelerdeki güç mücadelesi belirleyici olmuştur.
++
++   I. Lehistan'ın Ukrayna Kazaklarına baskı yapması
++
++   II. Lehistan'ın Erdel ve Macaristan topraklarına baskı yapması
++
++   III. Lehistan'ın Osmanlı'nın iç işlerine doğrudan müdahale etmesi
++
++ Yukarıdaki öncüllerden hangileri Osmanlı-Lehistan savaşlarının nedenleri arasında gösterilebilir?**
++
++A) Yalnız I
++
++B) Yalnız III
++
++C) I ve II
++
++D) II ve III
++
++E) I, II ve III
++
++Cevap: C
++
++Açıklama: Osmanlı-Lehistan savaşlarının temel nedeni Lehistan'ın Ukrayna Kazakları,
++Erdel, Macaristan ve Eflak topraklarına baskı yapmasıdır.
++
++---
++
++2. **Bucaş Antlaşması hangi padişah döneminde imzalanmıştır?
++
++A) Genç Osman
++
++B) III. Murat
++
++C) IV. Mehmet
++
++D) II. Mahmut
++
++E) I. Ahmet
++
++Cevap: C
++
++Açıklama: Bucaş Antlaşması 1672 yılında IV. Mehmet döneminde yapılmıştır.
++`;
++
++test('öncüllü kalıp kök cümle, öncüller ve soru satırını tek metinde birleştirir', () => {
++  const [first, second] = parseQuestionTemplate(SAMPLE, DEFAULTS);
++
++  assert.equal(
++    first.question,
++    [
++      "Osmanlı-Lehistan saraşlarının çıkmasında çeşitli bölgelerdeki güç mücadelesi belirleyici olmuştur.",
++      "I. Lehistan'ın Ukrayna Kazaklarına baskı yapması",
++      "II. Lehistan'ın Erdel ve Macaristan topraklarına baskı yapması",
++      "III. Lehistan'ın Osmanlı'nın iç işlerine doğrudan müdahale etmesi",
++      'Yukarıdaki öncüllerden hangileri Osmanlı-Lehistan savaşlarının nedenleri arasında gösterilebilir?',
++    ].join('\n'),
++  );
++  assert.deepEqual(first.options, ['Yalnız I', 'Yalnız III', 'I ve II', 'II ve III', 'I, II ve III']);
++  assert.equal(first.answer, 2);
++  assert.match(first.explanation, /^Osmanlı-Lehistan savaşlarının temel nedeni/);
++  assert.equal(first.explanation.includes('\n'), false);
++  assert.equal(first.category, 'tarih');
++  assert.equal(first.difficulty, 'Orta');
++
++  assert.equal(second.question, 'Bucaş Antlaşması hangi padişah döneminde imzalanmıştır?');
++  assert.deepEqual(second.options, ['Genç Osman', 'III. Murat', 'IV. Mehmet', 'II. Mahmut', 'I. Ahmet']);
++  assert.equal(second.answer, 2);
++});
++
++test('kalıp numarasız başlıkları, ayraçları ve satır kaydırmayı tolere eder', () => {
++  const raw = `
++ 1. **Soru metni?
++
++A) Birinci
++B) İkinci
++C) Üçüncü
++D) Dördüncü
++E) Beşinci
++
++Cevap: e
++
++Açıklama: Açıklama ilk satır.
++İkinci satır da açıklamaya
++devam eder.
++`;
++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
++  assert.equal(question.question, 'Soru metni?');
++  assert.equal(question.answer, 4);
++  assert.equal(question.explanation, 'Açıklama ilk satır. İkinci satır da açıklamaya devam eder.');
++});
++
++test('Ders ve Zorluk satırları varsayılanın yerine geçer', () => {
++  const raw = `
++ 1. Ders: matematik
++ Zorluk: Zor
++
++ **2 + 2 kaçtır?**
++
++A) 2
++B) 3
++C) 4
++D) 5
++E) 7
++
++Cevap: C
++
++Açıklama: Temel toplama.
++`;
++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
++  assert.equal(question.category, 'matematik');
++  assert.equal(question.difficulty, 'Zor');
++  assert.equal(question.question, '2 + 2 kaçtır?');
++});
++
++test('eksik seçenek, geçersiz cevap ve eksik cevap/açıklama satırları anlaşılır hata verir', () => {
++  const missingOption = `
++ 1. **Soru?
++
++A) Bir
++B) İki
++C) Üç
++D) Dört
++
++Cevap: A
++
++Açıklama: Açıklama.
++`;
++  assert.throws(() => parseQuestionTemplate(missingOption, DEFAULTS), /tam 5 seçenek \(A–E\) olmalı; 4/);
++
++  const badAnswer = `
++ 1. **Soru?
++
++A) Bir
++B) İki
++C) Üç
++D) Dört
++E) Beş
++
++Cevap: F
++
++Açıklama: Açıklama.
++`;
++  assert.throws(() => parseQuestionTemplate(badAnswer, DEFAULTS), /geçersiz cevap harfi/);
++
++  const noAnswer = `
++ 1. **Soru?
++
++A) Bir
++B) İki
++C) Üç
++D) Dört
++E) Beş
++
++Açıklama: Açıklama.
++`;
++  assert.throws(() => parseQuestionTemplate(noAnswer, DEFAULTS), /"Cevap:" satırı yok/);
++});
++
++test('çoktan seçmeli şıkları aynı satırda yazılan biçim de okunur', () => {
++  const raw = `
++ 1. **Soru?
++
++A) Yalnız I B) Yalnız II C) I ve II D) II ve III E) I, II ve III
++
++Cevap: C
++
++Açıklama: Açıklama.
++`;
++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
++  assert.deepEqual(question.options, ['Yalnız I', 'Yalnız II', 'I ve II', 'II ve III', 'I, II ve III']);
++  assert.equal(question.answer, 2);
++});
++
++test('varsayılan konu kimliği tüm sorulara uygulanır', () => {
++  const [first, second] = parseQuestionTemplate(SAMPLE, { ...DEFAULTS, topicId: 'ta-s3' });
++  assert.equal(first.topicId, 'ta-s3');
++  assert.equal(second.topicId, 'ta-s3');
++});
++
++test('konu satırı varsayılan konuyu tek soruda ezerek değiştirir', () => {
++  const raw = `
++ 1. **Soru metni?
++
++A) Bir
++B) İki
++C) Üç
++D) Dört
++E) Beş
++
++Konu: ta-s7
++
++Cevap: A
++
++Açıklama: Açıklama.
++
++---
++
++2. **İkinci soru metni?
++
++A) Bir
++B) İki
++C) Üç
++D) Dört
++E) Beş
++
++Cevap: B
++
++Açıklama: Açıklama.
++`;
++  const [first, second] = parseQuestionTemplate(raw, { ...DEFAULTS, topicId: 'ta-s3' });
++  // İlk soru kendi konusuna, ikinci soru varsayılana yüklenir.
++  assert.equal(first.topicId, 'ta-s7');
++  assert.equal(second.topicId, 'ta-s3');
++  assert.equal(first.question, 'Soru metni?');
++});
++
++test('geçersiz konu kimliği anlaşılır hata verir', () => {
++  const raw = `
++ 1. **Soru metni?
++
++A) Bir
++B) İki
++C) Üç
++D) Dört
++E) Beş
++
++Konu: Osmanlı Kuruluş
++
++Cevap: A
++
++Açıklama: Açıklama.
++`;
++  assert.throws(() => parseQuestionTemplate(raw, DEFAULTS), /geçersiz konu kimliği "Osmanlı Kuruluş"/);
++});
+diff --git a/toplu-soru-kalibi.patch b/toplu-soru-kalibi.patch
+new file mode 100644
+index 0000000..e9f314a
+--- /dev/null
++++ b/toplu-soru-kalibi.patch
+@@ -0,0 +1,686 @@
++From c6dbdbdd50e219013c8a791dec0d119d6b3b7752 Mon Sep 17 00:00:00 2001
++From: Arena Agent <agent@arena.ai>
++Date: Sun, 27 Sep 2026 20:32:11 +0000
++Subject: [PATCH] =?UTF-8?q?feat:=20Toplu=20soru=20y=C3=BCkleme=20i=C3=A7in?=
++ =?UTF-8?q?=20haz=C4=B1r=20soru=20kal=C4=B1b=C4=B1=20bi=C3=A7imi?=
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++- Yeni lib/bulk-questions.ts: numaralı + kalın başlıklı soru metni, I/II/III önülleri,
++  A–E şıkları, 'Cevap:' ve 'Açıklama:' satırlarından oluşan kalıbı ayrıştırır.
++  Kök cümle, önüller ve soru satırı tek metinde satır satır birleştirilir.
++  --- ayraçları, satır kaydırması, aynı satırdaki şıklar ve numarasız başlıklar tolere edilir.
++  'Ders: <id>' / 'Zorluk: <Kolay|Orta|Zor>' satırları varsayılanı ezer.
++  Hatalar soru numarasıyla bildirilir (eksik şık, geçersiz cevap harfi, eksik Cevap/Açıklama).
++- BulkAdd modalında varsayılan biçim 'Hazır soru kalıbı'; ders ve zorluk seçimi ile
++  ilk sorunun önizlemesi eklendi. JSON ve satır bazlı metin biçimleri korunur.
++- tests/bulk-questions.test.ts: 5 yeni test (44 toplam).
++
++Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
++---
++ HANDOFF.md                   |   2 +
++ components/admin/BulkAdd.tsx | 139 +++++++++++++++++++--
++ lib/bulk-questions.ts        | 233 +++++++++++++++++++++++++++++++++++
++ tests/bulk-questions.test.ts | 180 +++++++++++++++++++++++++++
++ 4 files changed, 543 insertions(+), 11 deletions(-)
++ create mode 100644 lib/bulk-questions.ts
++ create mode 100644 tests/bulk-questions.test.ts
++
++diff --git a/HANDOFF.md b/HANDOFF.md
++index be46a25..094a830 100644
++--- a/HANDOFF.md
+++++ b/HANDOFF.md
++@@ -25,6 +25,8 @@
++ - Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
++ - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
++ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
+++- **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir; ders/zorluk modalda seçilir, tek soru için `Ders: matematik` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
+++- **Günün sözü balonu masaüstü web'de sol menüde, Profil'in hemen altında** (menü öğeleriyle aynı 27px/306px ritmi, 24px boşluk). Pencere kısaldığında ya da mobilde balon otomatik olarak ana sayfa gövdesine döner (`components/QuoteOfTheDay.tsx`, konumu `SIDEBAR_QUOTE_TOP` sabiti belirler; yan menü gerçek genişliği 360px — kütüphane `minWidth` değeri).
++ - Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
++ - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
++ - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
++diff --git a/components/admin/BulkAdd.tsx b/components/admin/BulkAdd.tsx
++index 1d5710d..558324b 100644
++--- a/components/admin/BulkAdd.tsx
+++++ b/components/admin/BulkAdd.tsx
++@@ -12,10 +12,41 @@ import {
++ import { SafeAreaView } from 'react-native-safe-area-context';
++ import { Ionicons } from '@expo/vector-icons';
++ import { useApp } from '../../lib/store';
++-import { ContentEntry, schemas } from '../../lib/content-schema';
+++import { ContentEntry, categoryIds, schemas } from '../../lib/content-schema';
+++import { BULK_DIFFICULTIES, BulkDifficulty, parseQuestionTemplate } from '../../lib/bulk-questions';
+++import { LESSONS } from '../../lib/data';
++ import { AdminButton, Notice } from './AdminUI';
++ 
++-type Format = 'json' | 'text';
+++type Format = 'template' | 'json' | 'text';
+++
+++const TEMPLATE_EXAMPLE = `1. **Soru kök cümlesi.
+++
+++   I. Birinci öncül
+++   II. İkinci öncül
+++
+++ Yukarıdaki öncüllerden hangileri doğrudur?**
+++
+++A) Yalnız I
+++B) Yalnız II
+++C) I ve II
+++D) II ve III
+++E) I, II ve III
+++
+++Cevap: C
+++
+++Açıklama: Açıklama metni.
+++
+++2. **Klasik biçimde bir soru?
+++
+++A) Birinci
+++B) İkinci
+++C) Üçüncü
+++D) Dördüncü
+++E) Beşinci
+++
+++Cevap: B
+++
+++Açıklama: Açıklama metni.`;
++ 
++ const JSON_EXAMPLE = `[
++   {
++@@ -32,9 +63,17 @@ const TEXT_EXAMPLE = `# Her satır: Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama
++ tarih|Orta|Osmanlı Devleti'nin kurucusu kimdir?|Ertuğrul Gazi|Osman Bey|Orhan Bey|I. Murat|Süleyman Şah|B|Osmanlı Devleti 1299'da Osman Bey tarafından kurulmuştur.
++ matematik|Kolay|2+2 kaçtır?|2|3|4|5|7|C|Temel toplama.`;
++ 
++-const DIFFICULTIES = ['Kolay', 'Orta', 'Zor'];
+++const DIFFICULTIES = BULK_DIFFICULTIES;
++ const LETTERS = ['A', 'B', 'C', 'D', 'E'];
++ 
+++/** Önizleme satırı: kalıptan gelen ilk sorunun metni (tek satır hâlinde). */
+++function firstQuestionText(parsed: { kind: string; payload: unknown }[]): string {
+++  const first = parsed[0];
+++  if (!first || first.kind !== 'questions') return '';
+++  const question = (first.payload as { question?: string }).question ?? '';
+++  return question.replace(/\n/g, ' ');
+++}
+++
++ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
++   const lines = raw
++     .split(/\r?\n/)
++@@ -68,7 +107,7 @@ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
++         `Doğru cevap A–E arası bir harf olmalı. Sorunlu satır: ${line.slice(0, 60)}…`,
++       );
++     }
++-    if (!DIFFICULTIES.includes(difficulty)) {
+++    if (!DIFFICULTIES.some((value) => value === difficulty)) {
++       throw new Error(`Zorluk "Kolay", "Orta" veya "Zor" olmalı. Sorunlu satır: ${line.slice(0, 60)}…`);
++     }
++     const id = `bulk-${Date.now()}-${out.length}-${Math.random().toString(36).slice(2, 7)}`;
++@@ -89,9 +128,11 @@ export default function BulkAdd({
++   onInsert: (entries: ContentEntry[]) => Promise<void>;
++ }) {
++   const { theme } = useApp();
++-  const [format, setFormat] = useState<Format>('json');
+++  const [format, setFormat] = useState<Format>('template');
++   const [raw, setRaw] = useState('');
++   const [status, setStatus] = useState<'draft' | 'published'>('published');
+++  const [category, setCategory] = useState<string>('tarih');
+++  const [difficulty, setDifficulty] = useState<BulkDifficulty>('Orta');
++   const [busy, setBusy] = useState(false);
++   const [error, setError] = useState('');
++   const [message, setMessage] = useState('');
++@@ -101,6 +142,13 @@ export default function BulkAdd({
++     setMessage('');
++     if (!raw.trim()) return [];
++     try {
+++      if (format === 'template') {
+++        return parseQuestionTemplate(raw, { category, difficulty }).map((item, i) => {
+++          const id = `bulk-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+++          const payload = schemas.questions.parse({ id, ...item });
+++          return { kind: 'questions' as const, id, payload };
+++        });
+++      }
++       const base =
++         format === 'json'
++           ? (JSON.parse(raw) as any[])
++@@ -119,7 +167,7 @@ export default function BulkAdd({
++       setError(e instanceof Error ? e.message : 'Biçim ayrıştırılamadı.');
++       return [];
++     }
++-  }, [raw, format]);
+++  }, [raw, format, category, difficulty]);
++ 
++   async function submit() {
++     if (!parsed.length) return;
++@@ -151,6 +199,7 @@ export default function BulkAdd({
++               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
++                 {(
++                   [
+++                    { id: 'template', label: 'Hazır soru kalıbı' },
++                     { id: 'json', label: 'JSON' },
++                     { id: 'text', label: 'Metin (satır bazlı)' },
++                   ] as const
++@@ -180,12 +229,73 @@ export default function BulkAdd({
++               </View>
++ 
++               <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>
++-                Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.
+++                {format === 'template'
+++                  ? 'Soruları numaralı yazın: kalın başlıklı soru metni, I/II/III önülleri, A–E şıkları, "Cevap:" ve "Açıklama:" satırları. --- ile ayırabilirsiniz.'
+++                  : 'Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.'}
++               </Text>
+++
+++              {format === 'template' && (
+++                <View style={{ marginBottom: 12 }}>
+++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginBottom: 6 }}>
+++                    Tüm soruların dersi:
+++                  </Text>
+++                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+++                    {categoryIds.map((id) => (
+++                      <TouchableOpacity
+++                        key={id}
+++                        accessibilityRole="radio"
+++                        accessibilityState={{ checked: category === id }}
+++                        onPress={() => setCategory(id)}
+++                        style={{
+++                          paddingHorizontal: 12,
+++                          paddingVertical: 7,
+++                          borderRadius: 9,
+++                          borderWidth: 1,
+++                          borderColor: category === id ? theme.accent : theme.border,
+++                          backgroundColor: category === id ? theme.accentSoft : theme.card2,
+++                        }}
+++                      >
+++                        <Text style={{ fontWeight: '800', fontSize: 12, color: category === id ? theme.accent : theme.muted }}>
+++                          {LESSONS.find((lesson) => lesson.id === id)?.name ?? id}
+++                        </Text>
+++                      </TouchableOpacity>
+++                    ))}
+++                  </View>
+++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
+++                    Tüm soruların zorluğu:
+++                  </Text>
+++                  <View style={{ flexDirection: 'row', gap: 7 }}>
+++                    {DIFFICULTIES.map((value) => (
+++                      <TouchableOpacity
+++                        key={value}
+++                        accessibilityRole="radio"
+++                        accessibilityState={{ checked: difficulty === value }}
+++                        onPress={() => setDifficulty(value)}
+++                        style={{
+++                          paddingHorizontal: 14,
+++                          paddingVertical: 7,
+++                          borderRadius: 9,
+++                          borderWidth: 1,
+++                          borderColor: difficulty === value ? theme.accent : theme.border,
+++                          backgroundColor: difficulty === value ? theme.accentSoft : theme.card2,
+++                        }}
+++                      >
+++                        <Text style={{ fontWeight: '800', fontSize: 12, color: difficulty === value ? theme.accent : theme.muted }}>
+++                          {value}
+++                        </Text>
+++                      </TouchableOpacity>
+++                    ))}
+++                  </View>
+++                  <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 8 }}>
+++                    Tek bir soruyu değiştirmek için o sorunun yanına “Ders: matematik” veya “Zorluk: Zor” satırı ekleyin.
+++                  </Text>
+++                </View>
+++              )}
+++
++               <TextInput
++                 value={raw}
++                 onChangeText={setRaw}
++-                placeholder={format === 'json' ? JSON_EXAMPLE : TEXT_EXAMPLE}
+++                placeholder={format === 'json' ? JSON_EXAMPLE : format === 'text' ? TEXT_EXAMPLE : TEMPLATE_EXAMPLE}
++                 placeholderTextColor={theme.muted}
++                 multiline
++                 autoCapitalize="none"
++@@ -234,9 +344,16 @@ export default function BulkAdd({
++               {!!error && <View style={{ marginTop: 12 }}><Notice text={error} error /></View>}
++               {!!message && <View style={{ marginTop: 12 }}><Notice text={message} /></View>}
++               {!error && raw.trim() !== '' && (
++-                <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12, marginTop: 10 }}>
++-                  ✓ {parsed.length} soru ayrıştırıldı
++-                </Text>
+++                <View style={{ marginTop: 10 }}>
+++                  <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12 }}>
+++                    ✓ {parsed.length} soru ayrıştırıldı
+++                  </Text>
+++                  {format === 'template' && (
+++                    <Text numberOfLines={2} style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+++                      İlk soru: {firstQuestionText(parsed)}
+++                    </Text>
+++                  )}
+++                </View>
++               )}
++             </ScrollView>
++             <View style={{ padding: 16, borderTopWidth: 1, borderColor: theme.border, flexDirection: 'row', gap: 10 }}>
++diff --git a/lib/bulk-questions.ts b/lib/bulk-questions.ts
++new file mode 100644
++index 0000000..1a64832
++--- /dev/null
+++++ b/lib/bulk-questions.ts
++@@ -0,0 +1,233 @@
+++/**
+++ * "Hazır soru kalıbı" ayrıştırıcısı.
+++ *
+++ * Kullanıcının elle hazırladığı tipik toplu soru biçimi:
+++ *
+++ *   1. **Soru kök cümlesi.
+++ *
+++ *      I. Birinci öncül
+++ *      II. İkinci öncül
+++ *
+++ *   Yukarıdaki öncüllerden hangileri doğrudur?**
+++ *
+++ *   A) Yalnız I
+++ *   B) Yalnız II
+++ *   ...
+++ *   E) I, II ve III
+++ *
+++ *   Cevap: C
+++ *
+++ *   Açıklama: Açıklama metni burada.
+++ *
+++ * Numarasız, tek cevaplı klasik biçim de desteklenir. Her soru kendi satırında
+++ * başlar; numaradan sonra "Ders: tarih" / "Zorluk: Orta" satırları verilirse
+++ * varsayılan değerlerin yerine geçer.
+++ */
+++
+++export const BULK_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
+++export const BULK_DIFFICULTIES = ['Kolay', 'Orta', 'Zor'] as const;
+++export type BulkDifficulty = (typeof BULK_DIFFICULTIES)[number];
+++
+++export interface BulkQuestionDefaults {
+++  category: string;
+++  difficulty: BulkDifficulty;
+++}
+++
+++export interface BulkQuestion {
+++  category: string;
+++  difficulty: BulkDifficulty;
+++  question: string;
+++  options: string[];
+++  answer: number;
+++  explanation: string;
+++}
+++
+++const MAX_QUESTIONS = 500;
+++const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
+++const NUMBER_START = /^\s*\d{1,3}\s*[.)]\s+\S/;
+++const NUMBER_PREFIX = /^\s*\d{1,3}\s*[.)]\s+/;
+++const OPTION = /(?:^|\s)\(?([A-Ea-e])\)\s*/g;
+++const OPTION_START = /^\s*\(?([A-Ea-e])\)\s*/;
+++const ANSWER = /^\s*Cevap\s*:\s*(\S.*)$/i;
+++const EXPLANATION = /^\s*Açıklama\s*:\s*(.*)$/i;
+++const META = /^\s*(Ders|Kategori|Zorluk)\s*:\s*(.+)$/i;
+++const SEPARATOR = /^\s*([-*_=]{3,}|#|\/\/)\s*$/;
+++
+++const cleanLine = (line: string) => line.replace(/\*\*/g, '').replace(/\s+$/, '').trim();
+++
+++/** Soru bloklarını numaralı başlıklara göre böler; numara yoksa kalın başlıklara göre. */
+++function splitBlocks(lines: string[]): string[][] {
+++  const blocks: string[][] = [];
+++  let current: string[] = [];
+++  const numbered = lines.some((line) => NUMBER_START.test(line));
+++  for (const line of lines) {
+++    if (!line.trim()) continue; // boş satırlar soru bloklarını bölmez
+++    const starts = numbered ? NUMBER_START.test(line) : line.trim().startsWith('**');
+++    // Numaralı biçimde yeni soru, ancak önceki sorunun cevabı görülmüşse başlar.
+++    const confident = !numbered || blocks.length === 0 || currentHasAnswer(current);
+++    if (starts && confident) {
+++      if (current.length) blocks.push(current);
+++      current = [];
+++    }
+++    current.push(line);
+++  }
+++  if (current.length) blocks.push(current);
+++  return blocks;
+++}
+++
+++const currentHasAnswer = (lines: string[]) => lines.some((line) => ANSWER.test(cleanLine(line)));
+++
+++function splitOptions(line: string): { letter: string; text: string }[] {
+++  const found: { letter: string; text: string }[] = [];
+++  const source = cleanLine(line);
+++  OPTION.lastIndex = 0;
+++  let match: RegExpExecArray | null;
+++  let cursor = 0;
+++  while ((match = OPTION.exec(source))) {
+++    if (match.index > cursor) found.push({ letter: '', text: source.slice(cursor, match.index).trim() });
+++    found.push({ letter: match[1].toUpperCase(), text: '' });
+++    cursor = match.index + match[0].length;
+++  }
+++  const tail = source.slice(cursor).trim();
+++  if (tail || found.length === 0) found.push({ letter: '', text: tail });
+++  // Boş harfli kayıtlar bir öncekinin devamıdır (satır sonu sarması).
+++  return found.reduce<{ letter: string; text: string }[]>((acc, item) => {
+++    if (item.letter) acc.push(item);
+++    else if (acc.length) acc[acc.length - 1].text = `${acc[acc.length - 1].text} ${item.text}`.trim();
+++    else acc.push(item);
+++    return acc;
+++  }, []);
+++}
+++
+++function fail(label: string, message: string): never {
+++  throw new Error(`${label}: ${message}`);
+++}
+++
+++/** Kalıptan soru listesi çıkarır; hatalar soru numarasıyla birlikte fırlatılır. */
+++export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefaults): BulkQuestion[] {
+++  const lines = raw
+++    .replace(/\r\n?/g, '\n')
+++    .split('\n')
+++    .filter((line) => !SEPARATOR.test(line));
+++
+++  const blocks = splitBlocks(lines);
+++  if (!blocks.length) throw new Error('Kalıbı okunamadı; en az bir soru bulunamadı.');
+++
+++  const out: BulkQuestion[] = [];
+++  const missingAnswer: string[] = [];
+++  const missingExplanation: string[] = [];
+++
+++  blocks.forEach((block, index) => {
+++    const label = `Soru ${index + 1}`;
+++    const stem: string[] = [];
+++    const options: { letter: string; text: string }[] = [];
+++    const meta: { category?: string; difficulty?: BulkDifficulty } = {};
+++    let answerLetter: string | null = null;
+++    const explanation: string[] = [];
+++    let section: 'stem' | 'options' | 'explanation' = 'stem';
+++    let started = false;
+++
+++    block.forEach((rawLine) => {
+++      const line = cleanLine(rawLine);
+++      if (!line) return;
+++      const text = started ? line : line.replace(NUMBER_PREFIX, '').trim();
+++      started = true;
+++
+++      const metaMatch = text.match(META);
+++      if (metaMatch) {
+++        const key = metaMatch[1].toLocaleLowerCase('tr');
+++        const value = metaMatch[2].trim();
+++        if (key === 'zorluk') {
+++          const difficulty = BULK_DIFFICULTIES.find(
+++            (d) => d.toLocaleLowerCase('tr') === value.toLocaleLowerCase('tr'),
+++          );
+++          if (!difficulty) fail(label, `geçersiz zorluk "${value}". Kolay, Orta veya Zor olmalı.`);
+++          meta.difficulty = difficulty;
+++        } else {
+++          if (!LESSON_ID.test(value)) fail(label, `geçersiz ders kimliği "${value}". Örnek: tarih`);
+++          meta.category = value;
+++        }
+++        return;
+++      }
+++
+++      const answerMatch = text.match(ANSWER);
+++      if (answerMatch) {
+++        const raw = answerMatch[1].trim();
+++        if (!/^[A-Ea-e]$/.test(raw)) fail(label, `geçersiz cevap harfi "${raw}". A–E olmalı.`);
+++        answerLetter = raw.toUpperCase();
+++        // Cevaptan sonra gelen satırlar şıkkın devamı değil, açıklama metnidir.
+++        section = 'explanation';
+++        return;
+++      }
+++
+++      const explanationMatch = text.match(EXPLANATION);
+++      if (explanationMatch) {
+++        section = 'explanation';
+++        if (explanationMatch[1].trim()) explanation.push(explanationMatch[1].trim());
+++        return;
+++      }
+++
+++      if (section === 'explanation') {
+++        explanation.push(text);
+++        return;
+++      }
+++
+++      if (OPTION_START.test(text)) {
+++        section = 'options';
+++        options.push(...splitOptions(text));
+++        return;
+++      }
+++
+++      if (section === 'options' && options.length) {
+++        // Seçenek listesi taşmışsa son seçeneğe eklenir.
+++        options[options.length - 1].text = `${options[options.length - 1].text} ${text}`.trim();
+++        return;
+++      }
+++
+++      stem.push(text);
+++    });
+++
+++    const question = stem.join('\n').trim();
+++    if (!question) fail(label, 'soru metni boş.');
+++    if (options.length !== BULK_LETTERS.length) {
+++      fail(label, `tam 5 seçenek (A–E) olmalı; ${options.length} seçenek bulundu.`);
+++    }
+++    const letters = options.map((option) => option.letter);
+++    const ordered = BULK_LETTERS.every((letter, i) => letters[i] === letter);
+++    if (!ordered) fail(label, `seçenekler A, B, C, D, E sırasında olmalı; sıra: ${letters.join(' ')}`);
+++    const cleanedOptions = options.map((option) => option.text.trim());
+++    if (cleanedOptions.some((option) => !option)) fail(label, 'seçenekler boş bırakılamaz.');
+++
+++    if (!answerLetter) {
+++      missingAnswer.push(label);
+++      return;
+++    }
+++    const answer = BULK_LETTERS.indexOf(answerLetter as (typeof BULK_LETTERS)[number]);
+++    if (answer < 0) fail(label, `geçersiz cevap harfi "${answerLetter}". A–E olmalı.`);
+++
+++    const explanationText = explanation.join(' ').replace(/\s+/g, ' ').trim();
+++    if (!explanationText) {
+++      missingExplanation.push(label);
+++      return;
+++    }
+++
+++    out.push({
+++      category: meta.category ?? defaults.category,
+++      difficulty: meta.difficulty ?? defaults.difficulty,
+++      question,
+++      options: cleanedOptions,
+++      answer,
+++      explanation: explanationText,
+++    });
+++  });
+++
+++  if (missingAnswer.length || missingExplanation.length) {
+++    const parts: string[] = [];
+++    if (missingAnswer.length) parts.push(`${missingAnswer.join(', ')} — "Cevap:" satırı yok.`);
+++    if (missingExplanation.length) parts.push(`${missingExplanation.join(', ')} — "Açıklama:" satırı yok.`);
+++    throw new Error(`Eksik bilgi: ${parts.join(' ')}`);
+++  }
+++  if (!out.length) throw new Error('Kalıbı okunamadı; en az bir soru bulunamadı.');
+++  if (out.length > MAX_QUESTIONS) throw new Error(`Tek seferde en fazla ${MAX_QUESTIONS} soru yüklenebilir.`);
+++  return out;
+++}
++diff --git a/tests/bulk-questions.test.ts b/tests/bulk-questions.test.ts
++new file mode 100644
++index 0000000..0f5f345
++--- /dev/null
+++++ b/tests/bulk-questions.test.ts
++@@ -0,0 +1,180 @@
+++import { test } from 'node:test';
+++import assert from 'node:assert/strict';
+++import { parseQuestionTemplate } from '../lib/bulk-questions';
+++
+++const DEFAULTS = { category: 'tarih', difficulty: 'Orta' as const };
+++
+++/** Kullanıcının hazırladığı tipik kalıp: öncüllü çoktan seçmeli + klasik soru. */
+++const SAMPLE = `
+++1. **Osmanlı-Lehistan saraşlarının çıkmasında çeşitli bölgelerdeki güç mücadelesi belirleyici olmuştur.
+++
+++   I. Lehistan'ın Ukrayna Kazaklarına baskı yapması
+++
+++   II. Lehistan'ın Erdel ve Macaristan topraklarına baskı yapması
+++
+++   III. Lehistan'ın Osmanlı'nın iç işlerine doğrudan müdahale etmesi
+++
+++ Yukarıdaki öncüllerden hangileri Osmanlı-Lehistan savaşlarının nedenleri arasında gösterilebilir?**
+++
+++A) Yalnız I
+++
+++B) Yalnız III
+++
+++C) I ve II
+++
+++D) II ve III
+++
+++E) I, II ve III
+++
+++Cevap: C
+++
+++Açıklama: Osmanlı-Lehistan savaşlarının temel nedeni Lehistan'ın Ukrayna Kazakları,
+++Erdel, Macaristan ve Eflak topraklarına baskı yapmasıdır.
+++
+++---
+++
+++2. **Bucaş Antlaşması hangi padişah döneminde imzalanmıştır?
+++
+++A) Genç Osman
+++
+++B) III. Murat
+++
+++C) IV. Mehmet
+++
+++D) II. Mahmut
+++
+++E) I. Ahmet
+++
+++Cevap: C
+++
+++Açıklama: Bucaş Antlaşması 1672 yılında IV. Mehmet döneminde yapılmıştır.
+++`;
+++
+++test('öncüllü kalıp kök cümle, öncüller ve soru satırını tek metinde birleştirir', () => {
+++  const [first, second] = parseQuestionTemplate(SAMPLE, DEFAULTS);
+++
+++  assert.equal(
+++    first.question,
+++    [
+++      "Osmanlı-Lehistan saraşlarının çıkmasında çeşitli bölgelerdeki güç mücadelesi belirleyici olmuştur.",
+++      "I. Lehistan'ın Ukrayna Kazaklarına baskı yapması",
+++      "II. Lehistan'ın Erdel ve Macaristan topraklarına baskı yapması",
+++      "III. Lehistan'ın Osmanlı'nın iç işlerine doğrudan müdahale etmesi",
+++      'Yukarıdaki öncüllerden hangileri Osmanlı-Lehistan savaşlarının nedenleri arasında gösterilebilir?',
+++    ].join('\n'),
+++  );
+++  assert.deepEqual(first.options, ['Yalnız I', 'Yalnız III', 'I ve II', 'II ve III', 'I, II ve III']);
+++  assert.equal(first.answer, 2);
+++  assert.match(first.explanation, /^Osmanlı-Lehistan savaşlarının temel nedeni/);
+++  assert.equal(first.explanation.includes('\n'), false);
+++  assert.equal(first.category, 'tarih');
+++  assert.equal(first.difficulty, 'Orta');
+++
+++  assert.equal(second.question, 'Bucaş Antlaşması hangi padişah döneminde imzalanmıştır?');
+++  assert.deepEqual(second.options, ['Genç Osman', 'III. Murat', 'IV. Mehmet', 'II. Mahmut', 'I. Ahmet']);
+++  assert.equal(second.answer, 2);
+++});
+++
+++test('kalıp numarasız başlıkları, ayraçları ve satır kaydırmayı tolere eder', () => {
+++  const raw = `
+++ 1. **Soru metni?
+++
+++A) Birinci
+++B) İkinci
+++C) Üçüncü
+++D) Dördüncü
+++E) Beşinci
+++
+++Cevap: e
+++
+++Açıklama: Açıklama ilk satır.
+++İkinci satır da açıklamaya
+++devam eder.
+++`;
+++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
+++  assert.equal(question.question, 'Soru metni?');
+++  assert.equal(question.answer, 4);
+++  assert.equal(question.explanation, 'Açıklama ilk satır. İkinci satır da açıklamaya devam eder.');
+++});
+++
+++test('Ders ve Zorluk satırları varsayılanın yerine geçer', () => {
+++  const raw = `
+++ 1. Ders: matematik
+++ Zorluk: Zor
+++
+++ **2 + 2 kaçtır?**
+++
+++A) 2
+++B) 3
+++C) 4
+++D) 5
+++E) 7
+++
+++Cevap: C
+++
+++Açıklama: Temel toplama.
+++`;
+++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
+++  assert.equal(question.category, 'matematik');
+++  assert.equal(question.difficulty, 'Zor');
+++  assert.equal(question.question, '2 + 2 kaçtır?');
+++});
+++
+++test('eksik seçenek, geçersiz cevap ve eksik cevap/açıklama satırları anlaşılır hata verir', () => {
+++  const missingOption = `
+++ 1. **Soru?
+++
+++A) Bir
+++B) İki
+++C) Üç
+++D) Dört
+++
+++Cevap: A
+++
+++Açıklama: Açıklama.
+++`;
+++  assert.throws(() => parseQuestionTemplate(missingOption, DEFAULTS), /tam 5 seçenek \(A–E\) olmalı; 4/);
+++
+++  const badAnswer = `
+++ 1. **Soru?
+++
+++A) Bir
+++B) İki
+++C) Üç
+++D) Dört
+++E) Beş
+++
+++Cevap: F
+++
+++Açıklama: Açıklama.
+++`;
+++  assert.throws(() => parseQuestionTemplate(badAnswer, DEFAULTS), /geçersiz cevap harfi/);
+++
+++  const noAnswer = `
+++ 1. **Soru?
+++
+++A) Bir
+++B) İki
+++C) Üç
+++D) Dört
+++E) Beş
+++
+++Açıklama: Açıklama.
+++`;
+++  assert.throws(() => parseQuestionTemplate(noAnswer, DEFAULTS), /"Cevap:" satırı yok/);
+++});
+++
+++test('çoktan seçmeli şıkları aynı satırda yazılan biçim de okunur', () => {
+++  const raw = `
+++ 1. **Soru?
+++
+++A) Yalnız I B) Yalnız II C) I ve II D) II ve III E) I, II ve III
+++
+++Cevap: C
+++
+++Açıklama: Açıklama.
+++`;
+++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
+++  assert.deepEqual(question.options, ['Yalnız I', 'Yalnız II', 'I ve II', 'II ve III', 'I, II ve III']);
+++  assert.equal(question.answer, 2);
+++});
++-- 
++2.39.5
++
+diff --git a/yeni-ozellikler-yedek.patch b/yeni-ozellikler-yedek.patch
+new file mode 100644
+index 0000000..411ae03
+--- /dev/null
++++ b/yeni-ozellikler-yedek.patch
+@@ -0,0 +1,1360 @@
++From 486f7529f6656da8f7bdfac1319f8a0e75eb9bc6 Mon Sep 17 00:00:00 2001
++From: arena-ai-coding-agent <arena-agent@users.noreply.github.com>
++Date: Sun, 27 Sep 2026 20:44:15 +0000
++Subject: [PATCH 1/2] =?UTF-8?q?chore:=20toplu-soru-kalibi.patch=20artefakt?=
++ =?UTF-8?q?=C4=B1n=C4=B1=20depoya=20ekle?=
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++01a0df3d-1477-78da-a88f-16be95758541.patch kümülatif patch'inin post-image
++durumunu tamamlar: patch 9 dosyadan olusuyor ve 8'i zaten main'de uygulu
++(kod tarafinda QuoteOfTheDay + toplu soru kalibi calismalari). Eksik kalan
++tek dosya, patch'in icinde gorunen temiz toplu-soru-kalibi.patch artefaktıydı.
++
++Depo kokunde aynı sekilde kümülatif patch artefaktı (01a0df3d-...patch)
++tutuldugu icin bu dosya da ayni konvansiyonla ekleniyor. Icindeki degisiklikler
++PR #9 ile main'e zaten birlesmis durumda; dosya yalnizca kayit amaciyla.
++
++Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
++---
++ toplu-soru-kalibi.patch | 686 ++++++++++++++++++++++++++++++++++++++++
++ 1 file changed, 686 insertions(+)
++ create mode 100644 toplu-soru-kalibi.patch
++
++diff --git a/toplu-soru-kalibi.patch b/toplu-soru-kalibi.patch
++new file mode 100644
++index 0000000..e9f314a
++--- /dev/null
+++++ b/toplu-soru-kalibi.patch
++@@ -0,0 +1,686 @@
+++From c6dbdbdd50e219013c8a791dec0d119d6b3b7752 Mon Sep 17 00:00:00 2001
+++From: Arena Agent <agent@arena.ai>
+++Date: Sun, 27 Sep 2026 20:32:11 +0000
+++Subject: [PATCH] =?UTF-8?q?feat:=20Toplu=20soru=20y=C3=BCkleme=20i=C3=A7in?=
+++ =?UTF-8?q?=20haz=C4=B1r=20soru=20kal=C4=B1b=C4=B1=20bi=C3=A7imi?=
+++MIME-Version: 1.0
+++Content-Type: text/plain; charset=UTF-8
+++Content-Transfer-Encoding: 8bit
+++
+++- Yeni lib/bulk-questions.ts: numaralı + kalın başlıklı soru metni, I/II/III önülleri,
+++  A–E şıkları, 'Cevap:' ve 'Açıklama:' satırlarından oluşan kalıbı ayrıştırır.
+++  Kök cümle, önüller ve soru satırı tek metinde satır satır birleştirilir.
+++  --- ayraçları, satır kaydırması, aynı satırdaki şıklar ve numarasız başlıklar tolere edilir.
+++  'Ders: <id>' / 'Zorluk: <Kolay|Orta|Zor>' satırları varsayılanı ezer.
+++  Hatalar soru numarasıyla bildirilir (eksik şık, geçersiz cevap harfi, eksik Cevap/Açıklama).
+++- BulkAdd modalında varsayılan biçim 'Hazır soru kalıbı'; ders ve zorluk seçimi ile
+++  ilk sorunun önizlemesi eklendi. JSON ve satır bazlı metin biçimleri korunur.
+++- tests/bulk-questions.test.ts: 5 yeni test (44 toplam).
+++
+++Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
+++---
+++ HANDOFF.md                   |   2 +
+++ components/admin/BulkAdd.tsx | 139 +++++++++++++++++++--
+++ lib/bulk-questions.ts        | 233 +++++++++++++++++++++++++++++++++++
+++ tests/bulk-questions.test.ts | 180 +++++++++++++++++++++++++++
+++ 4 files changed, 543 insertions(+), 11 deletions(-)
+++ create mode 100644 lib/bulk-questions.ts
+++ create mode 100644 tests/bulk-questions.test.ts
+++
+++diff --git a/HANDOFF.md b/HANDOFF.md
+++index be46a25..094a830 100644
+++--- a/HANDOFF.md
++++++ b/HANDOFF.md
+++@@ -25,6 +25,8 @@
+++ - Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
+++ - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
+++ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
++++- **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir; ders/zorluk modalda seçilir, tek soru için `Ders: matematik` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
++++- **Günün sözü balonu masaüstü web'de sol menüde, Profil'in hemen altında** (menü öğeleriyle aynı 27px/306px ritmi, 24px boşluk). Pencere kısaldığında ya da mobilde balon otomatik olarak ana sayfa gövdesine döner (`components/QuoteOfTheDay.tsx`, konumu `SIDEBAR_QUOTE_TOP` sabiti belirler; yan menü gerçek genişliği 360px — kütüphane `minWidth` değeri).
+++ - Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
+++ - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
+++ - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
+++diff --git a/components/admin/BulkAdd.tsx b/components/admin/BulkAdd.tsx
+++index 1d5710d..558324b 100644
+++--- a/components/admin/BulkAdd.tsx
++++++ b/components/admin/BulkAdd.tsx
+++@@ -12,10 +12,41 @@ import {
+++ import { SafeAreaView } from 'react-native-safe-area-context';
+++ import { Ionicons } from '@expo/vector-icons';
+++ import { useApp } from '../../lib/store';
+++-import { ContentEntry, schemas } from '../../lib/content-schema';
++++import { ContentEntry, categoryIds, schemas } from '../../lib/content-schema';
++++import { BULK_DIFFICULTIES, BulkDifficulty, parseQuestionTemplate } from '../../lib/bulk-questions';
++++import { LESSONS } from '../../lib/data';
+++ import { AdminButton, Notice } from './AdminUI';
+++ 
+++-type Format = 'json' | 'text';
++++type Format = 'template' | 'json' | 'text';
++++
++++const TEMPLATE_EXAMPLE = `1. **Soru kök cümlesi.
++++
++++   I. Birinci öncül
++++   II. İkinci öncül
++++
++++ Yukarıdaki öncüllerden hangileri doğrudur?**
++++
++++A) Yalnız I
++++B) Yalnız II
++++C) I ve II
++++D) II ve III
++++E) I, II ve III
++++
++++Cevap: C
++++
++++Açıklama: Açıklama metni.
++++
++++2. **Klasik biçimde bir soru?
++++
++++A) Birinci
++++B) İkinci
++++C) Üçüncü
++++D) Dördüncü
++++E) Beşinci
++++
++++Cevap: B
++++
++++Açıklama: Açıklama metni.`;
+++ 
+++ const JSON_EXAMPLE = `[
+++   {
+++@@ -32,9 +63,17 @@ const TEXT_EXAMPLE = `# Her satır: Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama
+++ tarih|Orta|Osmanlı Devleti'nin kurucusu kimdir?|Ertuğrul Gazi|Osman Bey|Orhan Bey|I. Murat|Süleyman Şah|B|Osmanlı Devleti 1299'da Osman Bey tarafından kurulmuştur.
+++ matematik|Kolay|2+2 kaçtır?|2|3|4|5|7|C|Temel toplama.`;
+++ 
+++-const DIFFICULTIES = ['Kolay', 'Orta', 'Zor'];
++++const DIFFICULTIES = BULK_DIFFICULTIES;
+++ const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+++ 
++++/** Önizleme satırı: kalıptan gelen ilk sorunun metni (tek satır hâlinde). */
++++function firstQuestionText(parsed: { kind: string; payload: unknown }[]): string {
++++  const first = parsed[0];
++++  if (!first || first.kind !== 'questions') return '';
++++  const question = (first.payload as { question?: string }).question ?? '';
++++  return question.replace(/\n/g, ' ');
++++}
++++
+++ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
+++   const lines = raw
+++     .split(/\r?\n/)
+++@@ -68,7 +107,7 @@ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
+++         `Doğru cevap A–E arası bir harf olmalı. Sorunlu satır: ${line.slice(0, 60)}…`,
+++       );
+++     }
+++-    if (!DIFFICULTIES.includes(difficulty)) {
++++    if (!DIFFICULTIES.some((value) => value === difficulty)) {
+++       throw new Error(`Zorluk "Kolay", "Orta" veya "Zor" olmalı. Sorunlu satır: ${line.slice(0, 60)}…`);
+++     }
+++     const id = `bulk-${Date.now()}-${out.length}-${Math.random().toString(36).slice(2, 7)}`;
+++@@ -89,9 +128,11 @@ export default function BulkAdd({
+++   onInsert: (entries: ContentEntry[]) => Promise<void>;
+++ }) {
+++   const { theme } = useApp();
+++-  const [format, setFormat] = useState<Format>('json');
++++  const [format, setFormat] = useState<Format>('template');
+++   const [raw, setRaw] = useState('');
+++   const [status, setStatus] = useState<'draft' | 'published'>('published');
++++  const [category, setCategory] = useState<string>('tarih');
++++  const [difficulty, setDifficulty] = useState<BulkDifficulty>('Orta');
+++   const [busy, setBusy] = useState(false);
+++   const [error, setError] = useState('');
+++   const [message, setMessage] = useState('');
+++@@ -101,6 +142,13 @@ export default function BulkAdd({
+++     setMessage('');
+++     if (!raw.trim()) return [];
+++     try {
++++      if (format === 'template') {
++++        return parseQuestionTemplate(raw, { category, difficulty }).map((item, i) => {
++++          const id = `bulk-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
++++          const payload = schemas.questions.parse({ id, ...item });
++++          return { kind: 'questions' as const, id, payload };
++++        });
++++      }
+++       const base =
+++         format === 'json'
+++           ? (JSON.parse(raw) as any[])
+++@@ -119,7 +167,7 @@ export default function BulkAdd({
+++       setError(e instanceof Error ? e.message : 'Biçim ayrıştırılamadı.');
+++       return [];
+++     }
+++-  }, [raw, format]);
++++  }, [raw, format, category, difficulty]);
+++ 
+++   async function submit() {
+++     if (!parsed.length) return;
+++@@ -151,6 +199,7 @@ export default function BulkAdd({
+++               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+++                 {(
+++                   [
++++                    { id: 'template', label: 'Hazır soru kalıbı' },
+++                     { id: 'json', label: 'JSON' },
+++                     { id: 'text', label: 'Metin (satır bazlı)' },
+++                   ] as const
+++@@ -180,12 +229,73 @@ export default function BulkAdd({
+++               </View>
+++ 
+++               <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>
+++-                Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.
++++                {format === 'template'
++++                  ? 'Soruları numaralı yazın: kalın başlıklı soru metni, I/II/III önülleri, A–E şıkları, "Cevap:" ve "Açıklama:" satırları. --- ile ayırabilirsiniz.'
++++                  : 'Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.'}
+++               </Text>
++++
++++              {format === 'template' && (
++++                <View style={{ marginBottom: 12 }}>
++++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginBottom: 6 }}>
++++                    Tüm soruların dersi:
++++                  </Text>
++++                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
++++                    {categoryIds.map((id) => (
++++                      <TouchableOpacity
++++                        key={id}
++++                        accessibilityRole="radio"
++++                        accessibilityState={{ checked: category === id }}
++++                        onPress={() => setCategory(id)}
++++                        style={{
++++                          paddingHorizontal: 12,
++++                          paddingVertical: 7,
++++                          borderRadius: 9,
++++                          borderWidth: 1,
++++                          borderColor: category === id ? theme.accent : theme.border,
++++                          backgroundColor: category === id ? theme.accentSoft : theme.card2,
++++                        }}
++++                      >
++++                        <Text style={{ fontWeight: '800', fontSize: 12, color: category === id ? theme.accent : theme.muted }}>
++++                          {LESSONS.find((lesson) => lesson.id === id)?.name ?? id}
++++                        </Text>
++++                      </TouchableOpacity>
++++                    ))}
++++                  </View>
++++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
++++                    Tüm soruların zorluğu:
++++                  </Text>
++++                  <View style={{ flexDirection: 'row', gap: 7 }}>
++++                    {DIFFICULTIES.map((value) => (
++++                      <TouchableOpacity
++++                        key={value}
++++                        accessibilityRole="radio"
++++                        accessibilityState={{ checked: difficulty === value }}
++++                        onPress={() => setDifficulty(value)}
++++                        style={{
++++                          paddingHorizontal: 14,
++++                          paddingVertical: 7,
++++                          borderRadius: 9,
++++                          borderWidth: 1,
++++                          borderColor: difficulty === value ? theme.accent : theme.border,
++++                          backgroundColor: difficulty === value ? theme.accentSoft : theme.card2,
++++                        }}
++++                      >
++++                        <Text style={{ fontWeight: '800', fontSize: 12, color: difficulty === value ? theme.accent : theme.muted }}>
++++                          {value}
++++                        </Text>
++++                      </TouchableOpacity>
++++                    ))}
++++                  </View>
++++                  <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 8 }}>
++++                    Tek bir soruyu değiştirmek için o sorunun yanına “Ders: matematik” veya “Zorluk: Zor” satırı ekleyin.
++++                  </Text>
++++                </View>
++++              )}
++++
+++               <TextInput
+++                 value={raw}
+++                 onChangeText={setRaw}
+++-                placeholder={format === 'json' ? JSON_EXAMPLE : TEXT_EXAMPLE}
++++                placeholder={format === 'json' ? JSON_EXAMPLE : format === 'text' ? TEXT_EXAMPLE : TEMPLATE_EXAMPLE}
+++                 placeholderTextColor={theme.muted}
+++                 multiline
+++                 autoCapitalize="none"
+++@@ -234,9 +344,16 @@ export default function BulkAdd({
+++               {!!error && <View style={{ marginTop: 12 }}><Notice text={error} error /></View>}
+++               {!!message && <View style={{ marginTop: 12 }}><Notice text={message} /></View>}
+++               {!error && raw.trim() !== '' && (
+++-                <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12, marginTop: 10 }}>
+++-                  ✓ {parsed.length} soru ayrıştırıldı
+++-                </Text>
++++                <View style={{ marginTop: 10 }}>
++++                  <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12 }}>
++++                    ✓ {parsed.length} soru ayrıştırıldı
++++                  </Text>
++++                  {format === 'template' && (
++++                    <Text numberOfLines={2} style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
++++                      İlk soru: {firstQuestionText(parsed)}
++++                    </Text>
++++                  )}
++++                </View>
+++               )}
+++             </ScrollView>
+++             <View style={{ padding: 16, borderTopWidth: 1, borderColor: theme.border, flexDirection: 'row', gap: 10 }}>
+++diff --git a/lib/bulk-questions.ts b/lib/bulk-questions.ts
+++new file mode 100644
+++index 0000000..1a64832
+++--- /dev/null
++++++ b/lib/bulk-questions.ts
+++@@ -0,0 +1,233 @@
++++/**
++++ * "Hazır soru kalıbı" ayrıştırıcısı.
++++ *
++++ * Kullanıcının elle hazırladığı tipik toplu soru biçimi:
++++ *
++++ *   1. **Soru kök cümlesi.
++++ *
++++ *      I. Birinci öncül
++++ *      II. İkinci öncül
++++ *
++++ *   Yukarıdaki öncüllerden hangileri doğrudur?**
++++ *
++++ *   A) Yalnız I
++++ *   B) Yalnız II
++++ *   ...
++++ *   E) I, II ve III
++++ *
++++ *   Cevap: C
++++ *
++++ *   Açıklama: Açıklama metni burada.
++++ *
++++ * Numarasız, tek cevaplı klasik biçim de desteklenir. Her soru kendi satırında
++++ * başlar; numaradan sonra "Ders: tarih" / "Zorluk: Orta" satırları verilirse
++++ * varsayılan değerlerin yerine geçer.
++++ */
++++
++++export const BULK_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
++++export const BULK_DIFFICULTIES = ['Kolay', 'Orta', 'Zor'] as const;
++++export type BulkDifficulty = (typeof BULK_DIFFICULTIES)[number];
++++
++++export interface BulkQuestionDefaults {
++++  category: string;
++++  difficulty: BulkDifficulty;
++++}
++++
++++export interface BulkQuestion {
++++  category: string;
++++  difficulty: BulkDifficulty;
++++  question: string;
++++  options: string[];
++++  answer: number;
++++  explanation: string;
++++}
++++
++++const MAX_QUESTIONS = 500;
++++const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
++++const NUMBER_START = /^\s*\d{1,3}\s*[.)]\s+\S/;
++++const NUMBER_PREFIX = /^\s*\d{1,3}\s*[.)]\s+/;
++++const OPTION = /(?:^|\s)\(?([A-Ea-e])\)\s*/g;
++++const OPTION_START = /^\s*\(?([A-Ea-e])\)\s*/;
++++const ANSWER = /^\s*Cevap\s*:\s*(\S.*)$/i;
++++const EXPLANATION = /^\s*Açıklama\s*:\s*(.*)$/i;
++++const META = /^\s*(Ders|Kategori|Zorluk)\s*:\s*(.+)$/i;
++++const SEPARATOR = /^\s*([-*_=]{3,}|#|\/\/)\s*$/;
++++
++++const cleanLine = (line: string) => line.replace(/\*\*/g, '').replace(/\s+$/, '').trim();
++++
++++/** Soru bloklarını numaralı başlıklara göre böler; numara yoksa kalın başlıklara göre. */
++++function splitBlocks(lines: string[]): string[][] {
++++  const blocks: string[][] = [];
++++  let current: string[] = [];
++++  const numbered = lines.some((line) => NUMBER_START.test(line));
++++  for (const line of lines) {
++++    if (!line.trim()) continue; // boş satırlar soru bloklarını bölmez
++++    const starts = numbered ? NUMBER_START.test(line) : line.trim().startsWith('**');
++++    // Numaralı biçimde yeni soru, ancak önceki sorunun cevabı görülmüşse başlar.
++++    const confident = !numbered || blocks.length === 0 || currentHasAnswer(current);
++++    if (starts && confident) {
++++      if (current.length) blocks.push(current);
++++      current = [];
++++    }
++++    current.push(line);
++++  }
++++  if (current.length) blocks.push(current);
++++  return blocks;
++++}
++++
++++const currentHasAnswer = (lines: string[]) => lines.some((line) => ANSWER.test(cleanLine(line)));
++++
++++function splitOptions(line: string): { letter: string; text: string }[] {
++++  const found: { letter: string; text: string }[] = [];
++++  const source = cleanLine(line);
++++  OPTION.lastIndex = 0;
++++  let match: RegExpExecArray | null;
++++  let cursor = 0;
++++  while ((match = OPTION.exec(source))) {
++++    if (match.index > cursor) found.push({ letter: '', text: source.slice(cursor, match.index).trim() });
++++    found.push({ letter: match[1].toUpperCase(), text: '' });
++++    cursor = match.index + match[0].length;
++++  }
++++  const tail = source.slice(cursor).trim();
++++  if (tail || found.length === 0) found.push({ letter: '', text: tail });
++++  // Boş harfli kayıtlar bir öncekinin devamıdır (satır sonu sarması).
++++  return found.reduce<{ letter: string; text: string }[]>((acc, item) => {
++++    if (item.letter) acc.push(item);
++++    else if (acc.length) acc[acc.length - 1].text = `${acc[acc.length - 1].text} ${item.text}`.trim();
++++    else acc.push(item);
++++    return acc;
++++  }, []);
++++}
++++
++++function fail(label: string, message: string): never {
++++  throw new Error(`${label}: ${message}`);
++++}
++++
++++/** Kalıptan soru listesi çıkarır; hatalar soru numarasıyla birlikte fırlatılır. */
++++export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefaults): BulkQuestion[] {
++++  const lines = raw
++++    .replace(/\r\n?/g, '\n')
++++    .split('\n')
++++    .filter((line) => !SEPARATOR.test(line));
++++
++++  const blocks = splitBlocks(lines);
++++  if (!blocks.length) throw new Error('Kalıbı okunamadı; en az bir soru bulunamadı.');
++++
++++  const out: BulkQuestion[] = [];
++++  const missingAnswer: string[] = [];
++++  const missingExplanation: string[] = [];
++++
++++  blocks.forEach((block, index) => {
++++    const label = `Soru ${index + 1}`;
++++    const stem: string[] = [];
++++    const options: { letter: string; text: string }[] = [];
++++    const meta: { category?: string; difficulty?: BulkDifficulty } = {};
++++    let answerLetter: string | null = null;
++++    const explanation: string[] = [];
++++    let section: 'stem' | 'options' | 'explanation' = 'stem';
++++    let started = false;
++++
++++    block.forEach((rawLine) => {
++++      const line = cleanLine(rawLine);
++++      if (!line) return;
++++      const text = started ? line : line.replace(NUMBER_PREFIX, '').trim();
++++      started = true;
++++
++++      const metaMatch = text.match(META);
++++      if (metaMatch) {
++++        const key = metaMatch[1].toLocaleLowerCase('tr');
++++        const value = metaMatch[2].trim();
++++        if (key === 'zorluk') {
++++          const difficulty = BULK_DIFFICULTIES.find(
++++            (d) => d.toLocaleLowerCase('tr') === value.toLocaleLowerCase('tr'),
++++          );
++++          if (!difficulty) fail(label, `geçersiz zorluk "${value}". Kolay, Orta veya Zor olmalı.`);
++++          meta.difficulty = difficulty;
++++        } else {
++++          if (!LESSON_ID.test(value)) fail(label, `geçersiz ders kimliği "${value}". Örnek: tarih`);
++++          meta.category = value;
++++        }
++++        return;
++++      }
++++
++++      const answerMatch = text.match(ANSWER);
++++      if (answerMatch) {
++++        const raw = answerMatch[1].trim();
++++        if (!/^[A-Ea-e]$/.test(raw)) fail(label, `geçersiz cevap harfi "${raw}". A–E olmalı.`);
++++        answerLetter = raw.toUpperCase();
++++        // Cevaptan sonra gelen satırlar şıkkın devamı değil, açıklama metnidir.
++++        section = 'explanation';
++++        return;
++++      }
++++
++++      const explanationMatch = text.match(EXPLANATION);
++++      if (explanationMatch) {
++++        section = 'explanation';
++++        if (explanationMatch[1].trim()) explanation.push(explanationMatch[1].trim());
++++        return;
++++      }
++++
++++      if (section === 'explanation') {
++++        explanation.push(text);
++++        return;
++++      }
++++
++++      if (OPTION_START.test(text)) {
++++        section = 'options';
++++        options.push(...splitOptions(text));
++++        return;
++++      }
++++
++++      if (section === 'options' && options.length) {
++++        // Seçenek listesi taşmışsa son seçeneğe eklenir.
++++        options[options.length - 1].text = `${options[options.length - 1].text} ${text}`.trim();
++++        return;
++++      }
++++
++++      stem.push(text);
++++    });
++++
++++    const question = stem.join('\n').trim();
++++    if (!question) fail(label, 'soru metni boş.');
++++    if (options.length !== BULK_LETTERS.length) {
++++      fail(label, `tam 5 seçenek (A–E) olmalı; ${options.length} seçenek bulundu.`);
++++    }
++++    const letters = options.map((option) => option.letter);
++++    const ordered = BULK_LETTERS.every((letter, i) => letters[i] === letter);
++++    if (!ordered) fail(label, `seçenekler A, B, C, D, E sırasında olmalı; sıra: ${letters.join(' ')}`);
++++    const cleanedOptions = options.map((option) => option.text.trim());
++++    if (cleanedOptions.some((option) => !option)) fail(label, 'seçenekler boş bırakılamaz.');
++++
++++    if (!answerLetter) {
++++      missingAnswer.push(label);
++++      return;
++++    }
++++    const answer = BULK_LETTERS.indexOf(answerLetter as (typeof BULK_LETTERS)[number]);
++++    if (answer < 0) fail(label, `geçersiz cevap harfi "${answerLetter}". A–E olmalı.`);
++++
++++    const explanationText = explanation.join(' ').replace(/\s+/g, ' ').trim();
++++    if (!explanationText) {
++++      missingExplanation.push(label);
++++      return;
++++    }
++++
++++    out.push({
++++      category: meta.category ?? defaults.category,
++++      difficulty: meta.difficulty ?? defaults.difficulty,
++++      question,
++++      options: cleanedOptions,
++++      answer,
++++      explanation: explanationText,
++++    });
++++  });
++++
++++  if (missingAnswer.length || missingExplanation.length) {
++++    const parts: string[] = [];
++++    if (missingAnswer.length) parts.push(`${missingAnswer.join(', ')} — "Cevap:" satırı yok.`);
++++    if (missingExplanation.length) parts.push(`${missingExplanation.join(', ')} — "Açıklama:" satırı yok.`);
++++    throw new Error(`Eksik bilgi: ${parts.join(' ')}`);
++++  }
++++  if (!out.length) throw new Error('Kalıbı okunamadı; en az bir soru bulunamadı.');
++++  if (out.length > MAX_QUESTIONS) throw new Error(`Tek seferde en fazla ${MAX_QUESTIONS} soru yüklenebilir.`);
++++  return out;
++++}
+++diff --git a/tests/bulk-questions.test.ts b/tests/bulk-questions.test.ts
+++new file mode 100644
+++index 0000000..0f5f345
+++--- /dev/null
++++++ b/tests/bulk-questions.test.ts
+++@@ -0,0 +1,180 @@
++++import { test } from 'node:test';
++++import assert from 'node:assert/strict';
++++import { parseQuestionTemplate } from '../lib/bulk-questions';
++++
++++const DEFAULTS = { category: 'tarih', difficulty: 'Orta' as const };
++++
++++/** Kullanıcının hazırladığı tipik kalıp: öncüllü çoktan seçmeli + klasik soru. */
++++const SAMPLE = `
++++1. **Osmanlı-Lehistan saraşlarının çıkmasında çeşitli bölgelerdeki güç mücadelesi belirleyici olmuştur.
++++
++++   I. Lehistan'ın Ukrayna Kazaklarına baskı yapması
++++
++++   II. Lehistan'ın Erdel ve Macaristan topraklarına baskı yapması
++++
++++   III. Lehistan'ın Osmanlı'nın iç işlerine doğrudan müdahale etmesi
++++
++++ Yukarıdaki öncüllerden hangileri Osmanlı-Lehistan savaşlarının nedenleri arasında gösterilebilir?**
++++
++++A) Yalnız I
++++
++++B) Yalnız III
++++
++++C) I ve II
++++
++++D) II ve III
++++
++++E) I, II ve III
++++
++++Cevap: C
++++
++++Açıklama: Osmanlı-Lehistan savaşlarının temel nedeni Lehistan'ın Ukrayna Kazakları,
++++Erdel, Macaristan ve Eflak topraklarına baskı yapmasıdır.
++++
++++---
++++
++++2. **Bucaş Antlaşması hangi padişah döneminde imzalanmıştır?
++++
++++A) Genç Osman
++++
++++B) III. Murat
++++
++++C) IV. Mehmet
++++
++++D) II. Mahmut
++++
++++E) I. Ahmet
++++
++++Cevap: C
++++
++++Açıklama: Bucaş Antlaşması 1672 yılında IV. Mehmet döneminde yapılmıştır.
++++`;
++++
++++test('öncüllü kalıp kök cümle, öncüller ve soru satırını tek metinde birleştirir', () => {
++++  const [first, second] = parseQuestionTemplate(SAMPLE, DEFAULTS);
++++
++++  assert.equal(
++++    first.question,
++++    [
++++      "Osmanlı-Lehistan saraşlarının çıkmasında çeşitli bölgelerdeki güç mücadelesi belirleyici olmuştur.",
++++      "I. Lehistan'ın Ukrayna Kazaklarına baskı yapması",
++++      "II. Lehistan'ın Erdel ve Macaristan topraklarına baskı yapması",
++++      "III. Lehistan'ın Osmanlı'nın iç işlerine doğrudan müdahale etmesi",
++++      'Yukarıdaki öncüllerden hangileri Osmanlı-Lehistan savaşlarının nedenleri arasında gösterilebilir?',
++++    ].join('\n'),
++++  );
++++  assert.deepEqual(first.options, ['Yalnız I', 'Yalnız III', 'I ve II', 'II ve III', 'I, II ve III']);
++++  assert.equal(first.answer, 2);
++++  assert.match(first.explanation, /^Osmanlı-Lehistan savaşlarının temel nedeni/);
++++  assert.equal(first.explanation.includes('\n'), false);
++++  assert.equal(first.category, 'tarih');
++++  assert.equal(first.difficulty, 'Orta');
++++
++++  assert.equal(second.question, 'Bucaş Antlaşması hangi padişah döneminde imzalanmıştır?');
++++  assert.deepEqual(second.options, ['Genç Osman', 'III. Murat', 'IV. Mehmet', 'II. Mahmut', 'I. Ahmet']);
++++  assert.equal(second.answer, 2);
++++});
++++
++++test('kalıp numarasız başlıkları, ayraçları ve satır kaydırmayı tolere eder', () => {
++++  const raw = `
++++ 1. **Soru metni?
++++
++++A) Birinci
++++B) İkinci
++++C) Üçüncü
++++D) Dördüncü
++++E) Beşinci
++++
++++Cevap: e
++++
++++Açıklama: Açıklama ilk satır.
++++İkinci satır da açıklamaya
++++devam eder.
++++`;
++++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
++++  assert.equal(question.question, 'Soru metni?');
++++  assert.equal(question.answer, 4);
++++  assert.equal(question.explanation, 'Açıklama ilk satır. İkinci satır da açıklamaya devam eder.');
++++});
++++
++++test('Ders ve Zorluk satırları varsayılanın yerine geçer', () => {
++++  const raw = `
++++ 1. Ders: matematik
++++ Zorluk: Zor
++++
++++ **2 + 2 kaçtır?**
++++
++++A) 2
++++B) 3
++++C) 4
++++D) 5
++++E) 7
++++
++++Cevap: C
++++
++++Açıklama: Temel toplama.
++++`;
++++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
++++  assert.equal(question.category, 'matematik');
++++  assert.equal(question.difficulty, 'Zor');
++++  assert.equal(question.question, '2 + 2 kaçtır?');
++++});
++++
++++test('eksik seçenek, geçersiz cevap ve eksik cevap/açıklama satırları anlaşılır hata verir', () => {
++++  const missingOption = `
++++ 1. **Soru?
++++
++++A) Bir
++++B) İki
++++C) Üç
++++D) Dört
++++
++++Cevap: A
++++
++++Açıklama: Açıklama.
++++`;
++++  assert.throws(() => parseQuestionTemplate(missingOption, DEFAULTS), /tam 5 seçenek \(A–E\) olmalı; 4/);
++++
++++  const badAnswer = `
++++ 1. **Soru?
++++
++++A) Bir
++++B) İki
++++C) Üç
++++D) Dört
++++E) Beş
++++
++++Cevap: F
++++
++++Açıklama: Açıklama.
++++`;
++++  assert.throws(() => parseQuestionTemplate(badAnswer, DEFAULTS), /geçersiz cevap harfi/);
++++
++++  const noAnswer = `
++++ 1. **Soru?
++++
++++A) Bir
++++B) İki
++++C) Üç
++++D) Dört
++++E) Beş
++++
++++Açıklama: Açıklama.
++++`;
++++  assert.throws(() => parseQuestionTemplate(noAnswer, DEFAULTS), /"Cevap:" satırı yok/);
++++});
++++
++++test('çoktan seçmeli şıkları aynı satırda yazılan biçim de okunur', () => {
++++  const raw = `
++++ 1. **Soru?
++++
++++A) Yalnız I B) Yalnız II C) I ve II D) II ve III E) I, II ve III
++++
++++Cevap: C
++++
++++Açıklama: Açıklama.
++++`;
++++  const [question] = parseQuestionTemplate(raw, DEFAULTS);
++++  assert.deepEqual(question.options, ['Yalnız I', 'Yalnız II', 'I ve II', 'II ve III', 'I, II ve III']);
++++  assert.equal(question.answer, 2);
++++});
+++-- 
+++2.39.5
+++
++-- 
++2.39.5
++
++From 28d8df08f300999696f69af38d9c54181d3860ba Mon Sep 17 00:00:00 2001
++From: arena-ai-coding-agent <arena-agent@users.noreply.github.com>
++Date: Sun, 27 Sep 2026 21:05:55 +0000
++Subject: [PATCH 2/2] =?UTF-8?q?feat:=20toplu=20soru=20eklemede=20konu=20se?=
++ =?UTF-8?q?=C3=A7imi,=20test=20kurulumunda=20akordiyon=20dersler,=20sideba?=
++ =?UTF-8?q?r=20y=C3=B6netici=20giri=C5=9Fi?=
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++Uc kullanicI geri bildirimi:
++
++1) Toplu soru eklerken hangi konuya yuklendigi belli olsun:
++   - lib/bulk-questions.ts: BulkQuestionDefaults/BulkQuestion'a topicId eklendi;
++     kalipta "Konu: <id>" satiri tek soruda varsayilani ezer (gecersiz kimlik
++     soru numarasiyla hataya doner).
++   - components/admin/BulkAdd.tsx: ders ciplerinin altina o dersin konularini
++     listeleyen acilir kutu eklendi. Ders degisince konu sifirlanir, gecersiz
++     konu ilk konuya duser. Onizleme satiri arti "Ders · Konu" gosterir; JSON
++     orneginde topicId belgelendi. Konu bossa alan hic gonderilmez (sema bos
++     kimligi reddeder).
++   - Ders listesi artik useContent() uzerinden gelir; yoneticinin ekledigi
++     dersler ve konular modalda da gorunur.
++
++2) Test kurulumunda dersler kapali olsun:
++   - screens/QuizSetupScreen.tsx: expandedLessons (hepsi acik) yerine tek ders
++     tutan expandedLesson; akordiyon davranisi. Ders basligindaki "Tumunu sec"
++     dersi acmadan tum konularini seçmeye devam eder, secili konular ders
++     kapaninca korunur.
++
++3) Yonetici paneli sol menude, gunun sozunun ustunde:
++   - App.tsx: Tabs icinde yalnizca desktop web'de ve admin oturumunda
++     (useAdminAuth().isAdmin) "Yonetici Paneli" girisi; SIDEBAR_QUOTE_TOP
++     konumunda, soz balonu SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP kadar
++     asagi kayar. navigate('Admin') ile acilir.
++   - ProfileScreen'daki giris korundu: mobilde sol menu olmadigi icin admin
++     erisimi kirilmamali.
++   - tests/bulk-questions.test.ts: 3 yeni test (47 toplam).
++
++Dogrulama: typecheck temiz, 47/47 test, web build basarili.
++
++Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
++---
++ App.tsx                      |  54 +++++++++++++--
++ HANDOFF.md                   |   4 +-
++ components/QuoteOfTheDay.tsx |   8 +++
++ components/admin/BulkAdd.tsx | 131 +++++++++++++++++++++++++++++++++--
++ lib/bulk-questions.ts        |  15 ++--
++ screens/QuizSetupScreen.tsx  |  10 +--
++ scripts/preview-server.cjs   |  52 ++++++++++++++
++ tests/bulk-questions.test.ts |  62 +++++++++++++++++
++ 8 files changed, 313 insertions(+), 23 deletions(-)
++ create mode 100644 scripts/preview-server.cjs
++
++diff --git a/App.tsx b/App.tsx
++index d4f5bbf..4b1e710 100644
++--- a/App.tsx
+++++ b/App.tsx
++@@ -1,6 +1,6 @@
++ import React, { useEffect, useState } from 'react';
++ import { StatusBar } from 'expo-status-bar';
++-import { ActivityIndicator, Platform, Text, useWindowDimensions, View } from 'react-native';
+++import { ActivityIndicator, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
++ import { useFonts } from 'expo-font';
++ import Ionicons from '@expo/vector-icons/Ionicons';
++ import AsyncStorage from '@react-native-async-storage/async-storage';
++@@ -13,7 +13,7 @@ import 'react-native-gesture-handler';
++ import { AppProvider, useApp } from './lib/store';
++ import OnboardingModal from './components/Onboarding';
++ import PasswordRecoveryModal from './components/PasswordRecoveryModal';
++-import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
+++import { QuoteOfTheDay, QuoteInSidebarProvider, SIDEBAR_ADMIN_GAP, SIDEBAR_ADMIN_HEIGHT, SIDEBAR_QUOTE_GAP, SIDEBAR_QUOTE_TOP } from './components/QuoteOfTheDay';
++ import HomeScreen from './screens/HomeScreen';
++ import QuizSetupScreen from './screens/QuizSetupScreen';
++ import QuizScreen from './screens/QuizScreen';
++@@ -23,19 +23,23 @@ import NewsScreen from './screens/NewsScreen';
++ import ToolsScreen from './screens/ToolsScreen';
++ import ProfileScreen from './screens/ProfileScreen';
++ import AdminScreen from './screens/AdminScreen';
++-import { AdminAuthProvider } from './lib/admin-auth';
+++import { AdminAuthProvider, useAdminAuth } from './lib/admin-auth';
++ import { ContentProvider, useContent } from './lib/content';
++ 
++ const Tab = createBottomTabNavigator();
++ const Stack = createNativeStackNavigator();
++ 
++-function Tabs() {
+++function Tabs({ navigation }: any) {
++   const { theme, mode } = useApp();
++   const { width, height } = useWindowDimensions();
++   const isDesktopWeb = Platform.OS === 'web' && width >= 1024;
+++  const { isAdmin } = useAdminAuth();
+++  // Yönetici paneli girişi yalnızca admin oturumunda sol menüde, söz balonunun üstünde görünür.
+++  const showSidebarAdmin = isDesktopWeb && isAdmin;
+++  const quoteTop = SIDEBAR_QUOTE_TOP + (showSidebarAdmin ? SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP : 0);
++   // Günün sözü balonu ölçülür; Profil'in altında sığacak yer varsa sol menüye, yoksa ana sayfaya konur.
++   const [quoteHeight, setQuoteHeight] = useState(0);
++-  const quoteInSidebar = isDesktopWeb && height >= SIDEBAR_QUOTE_TOP + quoteHeight + SIDEBAR_QUOTE_GAP;
+++  const quoteInSidebar = isDesktopWeb && height >= quoteTop + quoteHeight + SIDEBAR_QUOTE_GAP;
++   return (
++     <View style={{ flex: 1, backgroundColor: theme.bg }}>
++       {isDesktopWeb && (
++@@ -72,6 +76,44 @@ function Tabs() {
++           </View>
++         </View>
++       )}
+++      {showSidebarAdmin && (
+++        <View
+++          style={{
+++            position: 'absolute',
+++            zIndex: 20,
+++            // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
+++            left: 27,
+++            top: SIDEBAR_QUOTE_TOP,
+++            width: 306,
+++          }}
+++        >
+++          <TouchableOpacity
+++            accessibilityRole="button"
+++            accessibilityLabel="Yönetici Paneli"
+++            onPress={() => navigation.navigate('Admin')}
+++            activeOpacity={0.8}
+++            style={{
+++              flexDirection: 'row',
+++              alignItems: 'center',
+++              backgroundColor: theme.accentSoft,
+++              borderColor: theme.accent + '33',
+++              borderWidth: 1,
+++              borderRadius: 12,
+++              paddingHorizontal: 12,
+++              paddingVertical: 12,
+++            }}
+++          >
+++            <Icons name="shield-checkmark-outline" size={20} color={theme.accent} />
+++            <Text
+++              numberOfLines={1}
+++              style={{ flex: 1, marginLeft: 10, color: theme.text, fontSize: 14, fontWeight: '800' }}
+++            >
+++              Yönetici Paneli
+++            </Text>
+++            <Icons name="chevron-forward" size={16} color={theme.muted} />
+++          </TouchableOpacity>
+++        </View>
+++      )}
++       {quoteInSidebar && (
++         <View
++           pointerEvents="none"
++@@ -81,7 +123,7 @@ function Tabs() {
++             zIndex: 20,
++             // Menü öğeleriyle aynı ritim: 15px menü iç boşluğu + 12px öğe kenar boşluğu.
++             left: 27,
++-            top: SIDEBAR_QUOTE_TOP,
+++            top: quoteTop,
++             width: 306,
++           }}
++         >
++diff --git a/HANDOFF.md b/HANDOFF.md
++index 094a830..e59af99 100644
++--- a/HANDOFF.md
+++++ b/HANDOFF.md
++@@ -25,8 +25,10 @@
++ - Web arayüzü mobil tema/renkleriyle uyumlu kalmalı; geniş web ekranlarında gerçek site düzeni kullan: masaüstünde sabit sol menü + merkezlenmiş/geniş içerik ve çok sütunlu sayfa düzenleri. Dar ekranda alttaki mobil sekme çubuğu korunur.
++ - Daha önceki tab bar denemeleri (`0722f93`, `da2375c`) kullanıcı tarafından "daha kötü" bulunup geri alındı; o yaklaşımlara (2 satırlı label, minHeight 58) DÖNÜLMEYECEK. Onaylanan form: tek satır + küçülen font (e67e0e5).
++ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
++-- **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir; ders/zorluk modalda seçilir, tek soru için `Ders: matematik` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
+++- **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir. **Ders ve konu ayrı ayrı seçilir:** önce ders çipleri, sonra o dersin konularını listediği açılır kutu (`Konu: ta-s3` kimliği `topicId` olarak kaydedilir); kullanıcı hangi konuya yüklediğini görmeli, önizleme satırı "Ders · Konu" bilgisini yazar. Tek soru için `Ders: matematik` / `Konu: mt-s3` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
++ - **Günün sözü balonu masaüstü web'de sol menüde, Profil'in hemen altında** (menü öğeleriyle aynı 27px/306px ritmi, 24px boşluk). Pencere kısaldığında ya da mobilde balon otomatik olarak ana sayfa gövdesine döner (`components/QuoteOfTheDay.tsx`, konumu `SIDEBAR_QUOTE_TOP` sabiti belirler; yan menü gerçek genişliği 360px — kütüphane `minWidth` değeri).
+++- **Test kurulumunda dersler kapalı (akordiyon) başlar:** `screens/QuizSetupScreen.tsx` içinde aynı anda yalnızca bir ders açık kalır (`expandedLesson`); tıklanan dersin konuları aşağıya iner, başka derse tıklanınca önceki kapanır. Ders başlığındaki "Tümünü seç" dersi açmadan tüm konularını seçmeye yarar. Seçili konular ders kapanınca korunur.
+++- **Yönetici Paneli masaüstü web'de sol menüde, Günün Sözü'nün üstünde** ayrı bir menü girişi olarak görünür (`App.tsx` → `Tabs`, konum `SIDEBAR_QUOTE_TOP`; balon `SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP` kadar aşağı kayar). Yalnızca admin oturumunda görünür (`useAdminAuth().isAdmin`); mobilde sol menü olmadığı için giriş `ProfileScreen.tsx` içinde kalır — mobil erişimi kırılmamalı.
++ - Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
++ - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
++ - E-posta doğrulama + şifre sıfırlama MUTLAKA kullanıcıya gitmeli ("Confirm email" açık kalacak).
++diff --git a/components/QuoteOfTheDay.tsx b/components/QuoteOfTheDay.tsx
++index db14411..761046a 100644
++--- a/components/QuoteOfTheDay.tsx
+++++ b/components/QuoteOfTheDay.tsx
++@@ -17,6 +17,14 @@ export const SIDEBAR_QUOTE_TOP = 544;
++ /** Balonun altında menü dibine kalması gereken en az boşluk; bundan az yer varsa balon ana sayfada kalır. */
++ export const SIDEBAR_QUOTE_GAP = 16;
++ 
+++/**
+++ * Yönetici paneli girişi sol menüde söz balonunun üstünde yer alır (yalnızca admin
+++ * oturumunda). Yüksekliği sabit olduğundan balonun konumu bu kadar aşağı kayar.
+++ */
+++export const SIDEBAR_ADMIN_HEIGHT = 44;
+++/** Yönetici girişi ile söz balonu arasındaki boşluk. */
+++export const SIDEBAR_ADMIN_GAP = 12;
+++
++ const QuoteInSidebarContext = createContext(false);
++ 
++ /** Balonun sol menüde gösterildiği bilgisi; ana sayfa yalnızca menüde yer yoksa balonu gösterir. */
++diff --git a/components/admin/BulkAdd.tsx b/components/admin/BulkAdd.tsx
++index 558324b..db2a96f 100644
++--- a/components/admin/BulkAdd.tsx
+++++ b/components/admin/BulkAdd.tsx
++@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
++ import { useApp } from '../../lib/store';
++ import { ContentEntry, categoryIds, schemas } from '../../lib/content-schema';
++ import { BULK_DIFFICULTIES, BulkDifficulty, parseQuestionTemplate } from '../../lib/bulk-questions';
++-import { LESSONS } from '../../lib/data';
+++import { useContent } from '../../lib/content';
++ import { AdminButton, Notice } from './AdminUI';
++ 
++ type Format = 'template' | 'json' | 'text';
++@@ -51,6 +51,7 @@ Açıklama: Açıklama metni.`;
++ const JSON_EXAMPLE = `[
++   {
++     "category": "tarih",
+++    "topicId": "ta-s3",
++     "difficulty": "Orta",
++     "question": "Malazgirt Savaşı hangi yılda yapılmıştır?",
++     "options": ["1040", "1071", "1176", "1243", "1177"],
++@@ -74,6 +75,21 @@ function firstQuestionText(parsed: { kind: string; payload: unknown }[]): string
++   return question.replace(/\n/g, ' ');
++ }
++ 
+++/** Önizleme satırı: ilk sorunun yükleneceği "Ders · Konu" etiketi. */
+++function firstQuestionTarget(
+++  parsed: { kind: string; payload: unknown }[],
+++  lessons: { id: string; name: string; topics: { id: string; name: string }[] }[],
+++): string {
+++  const first = parsed[0];
+++  if (!first || first.kind !== 'questions') return '';
+++  const payload = first.payload as { category?: string; topicId?: string };
+++  const lesson = lessons.find((item) => item.id === payload.category);
+++  const topic = lesson?.topics.find((item) => item.id === payload.topicId);
+++  const parts = [lesson?.name ?? payload.category ?? '—'];
+++  if (topic) parts.push(topic.name);
+++  return parts.join(' · ');
+++}
+++
++ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
++   const lines = raw
++     .split(/\r?\n/)
++@@ -128,22 +144,33 @@ export default function BulkAdd({
++   onInsert: (entries: ContentEntry[]) => Promise<void>;
++ }) {
++   const { theme } = useApp();
+++  const { lessons } = useContent();
++   const [format, setFormat] = useState<Format>('template');
++   const [raw, setRaw] = useState('');
++   const [status, setStatus] = useState<'draft' | 'published'>('published');
++   const [category, setCategory] = useState<string>('tarih');
+++  const [topicId, setTopicId] = useState<string>('');
+++  const [topicPickerOpen, setTopicPickerOpen] = useState(false);
++   const [difficulty, setDifficulty] = useState<BulkDifficulty>('Orta');
++   const [busy, setBusy] = useState(false);
++   const [error, setError] = useState('');
++   const [message, setMessage] = useState('');
++ 
+++  // Seçili dersin konuları; ders değişince konu geçersizleşir ve ilk konuya düşer.
+++  const activeLesson = lessons.find((lesson) => lesson.id === category);
+++  const activeTopics = activeLesson?.topics ?? [];
+++  const activeTopicId = activeTopics.some((topic) => topic.id === topicId)
+++    ? topicId
+++    : (activeTopics[0]?.id ?? '');
+++
++   const parsed = useMemo(() => {
++     setError('');
++     setMessage('');
++     if (!raw.trim()) return [];
++     try {
++       if (format === 'template') {
++-        return parseQuestionTemplate(raw, { category, difficulty }).map((item, i) => {
+++        // Konu boşsa (dersin konusu yok) alan hiç gönderilmez; şema boş kimliği reddeder.
+++        return parseQuestionTemplate(raw, { category, topicId: activeTopicId || undefined, difficulty }).map((item, i) => {
++           const id = `bulk-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
++           const payload = schemas.questions.parse({ id, ...item });
++           return { kind: 'questions' as const, id, payload };
++@@ -167,7 +194,7 @@ export default function BulkAdd({
++       setError(e instanceof Error ? e.message : 'Biçim ayrıştırılamadı.');
++       return [];
++     }
++-  }, [raw, format, category, difficulty]);
+++  }, [raw, format, category, activeTopicId, difficulty]);
++ 
++   async function submit() {
++     if (!parsed.length) return;
++@@ -245,7 +272,11 @@ export default function BulkAdd({
++                         key={id}
++                         accessibilityRole="radio"
++                         accessibilityState={{ checked: category === id }}
++-                        onPress={() => setCategory(id)}
+++                        onPress={() => {
+++                          setCategory(id);
+++                          setTopicId('');
+++                          setTopicPickerOpen(false);
+++                        }}
++                         style={{
++                           paddingHorizontal: 12,
++                           paddingVertical: 7,
++@@ -256,11 +287,96 @@ export default function BulkAdd({
++                         }}
++                       >
++                         <Text style={{ fontWeight: '800', fontSize: 12, color: category === id ? theme.accent : theme.muted }}>
++-                          {LESSONS.find((lesson) => lesson.id === id)?.name ?? id}
+++                          {lessons.find((lesson) => lesson.id === id)?.name ?? id}
++                         </Text>
++                       </TouchableOpacity>
++                     ))}
++                   </View>
+++                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
+++                    Tüm soruların konusu:
+++                  </Text>
+++                  <TouchableOpacity
+++                    accessibilityRole="combobox"
+++                    accessibilityState={{ expanded: topicPickerOpen, disabled: activeTopics.length === 0 }}
+++                    disabled={activeTopics.length === 0}
+++                    onPress={() => setTopicPickerOpen((open) => !open)}
+++                    activeOpacity={0.8}
+++                    style={{
+++                      flexDirection: 'row',
+++                      alignItems: 'center',
+++                      borderWidth: 1,
+++                      borderColor: topicPickerOpen ? theme.accent : theme.border,
+++                      backgroundColor: theme.card2,
+++                      borderRadius: 10,
+++                      paddingHorizontal: 12,
+++                      paddingVertical: 11,
+++                      opacity: activeTopics.length === 0 ? 0.5 : 1,
+++                    }}
+++                  >
+++                    <Ionicons name="albums-outline" size={16} color={theme.accent} />
+++                    <Text
+++                      numberOfLines={1}
+++                      style={{ flex: 1, marginLeft: 9, color: theme.text, fontSize: 12.5, fontWeight: '700' }}
+++                    >
+++                      {activeTopics.length
+++                        ? (activeTopics.find((topic) => topic.id === activeTopicId)?.name ?? 'Konu seçilmedi')
+++                        : 'Bu dersin konusu yok'}
+++                    </Text>
+++                    <Ionicons
+++                      name={topicPickerOpen ? 'chevron-up' : 'chevron-down'}
+++                      size={16}
+++                      color={theme.muted}
+++                    />
+++                  </TouchableOpacity>
+++                  {topicPickerOpen && activeTopics.length > 0 && (
+++                    <View
+++                      style={{
+++                        marginTop: 6,
+++                        borderWidth: 1,
+++                        borderColor: theme.border,
+++                        borderRadius: 10,
+++                        backgroundColor: theme.card2,
+++                        overflow: 'hidden',
+++                      }}
+++                    >
+++                      <ScrollView style={{ maxHeight: 216 }} nestedScrollEnabled>
+++                        {activeTopics.map((topic) => {
+++                          const selected = topic.id === activeTopicId;
+++                          return (
+++                            <TouchableOpacity
+++                              key={topic.id}
+++                              accessibilityRole="radio"
+++                              accessibilityState={{ checked: selected }}
+++                              onPress={() => {
+++                                setTopicId(topic.id);
+++                                setTopicPickerOpen(false);
+++                              }}
+++                              activeOpacity={0.75}
+++                              style={{
+++                                flexDirection: 'row',
+++                                alignItems: 'center',
+++                                paddingHorizontal: 12,
+++                                paddingVertical: 9,
+++                                backgroundColor: selected ? theme.accentSoft : 'transparent',
+++                              }}
+++                            >
+++                              <Text
+++                                style={{
+++                                  flex: 1,
+++                                  fontSize: 12.5,
+++                                  fontWeight: selected ? '800' : '500',
+++                                  color: selected ? theme.accent : theme.text,
+++                                }}
+++                              >
+++                                {topic.name}
+++                              </Text>
+++                              {selected && <Ionicons name="checkmark" size={15} color={theme.accent} />}
+++                            </TouchableOpacity>
+++                          );
+++                        })}
+++                      </ScrollView>
+++                    </View>
+++                  )}
++                   <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
++                     Tüm soruların zorluğu:
++                   </Text>
++@@ -287,7 +403,8 @@ export default function BulkAdd({
++                     ))}
++                   </View>
++                   <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 8 }}>
++-                    Tek bir soruyu değiştirmek için o sorunun yanına “Ders: matematik” veya “Zorluk: Zor” satırı ekleyin.
+++                    Tek bir soruyu değiştirmek için o sorunun yanına “Ders: matematik”, “Konu: mt-s3” veya
+++                    “Zorluk: Zor” satırı ekleyin.
++                   </Text>
++                 </View>
++               )}
++@@ -350,7 +467,7 @@ export default function BulkAdd({
++                   </Text>
++                   {format === 'template' && (
++                     <Text numberOfLines={2} style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
++-                      İlk soru: {firstQuestionText(parsed)}
+++                      {firstQuestionTarget(parsed, lessons)} — İlk soru: {firstQuestionText(parsed)}
++                     </Text>
++                   )}
++                 </View>
++diff --git a/lib/bulk-questions.ts b/lib/bulk-questions.ts
++index 1a64832..8d42503 100644
++--- a/lib/bulk-questions.ts
+++++ b/lib/bulk-questions.ts
++@@ -20,8 +20,8 @@
++  *   Açıklama: Açıklama metni burada.
++  *
++  * Numarasız, tek cevaplı klasik biçim de desteklenir. Her soru kendi satırında
++- * başlar; numaradan sonra "Ders: tarih" / "Zorluk: Orta" satırları verilirse
++- * varsayılan değerlerin yerine geçer.
+++ * başlar; numaradan sonra "Ders: tarih" / "Konu: ta-s3" / "Zorluk: Orta" satırları
+++ * verilirse varsayılan değerlerin yerine geçer.
++  */
++ 
++ export const BULK_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
++@@ -30,11 +30,14 @@ export type BulkDifficulty = (typeof BULK_DIFFICULTIES)[number];
++ 
++ export interface BulkQuestionDefaults {
++   category: string;
+++  /** Soruların yükleneceği konu kimliği; kalıpta "Konu: <id>" satırıyla tek soruda ezilebilir. */
+++  topicId?: string;
++   difficulty: BulkDifficulty;
++ }
++ 
++ export interface BulkQuestion {
++   category: string;
+++  topicId?: string;
++   difficulty: BulkDifficulty;
++   question: string;
++   options: string[];
++@@ -50,7 +53,7 @@ const OPTION = /(?:^|\s)\(?([A-Ea-e])\)\s*/g;
++ const OPTION_START = /^\s*\(?([A-Ea-e])\)\s*/;
++ const ANSWER = /^\s*Cevap\s*:\s*(\S.*)$/i;
++ const EXPLANATION = /^\s*Açıklama\s*:\s*(.*)$/i;
++-const META = /^\s*(Ders|Kategori|Zorluk)\s*:\s*(.+)$/i;
+++const META = /^\s*(Ders|Kategori|Konu|Zorluk)\s*:\s*(.+)$/i;
++ const SEPARATOR = /^\s*([-*_=]{3,}|#|\/\/)\s*$/;
++ 
++ const cleanLine = (line: string) => line.replace(/\*\*/g, '').replace(/\s+$/, '').trim();
++@@ -121,7 +124,7 @@ export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefault
++     const label = `Soru ${index + 1}`;
++     const stem: string[] = [];
++     const options: { letter: string; text: string }[] = [];
++-    const meta: { category?: string; difficulty?: BulkDifficulty } = {};
+++    const meta: { category?: string; topicId?: string; difficulty?: BulkDifficulty } = {};
++     let answerLetter: string | null = null;
++     const explanation: string[] = [];
++     let section: 'stem' | 'options' | 'explanation' = 'stem';
++@@ -143,6 +146,9 @@ export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefault
++           );
++           if (!difficulty) fail(label, `geçersiz zorluk "${value}". Kolay, Orta veya Zor olmalı.`);
++           meta.difficulty = difficulty;
+++        } else if (key === 'konu') {
+++          if (!LESSON_ID.test(value)) fail(label, `geçersiz konu kimliği "${value}". Örnek: ta-s3`);
+++          meta.topicId = value;
++         } else {
++           if (!LESSON_ID.test(value)) fail(label, `geçersiz ders kimliği "${value}". Örnek: tarih`);
++           meta.category = value;
++@@ -213,6 +219,7 @@ export function parseQuestionTemplate(raw: string, defaults: BulkQuestionDefault
++ 
++     out.push({
++       category: meta.category ?? defaults.category,
+++      topicId: meta.topicId ?? defaults.topicId,
++       difficulty: meta.difficulty ?? defaults.difficulty,
++       question,
++       options: cleanedOptions,
++diff --git a/screens/QuizSetupScreen.tsx b/screens/QuizSetupScreen.tsx
++index 9172222..3fd7a70 100644
++--- a/screens/QuizSetupScreen.tsx
+++++ b/screens/QuizSetupScreen.tsx
++@@ -20,7 +20,8 @@ export default function QuizSetupScreen({ navigation }: any) {
++   const { settings: quotaSettings } = useQuizQuotaSettings();
++   const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
++   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
++-  const [expandedLessons, setExpandedLessons] = useState<string[]>(() => LESSONS.map((lesson) => lesson.id));
+++  // Dersler kapalı başlar; akordiyon gibi yalnızca tıklanan dersin konuları açılır.
+++  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
++   const [count, setCount] = useState(10);
++   const [manualCount, setManualCount] = useState('');
++   const [useManualCount, setUseManualCount] = useState(false);
++@@ -39,10 +40,9 @@ export default function QuizSetupScreen({ navigation }: any) {
++   const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
++   const effectiveCount = validRequestedCount ? requestedCount : 0;
++ 
+++  // Akordiyon: aynı anda tek ders açık kalır, tıklanan ders kapanır/açılır.
++   const toggleLesson = (lessonId: string) => {
++-    setExpandedLessons((current) => current.includes(lessonId)
++-      ? current.filter((id) => id !== lessonId)
++-      : [...current, lessonId]);
+++    setExpandedLesson((current) => (current === lessonId ? null : lessonId));
++   };
++ 
++   const toggleTopic = (topicId: string) => {
++@@ -163,7 +163,7 @@ export default function QuizSetupScreen({ navigation }: any) {
++ 
++           <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14 } : undefined}>
++             {LESSONS.map((lesson) => {
++-              const expanded = expandedLessons.includes(lesson.id);
+++              const expanded = expandedLesson === lesson.id;
++               const topicIds = lesson.topics.map((topic) => topic.id);
++               const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
++               return (
++diff --git a/scripts/preview-server.cjs b/scripts/preview-server.cjs
++new file mode 100644
++index 0000000..0a7a617
++--- /dev/null
+++++ b/scripts/preview-server.cjs
++@@ -0,0 +1,52 @@
+++// Statik önizleme sunucusu: Expo web çıktısını (dist/) sunar.
+++// SPA yönlendirmesi: bilinmeyen yollar index.html'e düşer.
+++const http = require('http');
+++const fs = require('fs');
+++const path = require('path');
+++
+++const ROOT = path.join(__dirname, '..', 'dist');
+++const PORT = Number(process.env.PORT || 8080);
+++
+++const TYPES = {
+++  '.html': 'text/html; charset=utf-8',
+++  '.js': 'text/javascript; charset=utf-8',
+++  '.css': 'text/css; charset=utf-8',
+++  '.json': 'application/json; charset=utf-8',
+++  '.map': 'application/json; charset=utf-8',
+++  '.png': 'image/png',
+++  '.jpg': 'image/jpeg',
+++  '.jpeg': 'image/jpeg',
+++  '.svg': 'image/svg+xml',
+++  '.ico': 'image/x-icon',
+++  '.ttf': 'font/ttf',
+++  '.otf': 'font/otf',
+++  '.woff': 'font/woff',
+++  '.woff2': 'font/woff2',
+++  '.txt': 'text/plain; charset=utf-8',
+++};
+++
+++const server = http.createServer((req, res) => {
+++  try {
+++    const url = decodeURIComponent((req.url || '/').split('?')[0].split('#')[0]);
+++    let filePath = path.join(ROOT, url);
+++    if (!filePath.startsWith(ROOT)) {
+++      res.writeHead(403).end('Forbidden');
+++      return;
+++    }
+++    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+++      filePath = path.join(ROOT, 'index.html');
+++    }
+++    const ext = path.extname(filePath).toLowerCase();
+++    res.writeHead(200, {
+++      'Content-Type': TYPES[ext] || 'application/octet-stream',
+++      'Cache-Control': 'no-cache, no-store, must-revalidate',
+++    });
+++    fs.createReadStream(filePath).pipe(res);
+++  } catch (error) {
+++    res.writeHead(500).end('Server error');
+++  }
+++});
+++
+++server.listen(PORT, '0.0.0.0', () => {
+++  console.log(`Önizleme sunucusu hazır: http://0.0.0.0:${PORT}`);
+++});
++diff --git a/tests/bulk-questions.test.ts b/tests/bulk-questions.test.ts
++index 0f5f345..1e95566 100644
++--- a/tests/bulk-questions.test.ts
+++++ b/tests/bulk-questions.test.ts
++@@ -178,3 +178,65 @@ Açıklama: Açıklama.
++   assert.deepEqual(question.options, ['Yalnız I', 'Yalnız II', 'I ve II', 'II ve III', 'I, II ve III']);
++   assert.equal(question.answer, 2);
++ });
+++
+++test('varsayılan konu kimliği tüm sorulara uygulanır', () => {
+++  const [first, second] = parseQuestionTemplate(SAMPLE, { ...DEFAULTS, topicId: 'ta-s3' });
+++  assert.equal(first.topicId, 'ta-s3');
+++  assert.equal(second.topicId, 'ta-s3');
+++});
+++
+++test('konu satırı varsayılan konuyu tek soruda ezerek değiştirir', () => {
+++  const raw = `
+++ 1. **Soru metni?
+++
+++A) Bir
+++B) İki
+++C) Üç
+++D) Dört
+++E) Beş
+++
+++Konu: ta-s7
+++
+++Cevap: A
+++
+++Açıklama: Açıklama.
+++
+++---
+++
+++2. **İkinci soru metni?
+++
+++A) Bir
+++B) İki
+++C) Üç
+++D) Dört
+++E) Beş
+++
+++Cevap: B
+++
+++Açıklama: Açıklama.
+++`;
+++  const [first, second] = parseQuestionTemplate(raw, { ...DEFAULTS, topicId: 'ta-s3' });
+++  // İlk soru kendi konusuna, ikinci soru varsayılana yüklenir.
+++  assert.equal(first.topicId, 'ta-s7');
+++  assert.equal(second.topicId, 'ta-s3');
+++  assert.equal(first.question, 'Soru metni?');
+++});
+++
+++test('geçersiz konu kimliği anlaşılır hata verir', () => {
+++  const raw = `
+++ 1. **Soru metni?
+++
+++A) Bir
+++B) İki
+++C) Üç
+++D) Dört
+++E) Beş
+++
+++Konu: Osmanlı Kuruluş
+++
+++Cevap: A
+++
+++Açıklama: Açıklama.
+++`;
+++  assert.throws(() => parseQuestionTemplate(raw, DEFAULTS), /geçersiz konu kimliği "Osmanlı Kuruluş"/);
+++});
++-- 
++2.39.5
++
