@@ -20,8 +20,8 @@ export default function QuizSetupScreen({ navigation }: any) {
   const { settings: quotaSettings } = useQuizQuotaSettings();
   const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  // Dersler kapalı başlar; akordiyon gibi yalnızca tıklanan dersin konuları açılır.
-  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
+  // Dersler kapalı başlar; her dersin açılıp kapanması diğer derslerden bağımsızdır.
+  const [expandedLessons, setExpandedLessons] = useState<string[]>([]);
   const [count, setCount] = useState(10);
   const [manualCount, setManualCount] = useState('');
   const [useManualCount, setUseManualCount] = useState(false);
@@ -40,9 +40,11 @@ export default function QuizSetupScreen({ navigation }: any) {
   const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
   const effectiveCount = validRequestedCount ? requestedCount : 0;
 
-  // Akordiyon: aynı anda tek ders açık kalır, tıklanan ders kapanır/açılır.
+  // Dersler bağımsız akordiyonlar gibi açılıp kapanır; başka bir dersin durumu değişmez.
   const toggleLesson = (lessonId: string) => {
-    setExpandedLesson((current) => (current === lessonId ? null : lessonId));
+    setExpandedLessons((current) => current.includes(lessonId)
+      ? current.filter((id) => id !== lessonId)
+      : [...current, lessonId]);
   };
 
   const toggleTopic = (topicId: string) => {
@@ -161,9 +163,9 @@ export default function QuizSetupScreen({ navigation }: any) {
             {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
           </TouchableOpacity>
 
-          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14 } : undefined}>
+          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' } : undefined}>
             {LESSONS.map((lesson) => {
-              const expanded = expandedLesson === lesson.id;
+              const expanded = expandedLessons.includes(lesson.id);
               const topicIds = lesson.topics.map((topic) => topic.id);
               const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
               return (
@@ -173,6 +175,7 @@ export default function QuizSetupScreen({ navigation }: any) {
                     padding: 0,
                     marginBottom: isDesktopWeb ? 0 : 10,
                     width: isDesktopWeb ? '48.5%' : undefined,
+                    alignSelf: isDesktopWeb ? 'flex-start' : undefined,
                     overflow: 'hidden',
                   }}
                 >
