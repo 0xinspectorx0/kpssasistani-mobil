@@ -486,7 +486,7 @@ export default function QuizScreen({ navigation, route }: any) {
                       {LETTERS[i]}
                     </Text>
                   </View>
-                  <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '600', color: textColor, lineHeight: 21 }}>
+                  <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '400', color: textColor, lineHeight: 21 }}>
                     {opt}
                   </Text>
                   {locked && isAnswer ? <Ionicons name="checkmark-circle" size={22} color={theme.success} /> : null}
