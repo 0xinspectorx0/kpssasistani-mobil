@@ -20,8 +20,8 @@ export default function QuizSetupScreen({ navigation }: any) {
   const { settings: quotaSettings } = useQuizQuotaSettings();
   const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  // Dersler kapalı başlar; her dersin açılıp kapanması diğer derslerden bağımsızdır.
-  const [expandedLessons, setExpandedLessons] = useState<string[]>([]);
+  // Konu listesi kapalı başlar; aynı anda yalnızca tıklanan dersin balonu açık kalır.
+  const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
   const [count, setCount] = useState(10);
   const [manualCount, setManualCount] = useState('');
   const [useManualCount, setUseManualCount] = useState(false);
@@ -40,11 +40,8 @@ export default function QuizSetupScreen({ navigation }: any) {
   const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
   const effectiveCount = validRequestedCount ? requestedCount : 0;
 
-  // Dersler bağımsız akordiyonlar gibi açılıp kapanır; başka bir dersin durumu değişmez.
   const toggleLesson = (lessonId: string) => {
-    setExpandedLessons((current) => current.includes(lessonId)
-      ? current.filter((id) => id !== lessonId)
-      : [...current, lessonId]);
+    setExpandedLesson((current) => (current === lessonId ? null : lessonId));
   };
 
   const toggleTopic = (topicId: string) => {
@@ -165,7 +162,7 @@ export default function QuizSetupScreen({ navigation }: any) {
 
           <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' } : undefined}>
             {LESSONS.map((lesson) => {
-              const expanded = expandedLessons.includes(lesson.id);
+              const expanded = expandedLesson === lesson.id;
               const topicIds = lesson.topics.map((topic) => topic.id);
               const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
               return (
@@ -176,7 +173,9 @@ export default function QuizSetupScreen({ navigation }: any) {
                     marginBottom: isDesktopWeb ? 0 : 10,
                     width: isDesktopWeb ? '48.5%' : undefined,
                     alignSelf: isDesktopWeb ? 'flex-start' : undefined,
-                    overflow: 'hidden',
+                    position: 'relative',
+                    zIndex: expanded ? 20 : 1,
+                    elevation: expanded ? 10 : 2,
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
@@ -227,7 +226,43 @@ export default function QuizSetupScreen({ navigation }: any) {
                   </View>
 
                   {expanded && (
-                    <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: 8,
+                        paddingHorizontal: 12,
+                        paddingBottom: 12,
+                        paddingTop: 4,
+                        backgroundColor: theme.card,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: radius.lg,
+                        zIndex: 30,
+                        elevation: 12,
+                        shadowColor: theme.shadow,
+                        shadowOpacity: 0.18,
+                        shadowRadius: 16,
+                        shadowOffset: { width: 0, height: 8 },
+                      }}
+                    >
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          left: 28,
+                          width: 12,
+                          height: 12,
+                          backgroundColor: theme.card,
+                          borderLeftWidth: 1,
+                          borderTopWidth: 1,
+                          borderColor: theme.border,
+                          transform: [{ rotate: '45deg' }],
+                        }}
+                      />
                       {lesson.topics.map((topic) => {
                         const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
                         const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
