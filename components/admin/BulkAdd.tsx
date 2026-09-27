@@ -12,10 +12,41 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../lib/store';
-import { ContentEntry, schemas } from '../../lib/content-schema';
+import { ContentEntry, categoryIds, schemas } from '../../lib/content-schema';
+import { BULK_DIFFICULTIES, BulkDifficulty, parseQuestionTemplate } from '../../lib/bulk-questions';
+import { LESSONS } from '../../lib/data';
 import { AdminButton, Notice } from './AdminUI';
 
-type Format = 'json' | 'text';
+type Format = 'template' | 'json' | 'text';
+
+const TEMPLATE_EXAMPLE = `1. **Soru kök cümlesi.
+
+   I. Birinci öncül
+   II. İkinci öncül
+
+ Yukarıdaki öncüllerden hangileri doğrudur?**
+
+A) Yalnız I
+B) Yalnız II
+C) I ve II
+D) II ve III
+E) I, II ve III
+
+Cevap: C
+
+Açıklama: Açıklama metni.
+
+2. **Klasik biçimde bir soru?
+
+A) Birinci
+B) İkinci
+C) Üçüncü
+D) Dördüncü
+E) Beşinci
+
+Cevap: B
+
+Açıklama: Açıklama metni.`;
 
 const JSON_EXAMPLE = `[
   {
@@ -32,8 +63,16 @@ const TEXT_EXAMPLE = `# Her satır: Ders|Zorluk|Soru|A|B|C|D|E|Cevap|Açıklama
 tarih|Orta|Osmanlı Devleti'nin kurucusu kimdir?|Ertuğrul Gazi|Osman Bey|Orhan Bey|I. Murat|Süleyman Şah|B|Osmanlı Devleti 1299'da Osman Bey tarafından kurulmuştur.
 matematik|Kolay|2+2 kaçtır?|2|3|4|5|7|C|Temel toplama.`;
 
-const DIFFICULTIES = ['Kolay', 'Orta', 'Zor'];
+const DIFFICULTIES = BULK_DIFFICULTIES;
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+
+/** Önizleme satırı: kalıptan gelen ilk sorunun metni (tek satır hâlinde). */
+function firstQuestionText(parsed: { kind: string; payload: unknown }[]): string {
+  const first = parsed[0];
+  if (!first || first.kind !== 'questions') return '';
+  const question = (first.payload as { question?: string }).question ?? '';
+  return question.replace(/\n/g, ' ');
+}
 
 function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
   const lines = raw
@@ -68,7 +107,7 @@ function parseTextInput(raw: string): Omit<ContentEntry, 'status'>[] {
         `Doğru cevap A–E arası bir harf olmalı. Sorunlu satır: ${line.slice(0, 60)}…`,
       );
     }
-    if (!DIFFICULTIES.includes(difficulty)) {
+    if (!DIFFICULTIES.some((value) => value === difficulty)) {
       throw new Error(`Zorluk "Kolay", "Orta" veya "Zor" olmalı. Sorunlu satır: ${line.slice(0, 60)}…`);
     }
     const id = `bulk-${Date.now()}-${out.length}-${Math.random().toString(36).slice(2, 7)}`;
@@ -89,9 +128,11 @@ export default function BulkAdd({
   onInsert: (entries: ContentEntry[]) => Promise<void>;
 }) {
   const { theme } = useApp();
-  const [format, setFormat] = useState<Format>('json');
+  const [format, setFormat] = useState<Format>('template');
   const [raw, setRaw] = useState('');
   const [status, setStatus] = useState<'draft' | 'published'>('published');
+  const [category, setCategory] = useState<string>('tarih');
+  const [difficulty, setDifficulty] = useState<BulkDifficulty>('Orta');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -101,6 +142,13 @@ export default function BulkAdd({
     setMessage('');
     if (!raw.trim()) return [];
     try {
+      if (format === 'template') {
+        return parseQuestionTemplate(raw, { category, difficulty }).map((item, i) => {
+          const id = `bulk-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+          const payload = schemas.questions.parse({ id, ...item });
+          return { kind: 'questions' as const, id, payload };
+        });
+      }
       const base =
         format === 'json'
           ? (JSON.parse(raw) as any[])
@@ -119,7 +167,7 @@ export default function BulkAdd({
       setError(e instanceof Error ? e.message : 'Biçim ayrıştırılamadı.');
       return [];
     }
-  }, [raw, format]);
+  }, [raw, format, category, difficulty]);
 
   async function submit() {
     if (!parsed.length) return;
@@ -151,6 +199,7 @@ export default function BulkAdd({
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {(
                   [
+                    { id: 'template', label: 'Hazır soru kalıbı' },
                     { id: 'json', label: 'JSON' },
                     { id: 'text', label: 'Metin (satır bazlı)' },
                   ] as const
@@ -180,12 +229,73 @@ export default function BulkAdd({
               </View>
 
               <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>
-                Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.
+                {format === 'template'
+                  ? 'Soruları numaralı yazın: kalın başlıklı soru metni, I/II/III önülleri, A–E şıkları, "Cevap:" ve "Açıklama:" satırları. --- ile ayırabilirsiniz.'
+                  : 'Her soru ayrı bir kayıt olarak eklenir; sorular 5 seçeneklidir (A–E). Doğrulama hataları kaydedilmeyi engeller.'}
               </Text>
+
+              {format === 'template' && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginBottom: 6 }}>
+                    Tüm soruların dersi:
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+                    {categoryIds.map((id) => (
+                      <TouchableOpacity
+                        key={id}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: category === id }}
+                        onPress={() => setCategory(id)}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 7,
+                          borderRadius: 9,
+                          borderWidth: 1,
+                          borderColor: category === id ? theme.accent : theme.border,
+                          backgroundColor: category === id ? theme.accentSoft : theme.card2,
+                        }}
+                      >
+                        <Text style={{ fontWeight: '800', fontSize: 12, color: category === id ? theme.accent : theme.muted }}>
+                          {LESSONS.find((lesson) => lesson.id === id)?.name ?? id}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 12.5, marginTop: 12, marginBottom: 6 }}>
+                    Tüm soruların zorluğu:
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 7 }}>
+                    {DIFFICULTIES.map((value) => (
+                      <TouchableOpacity
+                        key={value}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: difficulty === value }}
+                        onPress={() => setDifficulty(value)}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 7,
+                          borderRadius: 9,
+                          borderWidth: 1,
+                          borderColor: difficulty === value ? theme.accent : theme.border,
+                          backgroundColor: difficulty === value ? theme.accentSoft : theme.card2,
+                        }}
+                      >
+                        <Text style={{ fontWeight: '800', fontSize: 12, color: difficulty === value ? theme.accent : theme.muted }}>
+                          {value}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 8 }}>
+                    Tek bir soruyu değiştirmek için o sorunun yanına “Ders: matematik” veya “Zorluk: Zor” satırı ekleyin.
+                  </Text>
+                </View>
+              )}
+
               <TextInput
                 value={raw}
                 onChangeText={setRaw}
-                placeholder={format === 'json' ? JSON_EXAMPLE : TEXT_EXAMPLE}
+                placeholder={format === 'json' ? JSON_EXAMPLE : format === 'text' ? TEXT_EXAMPLE : TEMPLATE_EXAMPLE}
                 placeholderTextColor={theme.muted}
                 multiline
                 autoCapitalize="none"
@@ -234,9 +344,16 @@ export default function BulkAdd({
               {!!error && <View style={{ marginTop: 12 }}><Notice text={error} error /></View>}
               {!!message && <View style={{ marginTop: 12 }}><Notice text={message} /></View>}
               {!error && raw.trim() !== '' && (
-                <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12, marginTop: 10 }}>
-                  ✓ {parsed.length} soru ayrıştırıldı
-                </Text>
+                <View style={{ marginTop: 10 }}>
+                  <Text style={{ color: theme.success, fontWeight: '700', fontSize: 12 }}>
+                    ✓ {parsed.length} soru ayrıştırıldı
+                  </Text>
+                  {format === 'template' && (
+                    <Text numberOfLines={2} style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+                      İlk soru: {firstQuestionText(parsed)}
+                    </Text>
+                  )}
+                </View>
               )}
             </ScrollView>
             <View style={{ padding: 16, borderTopWidth: 1, borderColor: theme.border, flexDirection: 'row', gap: 10 }}>
