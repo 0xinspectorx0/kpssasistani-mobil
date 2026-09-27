@@ -1,0 +1,561 @@
+diff --git a/HANDOFF.md b/HANDOFF.md
+index e59af99..99228b8 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -27,7 +27,7 @@
+ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
+ - **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir. **Ders ve konu ayrı ayrı seçilir:** önce ders çipleri, sonra o dersin konularını listediği açılır kutu (`Konu: ta-s3` kimliği `topicId` olarak kaydedilir); kullanıcı hangi konuya yüklediğini görmeli, önizleme satırı "Ders · Konu" bilgisini yazar. Tek soru için `Ders: matematik` / `Konu: mt-s3` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
+ - **Günün sözü balonu masaüstü web'de sol menüde, Profil'in hemen altında** (menü öğeleriyle aynı 27px/306px ritmi, 24px boşluk). Pencere kısaldığında ya da mobilde balon otomatik olarak ana sayfa gövdesine döner (`components/QuoteOfTheDay.tsx`, konumu `SIDEBAR_QUOTE_TOP` sabiti belirler; yan menü gerçek genişliği 360px — kütüphane `minWidth` değeri).
+-- **Test kurulumunda dersler kapalı (akordiyon) başlar:** `screens/QuizSetupScreen.tsx` içinde aynı anda yalnızca bir ders açık kalır (`expandedLesson`); tıklanan dersin konuları aşağıya iner, başka derse tıklanınca önceki kapanır. Ders başlığındaki "Tümünü seç" dersi açmadan tüm konularını seçmeye yarar. Seçili konular ders kapanınca korunur.
++- **Test kurulumunda konu balonu:** `screens/QuizSetupScreen.tsx` içinde dersler kapalı başlar; yalnızca tıklanan dersin konu listesi, kartın altında yüzen bir balon olarak açılır (`expandedLesson`). Aynı anda iki dersin arka planı açılmaz; balon en üst katmanda durur, beş konu yüksekliğinde sabit kalır ve içindeki kaydırma çubuğuyla diğer konular görülebilir. Ders başlığındaki "Tümünü seç" dersi açmadan tüm konularını seçmeye yarar. Seçili konular ders kapanınca korunur.
+ - **Yönetici Paneli masaüstü web'de sol menüde, Günün Sözü'nün üstünde** ayrı bir menü girişi olarak görünür (`App.tsx` → `Tabs`, konum `SIDEBAR_QUOTE_TOP`; balon `SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP` kadar aşağı kayar). Yalnızca admin oturumunda görünür (`useAdminAuth().isAdmin`); mobilde sol menü olmadığı için giriş `ProfileScreen.tsx` içinde kalır — mobil erişimi kırılmamalı.
+ - Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
+ - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
+diff --git a/screens/QuizScreen.tsx b/screens/QuizScreen.tsx
+index 7e2a0d7..a8dac2a 100644
+--- a/screens/QuizScreen.tsx
++++ b/screens/QuizScreen.tsx
+@@ -486,7 +486,7 @@ export default function QuizScreen({ navigation, route }: any) {
+                       {LETTERS[i]}
+                     </Text>
+                   </View>
+-                  <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '600', color: textColor, lineHeight: 21 }}>
++                  <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '400', color: textColor, lineHeight: 21 }}>
+                     {opt}
+                   </Text>
+                   {locked && isAnswer ? <Ionicons name="checkmark-circle" size={22} color={theme.success} /> : null}
+diff --git a/screens/QuizSetupScreen.tsx b/screens/QuizSetupScreen.tsx
+index 3fd7a70..1ee3648 100644
+--- a/screens/QuizSetupScreen.tsx
++++ b/screens/QuizSetupScreen.tsx
+@@ -10,6 +10,7 @@ import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META, useQuizQuotaS
+ import { radius } from '../lib/theme';
+ 
+ const COUNTS = [5, 10, 20];
++const TOPIC_ROW_HEIGHT = 38;
+ 
+ export default function QuizSetupScreen({ navigation }: any) {
+   const { theme } = useApp();
+@@ -20,7 +21,7 @@ export default function QuizSetupScreen({ navigation }: any) {
+   const { settings: quotaSettings } = useQuizQuotaSettings();
+   const [selectionMode, setSelectionMode] = useState<'all' | 'selected'>('all');
+   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+-  // Dersler kapalı başlar; akordiyon gibi yalnızca tıklanan dersin konuları açılır.
++  // Konu listesi kapalı başlar; aynı anda yalnızca tıklanan dersin balonu açık kalır.
+   const [expandedLesson, setExpandedLesson] = useState<string | null>(null);
+   const [count, setCount] = useState(10);
+   const [manualCount, setManualCount] = useState('');
+@@ -40,7 +41,6 @@ export default function QuizSetupScreen({ navigation }: any) {
+   const validRequestedCount = Number.isInteger(requestedCount) && requestedCount > 0;
+   const effectiveCount = validRequestedCount ? requestedCount : 0;
+ 
+-  // Akordiyon: aynı anda tek ders açık kalır, tıklanan ders kapanır/açılır.
+   const toggleLesson = (lessonId: string) => {
+     setExpandedLesson((current) => (current === lessonId ? null : lessonId));
+   };
+@@ -73,6 +73,172 @@ export default function QuizSetupScreen({ navigation }: any) {
+     setSelectedTopics([]);
+   };
+ 
++  const renderLessonCard = (lesson: (typeof LESSONS)[number]) => {
++    const expanded = expandedLesson === lesson.id;
++    const topicIds = lesson.topics.map((topic) => topic.id);
++    const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
++
++    return (
++      <Card
++        key={lesson.id}
++        style={{
++          padding: 0,
++          marginBottom: isDesktopWeb ? 0 : 10,
++          width: '100%',
++          height: 68,
++          flexGrow: 0,
++          flexShrink: 0,
++          position: 'relative',
++          overflow: 'visible',
++          zIndex: expanded ? 1000 : 1,
++          elevation: expanded ? 1000 : 2,
++        }}
++      >
++        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
++          <TouchableOpacity
++            accessibilityRole="button"
++            onPress={() => toggleLesson(lesson.id)}
++            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 }}
++          >
++            <View
++              style={{
++                width: 40,
++                height: 40,
++                borderRadius: 12,
++                backgroundColor: `${lesson.color}1A`,
++                alignItems: 'center',
++                justifyContent: 'center',
++                marginRight: 10,
++              }}
++            >
++              <Ionicons name={lesson.icon as any} size={20} color={lesson.color} />
++            </View>
++            <View style={{ flex: 1, minWidth: 0 }}>
++              <Text style={{ color: theme.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
++                {lesson.name}
++              </Text>
++              <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 2 }}>
++                {lesson.topics.length} konu · {QUESTIONS.filter((question) => question.category === lesson.id).length} soru
++              </Text>
++            </View>
++            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.muted} />
++          </TouchableOpacity>
++          <TouchableOpacity
++            accessibilityRole="button"
++            accessibilityLabel={`${lesson.name} dersinin tüm konularını ${allSelected ? 'kaldır' : 'seç'}`}
++            onPress={() => toggleLessonTopics(topicIds)}
++            style={{
++              marginLeft: 8,
++              paddingHorizontal: 9,
++              paddingVertical: 8,
++              borderRadius: 10,
++              backgroundColor: allSelected ? lesson.color : theme.card2,
++            }}
++          >
++            <Text style={{ color: allSelected ? '#fff' : theme.muted, fontSize: 10.5, fontWeight: '800' }}>
++              {allSelected ? 'Seçili' : 'Tümünü seç'}
++            </Text>
++          </TouchableOpacity>
++        </View>
++
++        {expanded && (
++          <View
++            style={{
++              position: 'absolute',
++              top: '100%',
++              left: 0,
++              right: 0,
++              marginTop: 8,
++              paddingHorizontal: 12,
++              paddingBottom: 12,
++              paddingTop: 4,
++              backgroundColor: theme.card,
++              borderWidth: 1,
++              borderColor: theme.border,
++              borderRadius: radius.lg,
++              zIndex: 1001,
++              elevation: 1000,
++              shadowColor: theme.shadow,
++              shadowOpacity: 0.18,
++              shadowRadius: 16,
++              shadowOffset: { width: 0, height: 8 },
++            }}
++          >
++            <View
++              pointerEvents="none"
++              style={{
++                position: 'absolute',
++                top: -6,
++                left: 28,
++                width: 12,
++                height: 12,
++                backgroundColor: theme.card,
++                borderLeftWidth: 1,
++                borderTopWidth: 1,
++                borderColor: theme.border,
++                transform: [{ rotate: '45deg' }],
++              }}
++            />
++            <ScrollView
++              style={{ height: TOPIC_ROW_HEIGHT * 5 }}
++              contentContainerStyle={{ paddingBottom: 0 }}
++              showsVerticalScrollIndicator={lesson.topics.length > 5}
++              nestedScrollEnabled
++              scrollEnabled={lesson.topics.length > 5}
++            >
++              {lesson.topics.map((topic) => {
++                const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
++                const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
++                return (
++                  <TouchableOpacity
++                    key={topic.id}
++                    accessibilityRole="checkbox"
++                    accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
++                    disabled={topicQuestionCount === 0}
++                    onPress={() => toggleTopic(topic.id)}
++                    activeOpacity={0.75}
++                    style={{
++                      height: TOPIC_ROW_HEIGHT,
++                      flexDirection: 'row',
++                      alignItems: 'center',
++                      backgroundColor: selected ? `${lesson.color}12` : 'transparent',
++                      borderTopWidth: 1,
++                      borderTopColor: theme.border,
++                      paddingHorizontal: 2,
++                      opacity: topicQuestionCount === 0 ? 0.45 : 1,
++                    }}
++                  >
++                    <View
++                      style={{
++                        width: 20,
++                        height: 20,
++                        borderRadius: 6,
++                        borderWidth: 1.5,
++                        borderColor: selected ? lesson.color : theme.border,
++                        backgroundColor: selected ? lesson.color : 'transparent',
++                        alignItems: 'center',
++                        justifyContent: 'center',
++                        marginRight: 10,
++                      }}
++                    >
++                      {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
++                    </View>
++                    <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
++                      {topic.name}
++                    </Text>
++                    <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
++                      {topicQuestionCount} soru
++                    </Text>
++                  </TouchableOpacity>
++                );
++              })}
++            </ScrollView>
++          </View>
++        )}
++      </Card>
++    );
++  };
++
+   return (
+     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
+       <ScrollView
+@@ -161,121 +327,33 @@ export default function QuizSetupScreen({ navigation }: any) {
+             {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
+           </TouchableOpacity>
+ 
+-          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14 } : undefined}>
+-            {LESSONS.map((lesson) => {
+-              const expanded = expandedLesson === lesson.id;
+-              const topicIds = lesson.topics.map((topic) => topic.id);
+-              const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
+-              return (
+-                <Card
+-                  key={lesson.id}
+-                  style={{
+-                    padding: 0,
+-                    marginBottom: isDesktopWeb ? 0 : 10,
+-                    width: isDesktopWeb ? '48.5%' : undefined,
+-                    overflow: 'hidden',
+-                  }}
+-                >
+-                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+-                    <TouchableOpacity
+-                      accessibilityRole="button"
+-                      onPress={() => toggleLesson(lesson.id)}
+-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 }}
+-                    >
+-                      <View
+-                        style={{
+-                          width: 40,
+-                          height: 40,
+-                          borderRadius: 12,
+-                          backgroundColor: `${lesson.color}1A`,
+-                          alignItems: 'center',
+-                          justifyContent: 'center',
+-                          marginRight: 10,
+-                        }}
+-                      >
+-                        <Ionicons name={lesson.icon as any} size={20} color={lesson.color} />
+-                      </View>
+-                      <View style={{ flex: 1, minWidth: 0 }}>
+-                        <Text style={{ color: theme.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
+-                          {lesson.name}
+-                        </Text>
+-                        <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 2 }}>
+-                          {lesson.topics.length} konu · {QUESTIONS.filter((question) => question.category === lesson.id).length} soru
+-                        </Text>
+-                      </View>
+-                      <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.muted} />
+-                    </TouchableOpacity>
+-                    <TouchableOpacity
+-                      accessibilityRole="button"
+-                      accessibilityLabel={`${lesson.name} dersinin tüm konularını ${allSelected ? 'kaldır' : 'seç'}`}
+-                      onPress={() => toggleLessonTopics(topicIds)}
++          <View style={{ overflow: 'visible', position: 'relative', zIndex: expandedLesson ? 1000 : 1 }}>
++            {isDesktopWeb
++              ? Array.from({ length: Math.ceil(LESSONS.length / 2) }, (_, rowIndex) => {
++                  const rowLessons = LESSONS.slice(rowIndex * 2, rowIndex * 2 + 2);
++                  const rowExpanded = rowLessons.some((lesson) => lesson.id === expandedLesson);
++                  return (
++                    <View
++                      key={`lesson-row-${rowIndex}`}
+                       style={{
+-                        marginLeft: 8,
+-                        paddingHorizontal: 9,
+-                        paddingVertical: 8,
+-                        borderRadius: 10,
+-                        backgroundColor: allSelected ? lesson.color : theme.card2,
++                        flexDirection: 'row',
++                        alignItems: 'flex-start',
++                        gap: 14,
++                        marginBottom: 14,
++                        overflow: 'visible',
++                        position: 'relative',
++                        zIndex: rowExpanded ? 1000 : 1,
+                       }}
+                     >
+-                      <Text style={{ color: allSelected ? '#fff' : theme.muted, fontSize: 10.5, fontWeight: '800' }}>
+-                        {allSelected ? 'Seçili' : 'Tümünü seç'}
+-                      </Text>
+-                    </TouchableOpacity>
+-                  </View>
+-
+-                  {expanded && (
+-                    <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+-                      {lesson.topics.map((topic) => {
+-                        const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
+-                        const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
+-                        return (
+-                          <TouchableOpacity
+-                            key={topic.id}
+-                            accessibilityRole="checkbox"
+-                            accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
+-                            disabled={topicQuestionCount === 0}
+-                            onPress={() => toggleTopic(topic.id)}
+-                            activeOpacity={0.75}
+-                            style={{
+-                              flexDirection: 'row',
+-                              alignItems: 'center',
+-                              backgroundColor: selected ? `${lesson.color}12` : 'transparent',
+-                              borderTopWidth: 1,
+-                              borderTopColor: theme.border,
+-                              paddingVertical: 10,
+-                              paddingHorizontal: 2,
+-                              opacity: topicQuestionCount === 0 ? 0.45 : 1,
+-                            }}
+-                          >
+-                            <View
+-                              style={{
+-                                width: 20,
+-                                height: 20,
+-                                borderRadius: 6,
+-                                borderWidth: 1.5,
+-                                borderColor: selected ? lesson.color : theme.border,
+-                                backgroundColor: selected ? lesson.color : 'transparent',
+-                                alignItems: 'center',
+-                                justifyContent: 'center',
+-                                marginRight: 10,
+-                              }}
+-                            >
+-                              {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+-                            </View>
+-                            <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
+-                              {topic.name}
+-                            </Text>
+-                            <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
+-                              {topicQuestionCount} soru
+-                            </Text>
+-                          </TouchableOpacity>
+-                        );
+-                      })}
++                      {rowLessons.map((lesson) => (
++                        <View key={lesson.id} style={{ flex: 1, minWidth: 0, alignSelf: 'flex-start', overflow: 'visible' }}>
++                          {renderLessonCard(lesson)}
++                        </View>
++                      ))}
+                     </View>
+-                  )}
+-                </Card>
+-              );
+-            })}
++                  );
++                })
++              : LESSONS.map(renderLessonCard)}
+           </View>
+         </View>
+ 
+diff --git a/yeni-sohbet-topic-popup.patch b/yeni-sohbet-topic-popup.patch
+new file mode 100644
+index 0000000..5be5d2c
+--- /dev/null
++++ b/yeni-sohbet-topic-popup.patch
+@@ -0,0 +1,182 @@
++From 15ecd2e42a2903128e85756df17e93e8a91ec018 Mon Sep 17 00:00:00 2001
++From: 0xinspectorx0 <124451381+0xinspectorx0@users.noreply.github.com>
++Date: Sun, 27 Sep 2026 21:57:11 +0000
++Subject: [PATCH] fix: keep topic popup visible and scrollable
++
++Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
++---
++ HANDOFF.md                  |   2 +-
++ screens/QuizSetupScreen.tsx | 105 +++++++++++++++++++-----------------
++ 2 files changed, 58 insertions(+), 49 deletions(-)
++
++diff --git a/HANDOFF.md b/HANDOFF.md
++index 2a2a6b6..99228b8 100644
++--- a/HANDOFF.md
+++++ b/HANDOFF.md
++@@ -27,7 +27,7 @@
++ - Hızlı Erişim kartları çerçeveleri eşit/sabit olmalı (içerikle değişmeyecek).
++ - **Toplu soru yükleme kalıbı:** Kullanıcı soruları her zaman "Hazır soru kalıbı" biçiminde yapıştırır (numaralı + kalın başlıklı soru metni, `I/II/III` önülleri, A–E şıkları, `Cevap:` ve `Açıklama:` satırları, `---` ayraç). Ayrıştırıcı `lib/bulk-questions.ts`, arayüz `components/admin/BulkAdd.tsx` içindedir. **Ders ve konu ayrı ayrı seçilir:** önce ders çipleri, sonra o dersin konularını listediği açılır kutu (`Konu: ta-s3` kimliği `topicId` olarak kaydedilir); kullanıcı hangi konuya yüklediğini görmeli, önizleme satırı "Ders · Konu" bilgisini yazar. Tek soru için `Ders: matematik` / `Konu: mt-s3` / `Zorluk: Zor` satırı geçerlidir. Kalıbı değiştirirken `tests/bulk-questions.test.ts` güncellenmeli.
++ - **Günün sözü balonu masaüstü web'de sol menüde, Profil'in hemen altında** (menü öğeleriyle aynı 27px/306px ritmi, 24px boşluk). Pencere kısaldığında ya da mobilde balon otomatik olarak ana sayfa gövdesine döner (`components/QuoteOfTheDay.tsx`, konumu `SIDEBAR_QUOTE_TOP` sabiti belirler; yan menü gerçek genişliği 360px — kütüphane `minWidth` değeri).
++-- **Test kurulumunda konu balonu:** `screens/QuizSetupScreen.tsx` içinde dersler kapalı başlar; yalnızca tıklanan dersin konu listesi, kartın altında yüzen bir balon olarak açılır (`expandedLesson`). Aynı anda iki dersin arka planı açılmaz; ders başlığındaki "Tümünü seç" dersi açmadan tüm konularını seçmeye yarar. Seçili konular ders kapanınca korunur.
+++- **Test kurulumunda konu balonu:** `screens/QuizSetupScreen.tsx` içinde dersler kapalı başlar; yalnızca tıklanan dersin konu listesi, kartın altında yüzen bir balon olarak açılır (`expandedLesson`). Aynı anda iki dersin arka planı açılmaz; balon en üst katmanda durur, beş konu yüksekliğinde sabit kalır ve içindeki kaydırma çubuğuyla diğer konular görülebilir. Ders başlığındaki "Tümünü seç" dersi açmadan tüm konularını seçmeye yarar. Seçili konular ders kapanınca korunur.
++ - **Yönetici Paneli masaüstü web'de sol menüde, Günün Sözü'nün üstünde** ayrı bir menü girişi olarak görünür (`App.tsx` → `Tabs`, konum `SIDEBAR_QUOTE_TOP`; balon `SIDEBAR_ADMIN_HEIGHT + SIDEBAR_ADMIN_GAP` kadar aşağı kayar). Yalnızca admin oturumunda görünür (`useAdminAuth().isAdmin`); mobilde sol menü olmadığı için giriş `ProfileScreen.tsx` içinde kalır — mobil erişimi kırılmamalı.
++ - Test akışında üstteki çıkış butonu web ve native'de çalışan onay modalı göstermeli; test kurulumunda tüm konular veya tek/çoklu konu seçimi sunulmalı; çoklu konu testinde sorular konulara dengeli dağıtılmalı ve havuz yetersizse seçilen sayı tamamlanana kadar her konu havuzu kendi içinde yeniden karıştırılarak soru tekrarına izin verilmeli; soru sayısı seçenekleri 5, 10, 20 ve manuel giriş olarak dört kutuda yan yana gösterilmeli. Ana sayfadaki ders kartı doğrudan testi başlatmaz; konu seçme penceresini açar. Günün Sorusu da modal içinde çözülebilir.
++ - Admin girişi normal panel üzerinden; roller 3 seviye (Yönetici/Editör/Görüntüleyici); kota varsayılanı misafir 1, ücretsiz 3, VIP sınırsız. Admin panelindeki Test Kotaları bölümünden Misafir/Üye/VIP limitleri değiştirilebilir, VIP sınırsız seçeneği korunur.
++diff --git a/screens/QuizSetupScreen.tsx b/screens/QuizSetupScreen.tsx
++index 81635ce..1ee3648 100644
++--- a/screens/QuizSetupScreen.tsx
+++++ b/screens/QuizSetupScreen.tsx
++@@ -10,6 +10,7 @@ import { planFor, dailyLimit, todayCount, quotaUserKey, PLAN_META, useQuizQuotaS
++ import { radius } from '../lib/theme';
++ 
++ const COUNTS = [5, 10, 20];
+++const TOPIC_ROW_HEIGHT = 38;
++ 
++ export default function QuizSetupScreen({ navigation }: any) {
++   const { theme } = useApp();
++@@ -89,8 +90,8 @@ export default function QuizSetupScreen({ navigation }: any) {
++           flexShrink: 0,
++           position: 'relative',
++           overflow: 'visible',
++-          zIndex: expanded ? 20 : 1,
++-          elevation: expanded ? 10 : 2,
+++          zIndex: expanded ? 1000 : 1,
+++          elevation: expanded ? 1000 : 2,
++         }}
++       >
++         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
++@@ -155,8 +156,8 @@ export default function QuizSetupScreen({ navigation }: any) {
++               borderWidth: 1,
++               borderColor: theme.border,
++               borderRadius: radius.lg,
++-              zIndex: 30,
++-              elevation: 12,
+++              zIndex: 1001,
+++              elevation: 1000,
++               shadowColor: theme.shadow,
++               shadowOpacity: 0.18,
++               shadowRadius: 16,
++@@ -178,52 +179,60 @@ export default function QuizSetupScreen({ navigation }: any) {
++                 transform: [{ rotate: '45deg' }],
++               }}
++             />
++-            {lesson.topics.map((topic) => {
++-              const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
++-              const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
++-              return (
++-                <TouchableOpacity
++-                  key={topic.id}
++-                  accessibilityRole="checkbox"
++-                  accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
++-                  disabled={topicQuestionCount === 0}
++-                  onPress={() => toggleTopic(topic.id)}
++-                  activeOpacity={0.75}
++-                  style={{
++-                    flexDirection: 'row',
++-                    alignItems: 'center',
++-                    backgroundColor: selected ? `${lesson.color}12` : 'transparent',
++-                    borderTopWidth: 1,
++-                    borderTopColor: theme.border,
++-                    paddingVertical: 10,
++-                    paddingHorizontal: 2,
++-                    opacity: topicQuestionCount === 0 ? 0.45 : 1,
++-                  }}
++-                >
++-                  <View
+++            <ScrollView
+++              style={{ height: TOPIC_ROW_HEIGHT * 5 }}
+++              contentContainerStyle={{ paddingBottom: 0 }}
+++              showsVerticalScrollIndicator={lesson.topics.length > 5}
+++              nestedScrollEnabled
+++              scrollEnabled={lesson.topics.length > 5}
+++            >
+++              {lesson.topics.map((topic) => {
+++                const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
+++                const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
+++                return (
+++                  <TouchableOpacity
+++                    key={topic.id}
+++                    accessibilityRole="checkbox"
+++                    accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
+++                    disabled={topicQuestionCount === 0}
+++                    onPress={() => toggleTopic(topic.id)}
+++                    activeOpacity={0.75}
++                     style={{
++-                      width: 20,
++-                      height: 20,
++-                      borderRadius: 6,
++-                      borderWidth: 1.5,
++-                      borderColor: selected ? lesson.color : theme.border,
++-                      backgroundColor: selected ? lesson.color : 'transparent',
+++                      height: TOPIC_ROW_HEIGHT,
+++                      flexDirection: 'row',
++                       alignItems: 'center',
++-                      justifyContent: 'center',
++-                      marginRight: 10,
+++                      backgroundColor: selected ? `${lesson.color}12` : 'transparent',
+++                      borderTopWidth: 1,
+++                      borderTopColor: theme.border,
+++                      paddingHorizontal: 2,
+++                      opacity: topicQuestionCount === 0 ? 0.45 : 1,
++                     }}
++                   >
++-                    {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
++-                  </View>
++-                  <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
++-                    {topic.name}
++-                  </Text>
++-                  <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
++-                    {topicQuestionCount} soru
++-                  </Text>
++-                </TouchableOpacity>
++-              );
++-            })}
+++                    <View
+++                      style={{
+++                        width: 20,
+++                        height: 20,
+++                        borderRadius: 6,
+++                        borderWidth: 1.5,
+++                        borderColor: selected ? lesson.color : theme.border,
+++                        backgroundColor: selected ? lesson.color : 'transparent',
+++                        alignItems: 'center',
+++                        justifyContent: 'center',
+++                        marginRight: 10,
+++                      }}
+++                    >
+++                      {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+++                    </View>
+++                    <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
+++                      {topic.name}
+++                    </Text>
+++                    <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
+++                      {topicQuestionCount} soru
+++                    </Text>
+++                  </TouchableOpacity>
+++                );
+++              })}
+++            </ScrollView>
++           </View>
++         )}
++       </Card>
++@@ -318,7 +327,7 @@ export default function QuizSetupScreen({ navigation }: any) {
++             {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
++           </TouchableOpacity>
++ 
++-          <View style={{ overflow: 'visible' }}>
+++          <View style={{ overflow: 'visible', position: 'relative', zIndex: expandedLesson ? 1000 : 1 }}>
++             {isDesktopWeb
++               ? Array.from({ length: Math.ceil(LESSONS.length / 2) }, (_, rowIndex) => {
++                   const rowLessons = LESSONS.slice(rowIndex * 2, rowIndex * 2 + 2);
++@@ -333,7 +342,7 @@ export default function QuizSetupScreen({ navigation }: any) {
++                         marginBottom: 14,
++                         overflow: 'visible',
++                         position: 'relative',
++-                        zIndex: rowExpanded ? 20 : 1,
+++                        zIndex: rowExpanded ? 1000 : 1,
++                       }}
++                     >
++                       {rowLessons.map((lesson) => (
++-- 
++2.39.5
++
