@@ -72,6 +72,162 @@ export default function QuizSetupScreen({ navigation }: any) {
     setSelectedTopics([]);
   };
 
+  const renderLessonCard = (lesson: (typeof LESSONS)[number]) => {
+    const expanded = expandedLesson === lesson.id;
+    const topicIds = lesson.topics.map((topic) => topic.id);
+    const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
+
+    return (
+      <Card
+        key={lesson.id}
+        style={{
+          padding: 0,
+          marginBottom: isDesktopWeb ? 0 : 10,
+          flex: isDesktopWeb ? 1 : undefined,
+          minWidth: isDesktopWeb ? 0 : undefined,
+          position: 'relative',
+          overflow: 'visible',
+          zIndex: expanded ? 20 : 1,
+          elevation: expanded ? 10 : 2,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => toggleLesson(lesson.id)}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: `${lesson.color}1A`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}
+            >
+              <Ionicons name={lesson.icon as any} size={20} color={lesson.color} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
+                {lesson.name}
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 2 }}>
+                {lesson.topics.length} konu · {QUESTIONS.filter((question) => question.category === lesson.id).length} soru
+              </Text>
+            </View>
+            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.muted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${lesson.name} dersinin tüm konularını ${allSelected ? 'kaldır' : 'seç'}`}
+            onPress={() => toggleLessonTopics(topicIds)}
+            style={{
+              marginLeft: 8,
+              paddingHorizontal: 9,
+              paddingVertical: 8,
+              borderRadius: 10,
+              backgroundColor: allSelected ? lesson.color : theme.card2,
+            }}
+          >
+            <Text style={{ color: allSelected ? '#fff' : theme.muted, fontSize: 10.5, fontWeight: '800' }}>
+              {allSelected ? 'Seçili' : 'Tümünü seç'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {expanded && (
+          <View
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: 8,
+              paddingHorizontal: 12,
+              paddingBottom: 12,
+              paddingTop: 4,
+              backgroundColor: theme.card,
+              borderWidth: 1,
+              borderColor: theme.border,
+              borderRadius: radius.lg,
+              zIndex: 30,
+              elevation: 12,
+              shadowColor: theme.shadow,
+              shadowOpacity: 0.18,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 8 },
+            }}
+          >
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: -6,
+                left: 28,
+                width: 12,
+                height: 12,
+                backgroundColor: theme.card,
+                borderLeftWidth: 1,
+                borderTopWidth: 1,
+                borderColor: theme.border,
+                transform: [{ rotate: '45deg' }],
+              }}
+            />
+            {lesson.topics.map((topic) => {
+              const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
+              const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
+              return (
+                <TouchableOpacity
+                  key={topic.id}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
+                  disabled={topicQuestionCount === 0}
+                  onPress={() => toggleTopic(topic.id)}
+                  activeOpacity={0.75}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: selected ? `${lesson.color}12` : 'transparent',
+                    borderTopWidth: 1,
+                    borderTopColor: theme.border,
+                    paddingVertical: 10,
+                    paddingHorizontal: 2,
+                    opacity: topicQuestionCount === 0 ? 0.45 : 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 6,
+                      borderWidth: 1.5,
+                      borderColor: selected ? lesson.color : theme.border,
+                      backgroundColor: selected ? lesson.color : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </View>
+                  <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
+                    {topic.name}
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
+                    {topicQuestionCount} soru
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </Card>
+    );
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
       <ScrollView
@@ -160,161 +316,33 @@ export default function QuizSetupScreen({ navigation }: any) {
             {selectionMode === 'all' && <Ionicons name="checkmark-circle" size={22} color={theme.accent} />}
           </TouchableOpacity>
 
-          <View style={isDesktopWeb ? { flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start', alignContent: 'flex-start', overflow: 'visible' } : undefined}>
-            {LESSONS.map((lesson) => {
-              const expanded = expandedLesson === lesson.id;
-              const topicIds = lesson.topics.map((topic) => topic.id);
-              const allSelected = selectionMode === 'selected' && topicIds.length > 0 && topicIds.every((id) => selectedTopics.includes(id));
-              return (
-                <Card
-                  key={lesson.id}
-                  style={{
-                    padding: 0,
-                    marginBottom: isDesktopWeb ? 0 : 10,
-                    width: isDesktopWeb ? '48.5%' : undefined,
-                    alignSelf: isDesktopWeb ? 'flex-start' : undefined,
-                    position: 'relative',
-                    overflow: 'visible',
-                    zIndex: expanded ? 20 : 1,
-                    elevation: expanded ? 10 : 2,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      onPress={() => toggleLesson(lesson.id)}
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 }}
-                    >
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 12,
-                          backgroundColor: `${lesson.color}1A`,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginRight: 10,
-                        }}
-                      >
-                        <Ionicons name={lesson.icon as any} size={20} color={lesson.color} />
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ color: theme.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
-                          {lesson.name}
-                        </Text>
-                        <Text style={{ color: theme.muted, fontSize: 11.5, marginTop: 2 }}>
-                          {lesson.topics.length} konu · {QUESTIONS.filter((question) => question.category === lesson.id).length} soru
-                        </Text>
-                      </View>
-                      <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={theme.muted} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityLabel={`${lesson.name} dersinin tüm konularını ${allSelected ? 'kaldır' : 'seç'}`}
-                      onPress={() => toggleLessonTopics(topicIds)}
-                      style={{
-                        marginLeft: 8,
-                        paddingHorizontal: 9,
-                        paddingVertical: 8,
-                        borderRadius: 10,
-                        backgroundColor: allSelected ? lesson.color : theme.card2,
-                      }}
-                    >
-                      <Text style={{ color: allSelected ? '#fff' : theme.muted, fontSize: 10.5, fontWeight: '800' }}>
-                        {allSelected ? 'Seçili' : 'Tümünü seç'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {expanded && (
+          <View style={{ overflow: 'visible' }}>
+            {isDesktopWeb
+              ? Array.from({ length: Math.ceil(LESSONS.length / 2) }, (_, rowIndex) => {
+                  const rowLessons = LESSONS.slice(rowIndex * 2, rowIndex * 2 + 2);
+                  const rowExpanded = rowLessons.some((lesson) => lesson.id === expandedLesson);
+                  return (
                     <View
+                      key={`lesson-row-${rowIndex}`}
                       style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                        marginTop: 8,
-                        paddingHorizontal: 12,
-                        paddingBottom: 12,
-                        paddingTop: 4,
-                        backgroundColor: theme.card,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: radius.lg,
-                        zIndex: 30,
-                        elevation: 12,
-                        shadowColor: theme.shadow,
-                        shadowOpacity: 0.18,
-                        shadowRadius: 16,
-                        shadowOffset: { width: 0, height: 8 },
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        gap: 14,
+                        marginBottom: 14,
+                        overflow: 'visible',
+                        position: 'relative',
+                        zIndex: rowExpanded ? 20 : 1,
                       }}
                     >
-                      <View
-                        pointerEvents="none"
-                        style={{
-                          position: 'absolute',
-                          top: -6,
-                          left: 28,
-                          width: 12,
-                          height: 12,
-                          backgroundColor: theme.card,
-                          borderLeftWidth: 1,
-                          borderTopWidth: 1,
-                          borderColor: theme.border,
-                          transform: [{ rotate: '45deg' }],
-                        }}
-                      />
-                      {lesson.topics.map((topic) => {
-                        const selected = selectionMode === 'selected' && selectedTopics.includes(topic.id);
-                        const topicQuestionCount = QUESTIONS.filter((question) => question.topicId === topic.id).length;
-                        return (
-                          <TouchableOpacity
-                            key={topic.id}
-                            accessibilityRole="checkbox"
-                            accessibilityState={{ checked: selected, disabled: topicQuestionCount === 0 }}
-                            disabled={topicQuestionCount === 0}
-                            onPress={() => toggleTopic(topic.id)}
-                            activeOpacity={0.75}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              backgroundColor: selected ? `${lesson.color}12` : 'transparent',
-                              borderTopWidth: 1,
-                              borderTopColor: theme.border,
-                              paddingVertical: 10,
-                              paddingHorizontal: 2,
-                              opacity: topicQuestionCount === 0 ? 0.45 : 1,
-                            }}
-                          >
-                            <View
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: 6,
-                                borderWidth: 1.5,
-                                borderColor: selected ? lesson.color : theme.border,
-                                backgroundColor: selected ? lesson.color : 'transparent',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginRight: 10,
-                              }}
-                            >
-                              {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
-                            </View>
-                            <Text style={{ flex: 1, color: selected ? theme.text : theme.muted, fontSize: 12.5, fontWeight: selected ? '700' : '500' }}>
-                              {topic.name}
-                            </Text>
-                            <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '700' }}>
-                              {topicQuestionCount} soru
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                      {rowLessons.map((lesson) => (
+                        <View key={lesson.id} style={{ flex: 1, minWidth: 0, alignSelf: 'flex-start', overflow: 'visible' }}>
+                          {renderLessonCard(lesson)}
+                        </View>
+                      ))}
                     </View>
-                  )}
-                </Card>
-              );
-            })}
+                  );
+                })
+              : LESSONS.map(renderLessonCard)}
           </View>
         </View>
 
