@@ -83,8 +83,10 @@ export default function QuizSetupScreen({ navigation }: any) {
         style={{
           padding: 0,
           marginBottom: isDesktopWeb ? 0 : 10,
-          flex: isDesktopWeb ? 1 : undefined,
-          minWidth: isDesktopWeb ? 0 : undefined,
+          width: '100%',
+          height: 68,
+          flexGrow: 0,
+          flexShrink: 0,
           position: 'relative',
           overflow: 'visible',
           zIndex: expanded ? 20 : 1,
